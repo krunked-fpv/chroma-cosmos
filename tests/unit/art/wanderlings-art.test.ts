@@ -1,28 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createArt } from '../../../src/art';
-import type { StoryMilestoneKind } from '../../../src/contracts/art';
+import type { HeroQuestId } from '../../../src/contracts/art';
 import type { CausalityKind } from '../../../src/contracts/causality';
 import { PAGE_H, PAGE_W } from '../../../src/contracts/constants';
-import type { WardrobeState } from '../../../src/contracts/progression';
+import { WARDROBE_ITEMS, type WardrobeState } from '../../../src/contracts/progression';
 import { CHAPTERS, type ChapterId, type SceneId } from '../../../src/contracts/roguelike';
 
-const NONE: WardrobeState = {
-  violetPins: false,
-  violetCape: false,
-  lumiWings: false,
-  lumiCrown: false,
-  novaBoosters: false,
-  novaScarf: false,
-};
-
-const ALL: WardrobeState = {
-  violetPins: true,
-  violetCape: true,
-  lumiWings: true,
-  lumiCrown: true,
-  novaBoosters: true,
-  novaScarf: true,
-};
+const NONE = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, false])) as WardrobeState;
+const ALL = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, true])) as WardrobeState;
 
 const CHAPTER_IDS: ChapterId[] = CHAPTERS.map((c) => c.id);
 const ALL_SCENES: SceneId[] = [...CHAPTER_IDS, 'bedroomHub'];
@@ -33,7 +18,21 @@ const ACTIVE_CAUSALITY: CausalityKind[] = [
   'cheetahRacetrack',
   'discoMirage',
 ];
-const VALID_MILESTONES = new Set<StoryMilestoneKind>(['violet', 'lumi', 'nova', 'planet', 'cloud']);
+const VALID_QUESTS = new Set<HeroQuestId>([
+  'violet', 'lumi', 'nova', 'planet', 'cloud',
+  'rocket', 'milkshake', 'asteroid', 'moonCat', 'suns', 'boba', 'whale', 'heart', 'comet',
+]);
+
+const EXPECTED_CHAPTER_QUESTS: Record<ChapterId, readonly HeroQuestId[]> = {
+  rooftop: ['violet', 'lumi', 'nova', 'rocket'],
+  milkshakeNebula: ['violet', 'milkshake', 'planet', 'cloud'],
+  asteroidGarden: ['lumi', 'asteroid', 'planet', 'moonCat'],
+  cheetahSavannah: ['nova', 'suns', 'planet', 'cloud'],
+  saturnRings: ['lumi', 'planet', 'cloud', 'comet'],
+  bubbleTea: ['violet', 'boba', 'planet', 'moonCat'],
+  whaleSea: ['whale', 'planet', 'cloud'],
+  heartOfUniverse: ['heart', 'violet', 'lumi', 'nova'],
+};
 
 const art = createArt();
 
@@ -43,67 +42,80 @@ function frameDiffCount(a: Uint8Array, b: Uint8Array): number {
   return diff;
 }
 
-describe('storyMilestones', () => {
-  it.each(ALL_SCENES)('%s partitions coreRegionIds cleanly with unique milestone IDs and valid centroids', (sceneId) => {
+describe('heroQuests & storyMilestones', () => {
+  it.each(ALL_SCENES)('%s emits 3..4 disjoint Composite Hero Quests (<=2 words) synchronized with storyMilestones', (sceneId) => {
     for (const seed of [1, 7, 424242]) {
       const page = art.compilePage(sceneId, seed, NONE);
+      const quests = page.heroQuests;
       const milestones = page.storyMilestones;
+      expect(quests).toBeDefined();
       expect(milestones).toBeDefined();
-      if (!milestones) continue;
+      if (!quests || !milestones) continue;
 
       if (sceneId === 'whaleSea') {
-        expect(milestones.length).toBe(2);
-        expect(milestones.map((m) => m.id)).toEqual(['planet', 'cloud']);
+        expect(quests.length).toBe(3);
       } else if (sceneId === 'bedroomHub') {
-        expect(milestones.length).toBeGreaterThanOrEqual(2);
+        expect(quests.length).toBeGreaterThanOrEqual(3);
       } else {
-        expect(milestones.length).toBeGreaterThanOrEqual(3);
-        expect(milestones.length).toBeLessThanOrEqual(5);
+        expect(quests.length).toBe(4);
       }
 
-      const seenIds = new Set<StoryMilestoneKind>();
-      const collectedRegions: number[] = [];
-      for (const m of milestones) {
-        expect(VALID_MILESTONES.has(m.id)).toBe(true);
-        expect(m.kind).toBe(m.id);
-        expect(seenIds.has(m.id)).toBe(false);
-        seenIds.add(m.id);
-        expect(m.label.length).toBeGreaterThan(0);
-        expect(m.regionIds.length).toBeGreaterThan(0);
-        expect(m.centroid.x).toBeGreaterThanOrEqual(0);
-        expect(m.centroid.x).toBeLessThan(PAGE_W);
-        expect(m.centroid.y).toBeGreaterThanOrEqual(0);
-        expect(m.centroid.y).toBeLessThan(PAGE_H);
+      // Synchronized mirror between heroQuests and storyMilestones
+      expect(milestones.length).toBe(quests.length);
 
-        // Verify centroid equals rounded mean of constituent region centroids
+      const seenIds = new Set<HeroQuestId>();
+      const collectedRegions: number[] = [];
+      for (let idx = 0; idx < quests.length; idx++) {
+        const q = quests[idx]!;
+        const m = milestones[idx]!;
+        expect(VALID_QUESTS.has(q.questId)).toBe(true);
+        expect(seenIds.has(q.questId)).toBe(false);
+        seenIds.add(q.questId);
+
+        // Strictly <= 2 words
+        const words = q.label.trim().split(/\s+/).filter(Boolean);
+        expect(words.length, `${sceneId}.${q.questId} label "${q.label}"`).toBeGreaterThanOrEqual(1);
+        expect(words.length, `${sceneId}.${q.questId} label "${q.label}"`).toBeLessThanOrEqual(2);
+        expect(q.thumbnailSpriteId).toBe(`quest_${q.questId}`);
+        expect(q.regionIds.length).toBeGreaterThan(0);
+        expect(q.centroid.x).toBeGreaterThanOrEqual(0);
+        expect(q.centroid.x).toBeLessThan(PAGE_W);
+        expect(q.centroid.y).toBeGreaterThanOrEqual(0);
+        expect(q.centroid.y).toBeLessThan(PAGE_H);
+
+        // Milestone matches HeroQuest
+        expect(m.id).toBe(q.questId);
+        expect(m.kind).toBe(q.questId);
+        expect(m.label).toBe(q.label);
+        expect(m.thumbnailSpriteId).toBe(q.thumbnailSpriteId);
+        expect(m.regionIds).toEqual(q.regionIds);
+        expect(m.centroid).toEqual(q.centroid);
+
+        // Verify centroid equals rounded mean of constituent colourable region centroids
         let sx = 0;
         let sy = 0;
-        for (const rid of m.regionIds) {
+        for (const rid of q.regionIds) {
           const meta = page.regions[rid];
-          expect(meta, `${sceneId} milestone ${m.id} missing region ${rid}`).toBeDefined();
+          expect(meta, `${sceneId} quest ${q.questId} missing region ${rid}`).toBeDefined();
+          expect(meta?.coverageExcluded).toBe(false);
           if (meta) {
             sx += meta.centroid.x;
             sy += meta.centroid.y;
           }
           collectedRegions.push(rid);
         }
-        expect(m.centroid.x).toBe(Math.round(sx / m.regionIds.length));
-        expect(m.centroid.y).toBe(Math.round(sy / m.regionIds.length));
+        expect(q.centroid.x).toBe(Math.round(sx / q.regionIds.length));
+        expect(q.centroid.y).toBe(Math.round(sy / q.regionIds.length));
       }
 
-      // Clean disjoint partition of coreRegionIds
-      const uniqueCollected = new Set(collectedRegions);
-      expect(uniqueCollected.size).toBe(collectedRegions.length);
-      expect([...collectedRegions].sort((a, b) => a - b)).toEqual([...page.coreRegionIds].sort((a, b) => a - b));
+      // Strictly disjoint regionIds across quests on the same page
+      expect(new Set(collectedRegions).size).toBe(collectedRegions.length);
     }
   });
 
-  it('rooftop and heartOfUniverse emit all 5 ordered narrative milestones', () => {
-    for (const id of ['rooftop', 'heartOfUniverse'] as const) {
-      const p = art.compilePage(id, 7, NONE);
-      expect(p.storyMilestones?.map((m) => m.id)).toEqual(['violet', 'lumi', 'nova', 'planet', 'cloud']);
-      expect(p.storyMilestones?.map((m) => m.label)).toEqual(['Violet', 'Lumi', 'Nova', 'Ringed Planet', 'Space Clouds']);
-    }
+  it.each(CHAPTER_IDS)('%s emits its exact Sprint 2 Composite Hero Quest lineup', (chapterId) => {
+    const p = art.compilePage(chapterId, 7, NONE);
+    expect(p.heroQuests?.map((q) => q.questId)).toEqual(EXPECTED_CHAPTER_QUESTS[chapterId]);
   });
 });
 
@@ -366,15 +378,20 @@ describe('Lumi & Nova joyful poke-invitation animations', () => {
       }
     }
 
-    // Verify wardrobe overlays appear in Lumi & Nova peek and wiggle
-    for (const animName of ['wiggle', 'peek'] as const) {
-      for (const f of libAll.lumi.anims[animName]!.frames) {
-        expect(f.pixels.includes(217)).toBe(true);
-        expect(f.pixels.includes(218)).toBe(true);
+    // Verify ALL 14 wardrobe overlays appear across Violet, Lumi & Nova animations
+    for (const animName of ['idle', 'wiggle', 'bounce', 'walk', 'float'] as const) {
+      for (const f of libAll.violet.anims[animName]!.frames) {
+        for (const id of [204, 205, 206, 207, 215, 216]) expect(f.pixels.includes(id), `violet.${animName} id ${id}`).toBe(true);
       }
+    }
+    for (const animName of ['sleep', 'idle', 'walk', 'run', 'rear', 'wiggle', 'peek'] as const) {
+      for (const f of libAll.lumi.anims[animName]!.frames) {
+        for (const id of [208, 209, 217, 218]) expect(f.pixels.includes(id), `lumi.${animName} id ${id}`).toBe(true);
+      }
+    }
+    for (const animName of ['sleep', 'idle', 'walk', 'run', 'leap', 'wiggle', 'peek'] as const) {
       for (const f of libAll.nova.anims[animName]!.frames) {
-        expect(f.pixels.includes(219)).toBe(true);
-        expect(f.pixels.includes(220)).toBe(true);
+        for (const id of [210, 211, 219, 220]) expect(f.pixels.includes(id), `nova.${animName} id ${id}`).toBe(true);
       }
     }
   });

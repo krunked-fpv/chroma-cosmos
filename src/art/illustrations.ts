@@ -1,7 +1,8 @@
 /**
- * Procedural storybook illustrations (doors, draft cards, relic stickers, wardrobe icons, material swatches,
- * book covers, portraits). Every kind is drawn at a low internal resolution with 1px ink outlines and then
- * NEAREST-upscaled to exactly w x h. Pure + deterministic (seeded PRNG only).
+ * Procedural storybook illustrations (doors, draft cards, brush icons, relic stickers, wardrobe icons,
+ * material swatches, book covers, portraits, Hi-Bit UI sprites, and Hero Quest medallions).
+ * Every kind is drawn at a low internal resolution with 1px ink outlines and then NEAREST-upscaled
+ * to exactly w x h. Pure + deterministic (seeded PRNG only).
  */
 import type { IllustrationKind, PixelImage } from '../contracts/art';
 import { Canvas, upscale } from './illo/canvas';
@@ -12,16 +13,20 @@ import { drawWardrobe } from './illo/wardrobe';
 import { drawMaterial } from './illo/material';
 import { drawBookCover } from './illo/cover';
 import { drawPortrait } from './illo/portrait';
+import { drawBrushCanvas, drawQuestMedallionCanvas, drawUiSpriteCanvas } from './illo/uiSprites';
 
 /** longest internal side per kind (art-directed chunkiness) */
 const CAP: Record<IllustrationKind['type'], number> = {
   door: 120,
   card: 120,
+  brushIcon: 32,
   relicSticker: 96,
   wardrobe: 72,
   material: 72,
   bookCover: 128,
   portrait: 112,
+  uiSprite: 32,
+  questMedallion: 32,
 };
 
 export function internalSize(w: number, h: number, cap: number): { lw: number; lh: number; k: number } {
@@ -41,6 +46,9 @@ export function illustration(kind: IllustrationKind, w: number, h: number): Pixe
     case 'card':
       c = drawCard(kind.card, lw, lh);
       break;
+    case 'brushIcon':
+      c = drawBrushCanvas(kind.brush, lw, lh);
+      break;
     case 'relicSticker':
       c = drawRelicSticker(kind.relic, lw, lh);
       break;
@@ -55,6 +63,12 @@ export function illustration(kind: IllustrationKind, w: number, h: number): Pixe
       break;
     case 'portrait':
       c = drawPortrait(kind.who, lw, lh);
+      break;
+    case 'uiSprite':
+      c = drawUiSpriteCanvas(kind.id, lw, lh);
+      break;
+    case 'questMedallion':
+      c = drawQuestMedallionCanvas(kind.quest, Boolean(kind.completed), lw, lh);
       break;
   }
   return upscale(c, k, W, H);

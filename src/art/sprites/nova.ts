@@ -14,6 +14,8 @@ const LEG: Legend = {
   B: 9, // nova_body
   S: 10, // nova_spots
   T: 11, // nova_tail
+  G: 210, // nova_star_goggles (wardrobe)
+  W: 211, // nova_galaxy_bowtie (wardrobe)
   E: 212, // eye_shine
   A: 213, // cheek_blush
   R: 219, // nova_boosters (wardrobe)
@@ -21,7 +23,7 @@ const LEG: Legend = {
 };
 
 // Spots (10) have higher priority than body (9) so every spot stays plump & crisp (>=60px total)!
-const PRIO = [212, 213, 219, 220, 10, 9, 11];
+const PRIO = [212, 213, 219, 220, 210, 211, 10, 9, 11];
 
 // Iconic mid-leap cheetah (68x36) — stretched athletic arc, reaching paws, S-curve tail!
 const NOVA_LEAP = parseGrid(
@@ -438,6 +440,28 @@ const SCARF_SLEEP = parseGrid(
   LEG,
 );
 
+// Wardrobe overlay: Supersonic Star Goggles (210) perched across Nova's forehead
+const GOGGLES = parseGrid(
+  [
+    '.GGGG..GGGG.',
+    'GG#GG##GG#GG',
+    '.GGGG..GGGG.',
+  ],
+  LEG,
+);
+
+// Wardrobe overlay: Galaxy Bowtie Collar (211) clipped jauntily at Nova's front throat/chest
+const BOWTIE = parseGrid(
+  [
+    'WW....WW',
+    'WWW##WWW',
+    'WWWWWWWW',
+    'WWW##WWW',
+    'WW....WW',
+  ],
+  LEG,
+);
+
 function buildFrame(
   w: WardrobeState,
   base: Grid,
@@ -448,6 +472,10 @@ function buildFrame(
     scarfB?: boolean;
     boosterY?: number;
     scarfY?: number;
+    goggleX?: number;
+    goggleY?: number;
+    bowtieX?: number;
+    bowtieY?: number;
     sleep?: boolean;
   } = {},
 ) {
@@ -465,80 +493,94 @@ function buildFrame(
       y: (o.scarfY ?? 8) + dy,
     });
   }
+  if (w.novaStarGoggles) {
+    layers.push({
+      g: GOGGLES,
+      x: (o.goggleX ?? 45) + dx,
+      y: Math.max(1, (o.goggleY ?? 1) + dy),
+    });
+  }
+  if (w.novaGalaxyBowtie) {
+    layers.push({
+      g: BOWTIE,
+      x: (o.bowtieX ?? 48) + dx,
+      y: (o.bowtieY ?? 9) + dy,
+    });
+  }
   return finishSprite(compose(W, H, layers), PRIO, W, H);
 }
 
 export function buildNova(w: WardrobeState): SpriteSheet {
   const sleep = anim(
     [
-      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 14, scarfY: 19 }),
-      buildFrame(w, NOVA_SLEEP, { dy: 0, dx: -1, sleep: true, boosterY: 14, scarfY: 19 }),
-      buildFrame(w, NOVA_SLEEP, { dy: 1, sleep: true, boosterY: 14, scarfY: 19 }),
-      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 14, scarfY: 19 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 14, scarfY: 19, goggleX: 43, goggleY: 14, bowtieX: 48, bowtieY: 23 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 0, dx: -1, sleep: true, boosterY: 14, scarfY: 19, goggleX: 43, goggleY: 14, bowtieX: 48, bowtieY: 23 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 1, sleep: true, boosterY: 14, scarfY: 19, goggleX: 43, goggleY: 14, bowtieX: 48, bowtieY: 23 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 14, scarfY: 19, goggleX: 43, goggleY: 14, bowtieX: 48, bowtieY: 23 }),
     ],
     340,
   );
 
   const idle = anim(
     [
-      buildFrame(w, NOVA_STAND, { dy: 0, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND_PERK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND_FLICK, { dy: 1, blink: true, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND_PERK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND, { dy: 0, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 1, blink: true, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
     ],
     220,
   );
 
   const walk = anim(
     [
-      buildFrame(w, NOVA_STAND, { dy: 0, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_COIL, { dy: 0, scarfB: true, boosterY: 7, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND, { dy: -1, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_COIL, { dy: 1, scarfB: true, boosterY: 7, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND, { dy: 0, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_COIL, { dy: 0, scarfB: true, boosterY: 7, scarfY: 7, goggleX: 44, goggleY: 2, bowtieX: 47, bowtieY: 10 }),
+      buildFrame(w, NOVA_STAND, { dy: -1, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_COIL, { dy: 1, scarfB: true, boosterY: 7, scarfY: 7, goggleX: 44, goggleY: 2, bowtieX: 47, bowtieY: 10 }),
     ],
     150,
   );
 
   const run = anim(
     [
-      buildFrame(w, NOVA_LEAP, { dy: -1, boosterY: 7, scarfY: 6 }),
-      buildFrame(w, NOVA_LEAP, { dy: -1, dx: 1, scarfB: true, boosterY: 7, scarfY: 6 }),
-      buildFrame(w, NOVA_COIL, { dy: 0, boosterY: 7, scarfY: 7 }),
-      buildFrame(w, NOVA_COIL, { dy: 1, scarfB: true, boosterY: 7, scarfY: 7 }),
-      buildFrame(w, NOVA_LEAP, { dy: 0, boosterY: 7, scarfY: 6 }),
-      buildFrame(w, NOVA_LEAP, { dy: -1, scarfB: true, boosterY: 7, scarfY: 6 }),
+      buildFrame(w, NOVA_LEAP, { dy: -1, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
+      buildFrame(w, NOVA_LEAP, { dy: -1, dx: 1, scarfB: true, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
+      buildFrame(w, NOVA_COIL, { dy: 0, boosterY: 7, scarfY: 7, goggleX: 44, goggleY: 2, bowtieX: 47, bowtieY: 10 }),
+      buildFrame(w, NOVA_COIL, { dy: 1, scarfB: true, boosterY: 7, scarfY: 7, goggleX: 44, goggleY: 2, bowtieX: 47, bowtieY: 10 }),
+      buildFrame(w, NOVA_LEAP, { dy: 0, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
+      buildFrame(w, NOVA_LEAP, { dy: -1, scarfB: true, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
     ],
     95,
   );
 
   const leap = anim(
     [
-      buildFrame(w, NOVA_LEAP, { dy: -1, boosterY: 7, scarfY: 6 }),
-      buildFrame(w, NOVA_LEAP, { dy: 0, scarfB: true, boosterY: 7, scarfY: 6 }),
-      buildFrame(w, NOVA_COIL, { dy: 1, boosterY: 7, scarfY: 7 }),
-      buildFrame(w, NOVA_COIL, { dy: 0, scarfB: true, boosterY: 7, scarfY: 7 }),
-      buildFrame(w, NOVA_LEAP, { dy: 0, boosterY: 7, scarfY: 6 }),
+      buildFrame(w, NOVA_LEAP, { dy: -1, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
+      buildFrame(w, NOVA_LEAP, { dy: 0, scarfB: true, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
+      buildFrame(w, NOVA_COIL, { dy: 1, boosterY: 7, scarfY: 7, goggleX: 44, goggleY: 2, bowtieX: 47, bowtieY: 10 }),
+      buildFrame(w, NOVA_COIL, { dy: 0, scarfB: true, boosterY: 7, scarfY: 7, goggleX: 44, goggleY: 2, bowtieX: 47, bowtieY: 10 }),
+      buildFrame(w, NOVA_LEAP, { dy: 0, boosterY: 7, scarfY: 6, goggleX: 46, goggleY: 1, bowtieX: 50, bowtieY: 9 }),
     ],
     120,
   );
 
   const wiggle = anim(
     [
-      buildFrame(w, NOVA_STAND_PERK, { dy: 0, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_BOW, { dy: 0, scarfB: true, boosterY: 7, scarfY: 12 }),
-      buildFrame(w, NOVA_BOW_WAG, { dy: 1, boosterY: 7, scarfY: 12 }),
-      buildFrame(w, NOVA_BOW, { dy: 0, scarfB: true, boosterY: 7, scarfY: 12 }),
-      buildFrame(w, NOVA_STAND_FLICK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_BOW, { dy: 0, scarfB: true, boosterY: 7, scarfY: 12, goggleX: 50, goggleY: 9, bowtieX: 48, bowtieY: 17 }),
+      buildFrame(w, NOVA_BOW_WAG, { dy: 1, boosterY: 7, scarfY: 12, goggleX: 50, goggleY: 9, bowtieX: 48, bowtieY: 17 }),
+      buildFrame(w, NOVA_BOW, { dy: 0, scarfB: true, boosterY: 7, scarfY: 12, goggleX: 50, goggleY: 9, bowtieX: 48, bowtieY: 17 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
     ],
     125,
   );
 
   const peek = anim(
     [
-      buildFrame(w, NOVA_STAND_FLICK, { dy: 1, blink: true, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND_PERK, { dy: 0, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND_PERK, { dy: 0, dx: 1, scarfB: true, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND_FLICK, { dy: 0, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 1, blink: true, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, dx: 1, scarfB: true, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 0, boosterY: 8, scarfY: 7, goggleX: 45, goggleY: 1, bowtieX: 48, bowtieY: 9 }),
     ],
     170,
   );

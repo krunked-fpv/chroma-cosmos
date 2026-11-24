@@ -94,7 +94,7 @@ export function shifted(g: Grid, dx: number, dy: number): Grid {
 }
 
 function isSys(v: number): boolean {
-  return v >= 212 && v <= 233;
+  return v >= 200 && v <= 233;
 }
 
 /**

@@ -20,6 +20,14 @@ const EMPTY_WARDROBE: WardrobeState = {
   lumiCrown: false,
   novaBoosters: false,
   novaScarf: false,
+  violetHeadphones: false,
+  violetMoonHoodie: false,
+  violetSaturnHalo: false,
+  violetPrismRibbons: false,
+  lumiNebulaGarland: false,
+  lumiCelestialSaddle: false,
+  novaStarGoggles: false,
+  novaGalaxyBowtie: false,
 };
 
 const THEME: Record<Who, { name: string; outerTop: RGB; outerBot: RGB; bgTop: RGB; bgBot: RGB; halo: RGB; ribbon: RGB; accent: RGB }> = {

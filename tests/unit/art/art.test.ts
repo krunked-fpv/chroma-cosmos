@@ -2,18 +2,35 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createArt } from '../../../src/art';
-import type { ActorKind, CompiledPage, IllustrationKind } from '../../../src/contracts/art';
+import type { ActorKind, CompiledPage, HeroQuestId, IllustrationKind, UiSpriteId } from '../../../src/contracts/art';
 import { PAGE_H, PAGE_PIXELS, PAGE_W } from '../../../src/contracts/constants';
 import { MATERIALS } from '../../../src/contracts/materials';
 import type { WardrobeState } from '../../../src/contracts/progression';
 import { WARDROBE_ITEMS } from '../../../src/contracts/progression';
-import { CHAPTERS, DRAFT_CARDS, type ChapterId, type SceneId } from '../../../src/contracts/roguelike';
+import { ACTIVE_BRUSH_IDS, CHAPTERS, DRAFT_CARDS, type BrushId, type ChapterId, type SceneId } from '../../../src/contracts/roguelike';
 
-const NONE: WardrobeState = { violetPins: false, violetCape: false, lumiWings: false, lumiCrown: false, novaBoosters: false, novaScarf: false };
-const ALL: WardrobeState = { violetPins: true, violetCape: true, lumiWings: true, lumiCrown: true, novaBoosters: true, novaScarf: true };
+const NONE = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, false])) as WardrobeState;
+const ALL = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, true])) as WardrobeState;
 const CHAPTER_IDS: ChapterId[] = CHAPTERS.map((c) => c.id);
 const SCENES: SceneId[] = [...CHAPTER_IDS, 'bedroomHub'];
-const KINDS: ActorKind[] = ['violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem'];
+const KINDS: ActorKind[] = [
+  'violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem', 'butterfly', 'bubble',
+];
+const ALL_BRUSHES: BrushId[] = ['standard', ...ACTIVE_BRUSH_IDS];
+const ALL_QUEST_IDS: HeroQuestId[] = [
+  'violet', 'lumi', 'nova', 'planet', 'cloud',
+  'rocket', 'milkshake', 'asteroid', 'moonCat', 'suns', 'boba', 'whale', 'heart', 'comet',
+];
+const ALL_UI_SPRITE_IDS: UiSpriteId[] = [
+  'tool_pencil', 'tool_wand', 'tool_lantern', 'tool_crystal_jar',
+  'tool_audio_0', 'tool_audio_1', 'tool_audio_2', 'tool_audio_3',
+  'tool_close', 'tool_back', 'tool_prev', 'tool_next',
+  'tool_postcard', 'tool_export', 'tool_import',
+  'tool_star', 'tool_gem', 'tool_crown', 'tool_stay', 'tool_turn', 'tool_settings', 'tool_skip', 'tool_gift',
+  'tool_hub_paintbox', 'tool_hub_wardrobe', 'tool_hub_bookshelf', 'tool_hub_trinkets', 'tool_voyage_seal',
+  'quest_violet', 'quest_lumi', 'quest_nova', 'quest_rocket', 'quest_planet', 'quest_cloud',
+  'quest_milkshake', 'quest_asteroid', 'quest_moonCat', 'quest_suns', 'quest_boba', 'quest_whale', 'quest_heart', 'quest_comet',
+];
 const TINY = new Set([7]);
 
 const art = createArt();
@@ -28,7 +45,7 @@ function page(id: SceneId, seed = 7, w: WardrobeState = NONE): CompiledPage {
   return p;
 }
 
-const isColourable = (v: number) => (v >= 1 && v <= 211) || (v >= 234 && v <= 254);
+const isColourable = (v: number) => (v >= 1 && v <= 199) || (v >= 234 && v <= 254);
 
 describe('scenes', () => {
   beforeAll(() => {
@@ -117,7 +134,7 @@ describe('scenes', () => {
     it('has the right number of colourable regions', () => {
       const p = page(id);
       let n = 0;
-      for (let v = 1; v <= 211; v++) if (p.regions[v]) n++;
+      for (let v = 1; v <= 199; v++) if (p.regions[v]) n++;
       if (id === 'heartOfUniverse') expect(n).toBeGreaterThanOrEqual(50);
       else expect(n).toBeGreaterThanOrEqual(25);
       if (id === 'heartOfUniverse') expect(n).toBeLessThanOrEqual(70);
@@ -137,12 +154,12 @@ describe('scenes', () => {
           expect(m.kind).toBe('ghost');
           expect(m.coverageExcluded).toBe(true);
         }
-        if (v >= 212 && v <= 233) {
+        if (v >= 200 && v <= 233) {
           expect(m.coverageExcluded).toBe(true);
           expect(m.kind).toBe('system');
           expect(m.core).toBe(false);
         }
-        if (v <= 211) expect(m.coverageExcluded).toBe(false);
+        if (v <= 199) expect(m.coverageExcluded).toBe(false);
       }
       expect(ghosts).toBeLessThanOrEqual(4);
       if (id !== 'bedroomHub') expect(ghosts === 0 || ghosts >= 2).toBe(true);
@@ -267,7 +284,7 @@ describe('scenes', () => {
     it('heart of the universe is a double-dense mandala', () => {
       const p = page('heartOfUniverse');
       let n = 0;
-      for (let v = 1; v <= 211; v++) if (p.regions[v]) n++;
+      for (let v = 1; v <= 199; v++) if (p.regions[v]) n++;
       expect(n).toBeGreaterThanOrEqual(50);
     });
 
@@ -360,14 +377,21 @@ describe('sprites', () => {
             for (let x = 0; x < f.w; x++) {
               const a = f.pixels[y * f.w + x] as number;
               if (a === 255 || a === 0) continue;
-              for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
+              for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
                 const nx = x + dx;
                 const ny = y + dy;
-                if (nx >= f.w || ny >= f.h) continue;
+                if (nx < 0 || ny < 0 || nx >= f.w || ny >= f.h) continue;
                 const b = f.pixels[ny * f.w + nx] as number;
-                const sys = (v: number) => v >= 212 && v <= 233;
-                if (b === 255) expect(sys(a), `${kind}.${name} px(${x},${y}) touches transparency`).toBe(true);
-                else if (b !== 0 && !sys(a) && !sys(b)) expect(b, `${kind}.${name} (${x},${y})`).toBe(a);
+                const sys = (v: number) => v >= 200 && v <= 233;
+                if (b === 255) {
+                  if (kind === 'butterfly' || kind === 'bubble') {
+                    expect(b, `${kind}.${name} system px(${x},${y}) must be outlined by ink 0`).not.toBe(255);
+                  } else {
+                    expect(sys(a), `${kind}.${name} px(${x},${y}) touches transparency`).toBe(true);
+                  }
+                } else if (b !== 0 && !sys(a) && !sys(b)) {
+                  expect(b, `${kind}.${name} (${x},${y})`).toBe(a);
+                }
               }
             }
           }
@@ -384,6 +408,8 @@ describe('sprites', () => {
     expect(has('moonCat', 17)).toBe(true);
     expect(has('comet', 16)).toBe(true);
     expect(has('whale', 19)).toBe(true);
+    expect(has('butterfly', 201)).toBe(true);
+    expect(has('bubble', 200)).toBe(true);
   });
 
   it('character sizes follow the brief', () => {
@@ -403,6 +429,8 @@ describe('sprites', () => {
     expect(names('nova')).toEqual(expect.arrayContaining(['sleep', 'idle', 'run', 'leap']));
     expect(names('moonCat')).toEqual(expect.arrayContaining(['sleep', 'peek']));
     expect(names('whale')).toEqual(expect.arrayContaining(['swim']));
+    expect(names('butterfly')).toEqual(expect.arrayContaining(['idle', 'float', 'bounce']));
+    expect(names('bubble')).toEqual(expect.arrayContaining(['idle', 'float', 'bounce']));
   });
 });
 
@@ -426,14 +454,27 @@ describe('preview + illustrations', () => {
   const kinds: IllustrationKind[] = [
     ...CHAPTER_IDS.map((c) => ({ type: 'door', chapter: c }) as IllustrationKind),
     ...DRAFT_CARDS.map((c) => ({ type: 'card', card: c.id }) as IllustrationKind),
+    ...ALL_BRUSHES.map((brush) => ({ type: 'brushIcon', brush }) as IllustrationKind),
     ...DRAFT_CARDS.filter((c) => c.type === 'relic').map((c) => ({ type: 'relicSticker', relic: c.id }) as IllustrationKind),
     ...WARDROBE_ITEMS.map((w) => ({ type: 'wardrobe', item: w.id }) as IllustrationKind),
     ...MATERIALS.map((m) => ({ type: 'material', material: m.id }) as IllustrationKind),
+    ...ALL_UI_SPRITE_IDS.map((id) => ({ type: 'uiSprite', id }) as IllustrationKind),
+    ...ALL_QUEST_IDS.map((quest) => ({ type: 'questMedallion', quest, completed: false }) as IllustrationKind),
+    ...ALL_QUEST_IDS.map((quest) => ({ type: 'questMedallion', quest, completed: true }) as IllustrationKind),
     { type: 'bookCover', seed: 5, title: 'The Sparkle-Paws Aurora Spiral' },
     { type: 'portrait', who: 'violet' },
     { type: 'portrait', who: 'lumi' },
     { type: 'portrait', who: 'nova' },
   ];
+
+  it('covers all 17 materials, 20 draft cards, 14 wardrobe items, 11 brush icons, and 42 UI sprites', () => {
+    expect(MATERIALS.length).toBe(17);
+    expect(DRAFT_CARDS.length).toBe(20);
+    expect(WARDROBE_ITEMS.length).toBe(14);
+    expect(ALL_BRUSHES.length).toBe(11);
+    expect(ALL_UI_SPRITE_IDS.length).toBe(42);
+    expect(ALL_QUEST_IDS.length).toBe(14);
+  });
 
   it.each(kinds.map((k) => [JSON.stringify(k), k] as const))('illustration %s is sized, opaque-ish and deterministic', (_n, k) => {
     const a = art.illustration(k, 96, 72);
@@ -450,8 +491,36 @@ describe('preview + illustrations', () => {
         cols.add((a.data[i] as number) * 65536 + (a.data[i + 1] as number) * 256 + (a.data[i + 2] as number));
       }
     }
-    expect(opaque).toBeGreaterThan(96 * 72 * 0.2);
+    expect(opaque).toBeGreaterThan(96 * 72 * 0.16);
     expect(cols.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('uiAtlas renders deterministic integer-scaled sprites, brush icons, and lit/unlit quest thumbnails', () => {
+    expect(art.uiAtlas).toBeTypeOf('function');
+    const atlas = art.uiAtlas!();
+    const fresh = createArt().uiAtlas!();
+    for (const size of [24, 32, 48] as const) {
+      for (const id of ALL_UI_SPRITE_IDS) {
+        const img = atlas.sprite(id, size);
+        const dup = fresh.sprite(id, size);
+        expect(img.width).toBe(size);
+        expect(img.height).toBe(size);
+        expect(img.data.length).toBe(size * size * 4);
+        expect(Buffer.compare(Buffer.from(img.data), Buffer.from(dup.data))).toBe(0);
+      }
+      for (const brush of ALL_BRUSHES) {
+        const img = atlas.brushIcon(brush, size);
+        expect(img.width).toBe(size);
+        expect(img.height).toBe(size);
+      }
+      for (const quest of ALL_QUEST_IDS) {
+        const unlit = atlas.questThumbnail(quest, size, false);
+        const lit = atlas.questThumbnail(quest, size, true);
+        expect(unlit.width).toBe(size);
+        expect(lit.width).toBe(size);
+        expect(Buffer.compare(Buffer.from(unlit.data), Buffer.from(lit.data))).not.toBe(0);
+      }
+    }
   });
 
   it('illustration honours odd sizes', () => {

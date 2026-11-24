@@ -1,5 +1,5 @@
 /**
- * Ornate storybook trading-card illustrations for the 4 Brushes + 4 Relics in DRAFT_CARDS.
+ * Ornate storybook trading-card illustrations for all 20 DRAFT_CARDS (10 Active Brushes + 10 Passive Relics).
  * Pure + deterministic.
  */
 import { DRAFT_CARDS, type DraftCardId } from '../../contracts/roguelike';
@@ -9,14 +9,28 @@ import { drawText, textWidth } from './font';
 import { drawDraftIcon } from './icons';
 
 const CARD_THEME: Record<DraftCardId, { bgTop: RGB; bgBot: RGB; halo: RGB; gem: RGB; tag: string }> = {
+  // 10 Active Brushes
   turboCheetah: { bgTop: rgb('#2a154d'), bgBot: rgb('#7a2b52'), halo: rgb('#ffb84d'), gem: rgb('#ff9a3c'), tag: 'TURBO' },
   twinTail: { bgTop: rgb('#1d1b59'), bgBot: rgb('#5e348a'), halo: rgb('#9bf6ff'), gem: rgb('#7fe7f0'), tag: 'TWIN' },
   supernovaSponge: { bgTop: rgb('#2b134a'), bgBot: rgb('#782468'), halo: rgb('#ff8fd0'), gem: rgb('#ff6b9d'), tag: 'NOVA' },
   zeroGGel: { bgTop: rgb('#111f52'), bgBot: rgb('#3b2c82'), halo: rgb('#a8ffcf'), gem: rgb('#7fe7f0'), tag: 'ZERO-G' },
+  cometMeteor: { bgTop: rgb('#2b144a'), bgBot: rgb('#7d3048'), halo: rgb('#ffe66d'), gem: rgb('#ff7b3b'), tag: 'METEOR' },
+  prismRoller: { bgTop: rgb('#1b1a59'), bgBot: rgb('#46328a'), halo: rgb('#9bf6ff'), gem: rgb('#ffd43b'), tag: 'ROLLER' },
+  starlightBubble: { bgTop: rgb('#112754'), bgBot: rgb('#235c75'), halo: rgb('#a8fff0'), gem: rgb('#4ae0cb'), tag: 'BUBBLE' },
+  nebulaCloudPuff: { bgTop: rgb('#2e185e'), bgBot: rgb('#6e327d'), halo: rgb('#ff8fd8'), gem: rgb('#d6a8ff'), tag: 'CLOUD' },
+  lightningWhisker: { bgTop: rgb('#1b124d'), bgBot: rgb('#4e2385'), halo: rgb('#ffe066'), gem: rgb('#7fe7f0'), tag: 'SPARK' },
+  moonbeamQuill: { bgTop: rgb('#17184f'), bgBot: rgb('#3d327a'), halo: rgb('#d6f5ff'), gem: rgb('#eac46f'), tag: 'QUILL' },
+  // 10 Passive Relics
   zoomiePaw: { bgTop: rgb('#30164a'), bgBot: rgb('#753257'), halo: rgb('#ffe066'), gem: rgb('#ffd43b'), tag: 'ZOOMIE' },
   prismRibbon: { bgTop: rgb('#1b1a59'), bgBot: rgb('#4f2e85'), halo: rgb('#9bf6ff'), gem: rgb('#ff85c0'), tag: 'PRISM' },
   uvFlashlight: { bgTop: rgb('#160d3d'), bgBot: rgb('#49207d'), halo: rgb('#d08cff'), gem: rgb('#b678ff'), tag: 'UV' },
   kaleidoSharpener: { bgTop: rgb('#221652'), bgBot: rgb('#692878'), halo: rgb('#ffd6a5'), gem: rgb('#9bf6ff'), tag: 'FOIL' },
+  sleepyMoonCat: { bgTop: rgb('#1e154f'), bgBot: rgb('#4b2b7a'), halo: rgb('#fff3c4'), gem: rgb('#e8dcff'), tag: 'MOONCAT' },
+  gravityFlipFlop: { bgTop: rgb('#172359'), bgBot: rgb('#42428f'), halo: rgb('#7fe7f0'), gem: rgb('#ff7eb6'), tag: 'FLIP' },
+  doubleMilkshake: { bgTop: rgb('#33144d'), bgBot: rgb('#7d2b6e'), halo: rgb('#ff9ec2'), gem: rgb('#a8fff0'), tag: 'SCOOP' },
+  starlightMagnet: { bgTop: rgb('#1c144a'), bgBot: rgb('#592569'), halo: rgb('#7fe7f0'), gem: rgb('#ff4d7d'), tag: 'MAGNET' },
+  chromaticButterfly: { bgTop: rgb('#122452'), bgBot: rgb('#2b4a85'), halo: rgb('#7bffb8'), gem: rgb('#18c9b8'), tag: 'ECHO' },
+  constellationCrown: { bgTop: rgb('#21124a'), bgBot: rgb('#4c267d'), halo: rgb('#fff3c4'), gem: rgb('#eac46f'), tag: 'CROWN' },
 };
 
 export function drawCard(card: DraftCardId, lw: number, lh: number): Canvas {

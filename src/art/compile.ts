@@ -1,5 +1,5 @@
 /** compilePage: scene generator -> CompiledPage (region maps, actors, metas, paths). */
-import type { ActorKind, ActorSpawn, CompiledPage, SpriteFrame, SpriteLibrary } from '../contracts/art';
+import type { ActorKind, ActorSpawn, CompiledPage, SpriteFrame, SpriteLibrary, StoryMilestone, StoryMilestoneKind } from '../contracts/art';
 import { PAGE_H, PAGE_W } from '../contracts/constants';
 import { CANONICAL_REGIONS, SYSTEM_REGIONS, type RegionKind, type RegionMeta } from '../contracts/regions';
 import type { SceneId } from '../contracts/roguelike';
@@ -20,6 +20,48 @@ const KIND_OF_ACTOR: Record<ActorKind, RegionKind> = {
   flower: 'flora',
   gem: 'star',
 };
+
+const MILESTONE_SPECS: ReadonlyArray<{ kind: StoryMilestoneKind; label: string; ids: readonly number[] }> = [
+  { kind: 'violet', label: 'Violet', ids: [1, 2, 3, 4] },
+  { kind: 'lumi', label: 'Lumi', ids: [5, 6, 7, 8] },
+  { kind: 'nova', label: 'Nova', ids: [9, 10, 11] },
+  { kind: 'planet', label: 'Ringed Planet', ids: [12, 13] },
+  { kind: 'cloud', label: 'Space Clouds', ids: [14, 15] },
+];
+
+function buildStoryMilestones(coreRegionIds: readonly number[], regions: readonly (RegionMeta | undefined)[]): StoryMilestone[] {
+  const present = new Set<number>(coreRegionIds);
+  const out: StoryMilestone[] = [];
+  for (const spec of MILESTONE_SPECS) {
+    const regionIds = spec.ids.filter((id) => present.has(id));
+    if (regionIds.length === 0) continue;
+    let sx = 0;
+    let sy = 0;
+    let count = 0;
+    for (const id of regionIds) {
+      const m = regions[id];
+      if (!m) continue;
+      sx += m.centroid.x;
+      sy += m.centroid.y;
+      count++;
+    }
+    const first = regions[regionIds[0] as number];
+    const centroid =
+      count > 0
+        ? { x: Math.round(sx / count), y: Math.round(sy / count) }
+        : first
+          ? { x: first.centroid.x, y: first.centroid.y }
+          : { x: Math.floor(PAGE_W / 2), y: Math.floor(PAGE_H / 2) };
+    out.push({
+      id: spec.kind,
+      kind: spec.kind,
+      label: spec.label,
+      regionIds,
+      centroid,
+    });
+  }
+  return out;
+}
 
 export function sceneTitle(id: SceneId): string {
   if (id === 'bedroomHub') return "Violet's Starlight Bedroom";
@@ -265,6 +307,8 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     if (core) coreRegionIds.push(a);
   }
 
+  const storyMilestones = buildStoryMilestones(coreRegionIds, regions);
+
   const page: CompiledPage = {
     sceneId,
     seed,
@@ -275,6 +319,7 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     regionTotalPixels: totals,
     regions,
     coreRegionIds,
+    storyMilestones,
     actors: spawns,
     paths: build.paths,
     focal: build.focal,

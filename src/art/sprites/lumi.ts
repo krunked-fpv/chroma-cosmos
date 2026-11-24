@@ -107,6 +107,120 @@ const TAIL_WAVE_B = parseGrid(
   LEG,
 );
 
+// High exuberant tail swish C for joyful poke-invite wiggle/peek (overlays x=0..22, y=18..34)
+const TAIL_WAVE_C = parseGrid(
+  [
+    '.......TTTTTTT.........', // 18
+    '....TTTTTTTTTTTT.......', // 19
+    '..TTTTTTT#TTTTTTTT.....', // 20
+    '.TTTTTTTTTTTTTTTTTT....', // 21
+    '.TTTTTT#TTTTTTTTTTTT...', // 22
+    '.TTTTT...TTTTTTTTTTTT..', // 23
+    '..TTTT....TTTTTTTTTTTT.', // 24
+    '...TTT.....TTTTTTTTTTT.', // 25
+    '............TTTTTTTTTT.', // 26
+    '.............TTTTTTTT..', // 27
+    '..............TTTTTT...', // 28
+    '...............TTTT....', // 29
+    '................TT.....', // 30
+    '.......................', // 31
+    '.......................', // 32
+  ],
+  LEG,
+);
+
+// Perked-ear, gleaming lifted horn & tossing aurora mane (without tail) for lively wiggle/peek/idle
+const LUMI_STAND_PERK = parseGrid(
+  [
+    '..................................................................', // 0
+    '..............................................................H...', // 1  horn lifts +1px higher!
+    '............................................................HHH...', // 2
+    '...........................................................HH#H...', // 3
+    '.............................................BB...........HHHH....', // 4  ear perks tall & forward!
+    '............................................BBBB.........HHH#.....', // 5
+    '...........................................BBBBBB.......HHHH......', // 6
+    '..........................................BBBBBBMM.....HHH#.......', // 7
+    '.........................................BBBBMMMMMM...HHHH........', // 8  bouncing forelock
+    '.......................................MMMMMBBBBMMM..HHHH.........', // 9
+    '.....................................MMMMMMBBBBBBBBMHHHH..........', // 10
+    '...................................MMMMMM#BBBBBBBBBBBBB...........', // 11 fuller tossing aurora mane
+    '..................................MMMMMMMBBBBBBBBBBBBBBB..........', // 12
+    '.................................MMMMMMMBBBBBBBBB##EBBBB..........', // 13 bright starry eye
+    '................................MMMMM#MMBBBBBBBBB###BBBBB.........', // 14
+    '...............................MMMMMMMMMBBBBBBBBB###BBBBBB........', // 15
+    '..............................MMMMMMMMMMBBBBBBBBBAABBBBB#BB.......', // 16
+    '.............................MMMMMMMMM#BBBBBBBBBBBBBBBBBBBB.......', // 17
+    '............................MMMMMMMMMMBBBBBBBBBBBBBBBBBBBB........', // 18
+    '...........................MMMMMMMMMMBBBBBBBBBBBB###BBBBB.........', // 19
+    '..........................MMMMMMMMMM#BBBBBBBBBBBB.................', // 20
+    '.........................MMMMMMMMMMMBBBBBBBBBBBB..................', // 21
+    '........................MMMMMMMMMMMBBBBBBBBBBBB...................', // 22
+    '.......................MMMMMMMMMM#BBBBBBBBBBBB....................', // 23
+    '......................MMMMMMMMMMMBBBBBBBBBBBBB....................', // 24
+    '.....................MMMMMMMMMM#BBBBBBBBBBBBB.....................', // 25
+    '.....................MMMMMMMMMMBBBBBBBBBBBBBB.....................', // 26
+    '.....................MMMMMMMMBBBBBBBBBBBBBBB......................', // 27
+    '......................BBBBBBBBBBBBBBBBBBBBBB......................', // 28
+    '.....................BBBBBBBBBBBBBBBBBBBBBB.......................', // 29
+    '....................BBBBBBBBBBBBBBBBBBBBBBB.......................', // 30
+    '....................BBBBBBBBBBBBBBBBBBBBBBB.......................', // 31
+    '...................BBBBBBBBBBBBBBBBBBBBBBB........................', // 32
+    '...................BBBBBBBBBBBBBBBBBBBBBBB........................', // 33
+    '...................BBBBBBBBBBBBBBBBBBBBBB.........................', // 34
+    '....................BBBBBBBBBBBBBBBBBBBB..........................', // 35
+    '....................BBBBBBB......BBBBBBB..........................', // 36
+    '....................BBBBBB........BBBBBB..........................', // 37
+    '..................................................................', // 38
+  ],
+  LEG,
+);
+
+// Playful ear-flick back & sweeping mane toss (without tail)
+const LUMI_STAND_FLICK = parseGrid(
+  [
+    '..................................................................', // 0
+    '..................................................................', // 1
+    '.............................................................H....', // 2
+    '...........................................................HHH....', // 3
+    '..........................................................HH#H....', // 4
+    '.........................................................HHHH.....', // 5
+    '.......................................BBB..............HHH#......', // 6  ear flicked back playfully!
+    '........................................BBBB...........HHHH.......', // 7
+    '.........................................BBBBMM.......HHH#........', // 8
+    '........................................BBBBMMMMM....HHHH.........', // 9
+    '......................................MMMMMBBBBMMM..HHHH..........', // 10
+    '....................................MMMMMMBBBBBBBBMHHHH...........', // 11
+    '...................................MMMMM#BBBBBBBBBBBB.............', // 12
+    '..................................MMMMMMBBBBBBBBBBBBBB............', // 13
+    '.................................MMMMMMMBBBBBBBB##EBBBB...........', // 14
+    '................................MMMMMMMBBBBBBBBB###BBBBB..........', // 15
+    '...............................MMMMM#MMBBBBBBBBB###BBBBBB.........', // 16
+    '..............................MMMMMMMMBBBBBBBBBBBAABBBBB#BB.......', // 17
+    '.............................MMMMMMMMMBBBBBBBBBBBBBBBBBBBB........', // 18
+    '............................MMMMMMMMM#BBBBBBBBBBBBBBBBBBB.........', // 19
+    '...........................MMMMMMMMMMBBBBBBBBBBB###BBBBB..........', // 20
+    '..........................MMMMMMMMMMMBBBBBBBBBBB..................', // 21
+    '.........................MMMMMMMMMM#BBBBBBBBBBB...................', // 22
+    '........................MMMMMMMMMMMBBBBBBBBBBB....................', // 23
+    '.......................MMMMMMMMMMMBBBBBBBBBBBB....................', // 24
+    '......................MMMMMMMMMM#BBBBBBBBBBBB.....................', // 25
+    '.....................MMMMMMMMMMMBBBBBBBBBBBB......................', // 26
+    '.....................MMMMMMMMBBBBBBBBBBBBBB.......................', // 27
+    '......................BBBBBBBBBBBBBBBBBBBBBB......................', // 28
+    '.....................BBBBBBBBBBBBBBBBBBBBBB.......................', // 29
+    '....................BBBBBBBBBBBBBBBBBBBBBBB.......................', // 30
+    '....................BBBBBBBBBBBBBBBBBBBBBBB.......................', // 31
+    '...................BBBBBBBBBBBBBBBBBBBBBBB........................', // 32
+    '...................BBBBBBBBBBBBBBBBBBBBBBB........................', // 33
+    '...................BBBBBBBBBBBBBBBBBBBBBB.........................', // 34
+    '....................BBBBBBBBBBBBBBBBBBBB..........................', // 35
+    '....................BBBBBBB......BBBBBBB..........................', // 36
+    '....................BBBBBB........BBBBBB..........................', // 37
+    '..................................................................', // 38
+  ],
+  LEG,
+);
+
 // Clean torso without tail (for swapping tail wave B cleanly)
 const LUMI_STAND_NOTAIL = parseGrid(
   [
@@ -398,6 +512,16 @@ const LUMI_BLINK = parseGrid(
   LEG,
 );
 
+// Joyful arched sparkle-eye patch for poke-invite wiggle/peek (overlays y=13..15 on PERK or y=14..16 on STAND)
+const LUMI_HAPPY_EYE = parseGrid(
+  [
+    '................................................#EE#..............',
+    '...............................................#BBBB#.............',
+    '................................................BBBB..............',
+  ],
+  LEG,
+);
+
 // Wardrobe overlay: Crystal Pegasus Wings (217) — upright
 const WINGS_UP = parseGrid(
   [
@@ -470,20 +594,34 @@ const CROWN = parseGrid(
 function buildStandFrame(
   w: WardrobeState,
   legs: Grid,
-  o: { dy?: number; tailB?: boolean; blink?: boolean; flap?: boolean } = {},
+  o: {
+    dy?: number;
+    tailB?: boolean;
+    tailC?: boolean;
+    earPerk?: boolean;
+    earFlick?: boolean;
+    blink?: boolean;
+    happyEye?: boolean;
+    flap?: boolean;
+  } = {},
 ) {
   const dy = o.dy ?? 0;
   const layers: Array<{ g: Grid; x: number; y: number }> = [];
   if (w.lumiWings) layers.push({ g: o.flap ? WINGS_FLAP : WINGS_UP, x: 0, y: 11 + dy });
   layers.push({ g: legs, x: 0, y: 36 + dy });
-  if (o.tailB) {
-    layers.push({ g: TAIL_WAVE_B, x: 0, y: 22 + dy });
-    layers.push({ g: LUMI_STAND_NOTAIL, x: 0, y: dy });
+  const customPose = o.tailB || o.tailC || o.earPerk || o.earFlick;
+  if (customPose) {
+    if (o.tailC) layers.push({ g: TAIL_WAVE_C, x: 0, y: 18 + dy });
+    else layers.push({ g: TAIL_WAVE_B, x: 0, y: 22 + dy });
+    const body = o.earPerk ? LUMI_STAND_PERK : o.earFlick ? LUMI_STAND_FLICK : LUMI_STAND_NOTAIL;
+    layers.push({ g: body, x: 0, y: dy });
   } else {
     layers.push({ g: LUMI_STAND, x: 0, y: dy });
   }
-  if (o.blink) layers.push({ g: LUMI_BLINK, x: 0, y: 14 + dy });
-  if (w.lumiCrown) layers.push({ g: CROWN, x: 43, y: 5 + dy });
+  const eyeY = (o.earPerk ? 13 : 14) + dy;
+  if (o.blink) layers.push({ g: LUMI_BLINK, x: 0, y: eyeY });
+  else if (o.happyEye) layers.push({ g: LUMI_HAPPY_EYE, x: 0, y: eyeY });
+  if (w.lumiCrown) layers.push({ g: CROWN, x: o.earPerk ? 44 : 43, y: (o.earPerk ? 4 : 5) + dy });
   return finishSprite(compose(W, H, layers), PRIO, W, H);
 }
 
@@ -518,11 +656,11 @@ export function buildLumi(w: WardrobeState): SpriteSheet {
   const idle = anim(
     [
       buildStandFrame(w, LEGS_STAND, { dy: 0 }),
-      buildStandFrame(w, LEGS_STAND, { dy: 0, tailB: true, flap: true }),
+      buildStandFrame(w, LEGS_STAND, { dy: 0, earPerk: true, tailB: true, flap: true }),
       buildStandFrame(w, LEGS_STAND, { dy: 1, blink: true }),
-      buildStandFrame(w, LEGS_STAND, { dy: 0, tailB: true, flap: true }),
+      buildStandFrame(w, LEGS_STAND, { dy: 0, earFlick: true, tailC: true, flap: true }),
     ],
-    240,
+    220,
   );
 
   const walk = anim(
@@ -561,12 +699,23 @@ export function buildLumi(w: WardrobeState): SpriteSheet {
   const wiggle = anim(
     [
       buildStandFrame(w, LEGS_STAND, { dy: 0 }),
-      buildStandFrame(w, LEGS_WALK_A, { dy: -1, tailB: true, flap: true }),
-      buildStandFrame(w, LEGS_STAND, { dy: 0 }),
-      buildRearFrame(w, 0, false),
+      buildStandFrame(w, LEGS_WALK_A, { dy: 0, earPerk: true, tailC: true, happyEye: true, flap: true }),
+      buildStandFrame(w, LEGS_STAND, { dy: 0, earFlick: true, tailB: true }),
+      buildStandFrame(w, LEGS_GALLOP_B, { dy: 0, earPerk: true, tailC: true, happyEye: true, flap: true }),
+      buildStandFrame(w, LEGS_STAND, { dy: 0, earFlick: true, tailB: true }),
     ],
-    150,
+    130,
   );
 
-  return makeSheet(W, H, { sleep, idle, walk, run, rear, wiggle });
+  const peek = anim(
+    [
+      buildStandFrame(w, LEGS_STAND, { dy: 1, blink: true }),
+      buildStandFrame(w, LEGS_STAND, { dy: 0, earPerk: true, tailB: true }),
+      buildStandFrame(w, LEGS_WALK_A, { dy: 0, earPerk: true, tailC: true, flap: true }),
+      buildStandFrame(w, LEGS_STAND, { dy: 0, earFlick: true, tailB: true, happyEye: true }),
+    ],
+    180,
+  );
+
+  return makeSheet(W, H, { sleep, idle, walk, run, rear, wiggle, peek });
 }

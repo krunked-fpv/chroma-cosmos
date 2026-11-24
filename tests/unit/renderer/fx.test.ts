@@ -116,7 +116,7 @@ describe('FX rasterizers', () => {
     const expectIds: Array<[EffectKind, number]> = [
       ['rainbowArc', 221], ['rainbowBridge', 221], ['rainbowSlide', 221], ['discoMirage', 222],
       ['starlightFlowerRain', 223], ['gemPickup', 226], ['goldDoodle', 227], ['zeroGTrampoline', 228],
-      ['cheetahRacetrack', 225], ['constellationFireworks', 229],
+      ['cheetahRacetrack', 227], ['constellationFireworks', 229],
     ];
     for (const [kind, id] of expectIds) {
       const p = new PixelPlane();
@@ -142,6 +142,35 @@ describe('FX rasterizers', () => {
     const variants = new Set<number>();
     for (let i = 0; i < PAGE_W * PAGE_H; i++) if (p.data[i * 4 + 3] === 255) variants.add(p.data[i * 4 + 1] as number);
     expect([...variants].sort()).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('cheetahRacetrack stays bounded around (e.x, e.y) for endpoint x2/y2 without cometCar boxes', () => {
+    const cx = 260;
+    const cy = 150;
+    const rx = 42;
+    const ry = 20;
+    const p = new PixelPlane();
+    rasterizeEffect(p, fx('cheetahRacetrack', cx, cy, { x2: cx + rx, y2: cy + ry, ageMs: 1200 }));
+    const a = audit(p);
+    expect(a.pixels).toBeGreaterThan(20);
+    expect(a.minX).toBeGreaterThanOrEqual(cx - rx - 2);
+    expect(a.maxX).toBeLessThanOrEqual(cx + rx + 2);
+    expect(a.minY).toBeGreaterThanOrEqual(cy - ry - 2);
+    expect(a.maxY).toBeLessThanOrEqual(cy + ry + 2);
+    for (let i = 0; i < PAGE_W * PAGE_H; i++) {
+      if (p.data[i * 4 + 3] === 255) {
+        expect(p.data[i * 4]).toBe(FX_ID.goldDoodle);
+      }
+    }
+
+    // Degenerate endpoint clamps to minimum radii (16, 10)
+    const pMin = new PixelPlane();
+    rasterizeEffect(pMin, fx('cheetahRacetrack', cx, cy, { x2: cx, y2: cy, ageMs: 1200 }));
+    const aMin = audit(pMin);
+    expect(aMin.minX).toBeGreaterThanOrEqual(cx - 18);
+    expect(aMin.maxX).toBeLessThanOrEqual(cx + 18);
+    expect(aMin.minY).toBeGreaterThanOrEqual(cy - 12);
+    expect(aMin.maxY).toBeLessThanOrEqual(cy + 12);
   });
 
   it('is deterministic for the same effect state', () => {

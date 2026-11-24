@@ -760,6 +760,7 @@ button,
   border: 3px solid var(--ink);
   background: linear-gradient(135deg, var(--sw-a, #fff), var(--sw-b, #eee));
   box-shadow: inset 0 -5px 0 rgba(18, 13, 43, 0.22), inset 0 3px 0 rgba(255, 255, 255, 0.35);
+  pointer-events: none;
 }
 
 .cc-swatch-body canvas {
@@ -767,6 +768,7 @@ button,
   inset: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 /* wax / foil gleam */
@@ -813,6 +815,7 @@ button,
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+  pointer-events: none;
 }
 
 .cc-swatch.is-on {
@@ -977,21 +980,23 @@ button,
   min-height: 0;
   display: grid;
   gap: 8px;
+  align-content: start;
   grid-auto-rows: minmax(0, 1fr);
 }
 
-.cc-grid-mediums { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.cc-grid-wardrobe { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cc-grid-mediums { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; }
+.cc-grid-wardrobe { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; }
 .cc-grid-badges { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .cc-item {
   min-width: 0;
-  padding: 6px 4px;
+  min-height: 112px;
+  padding: 10px 8px;
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  container-type: size;
+  container-type: inline-size;
 }
 
 .cc-item-inner {
@@ -1006,8 +1011,8 @@ button,
 .cc-item-art {
   position: relative;
   display: block;
-  width: clamp(22px, min(36cqh, 56cqw), 84px);
-  height: clamp(22px, min(36cqh, 56cqw), 84px);
+  width: clamp(28px, 42cqw, 46px);
+  height: clamp(28px, 42cqw, 46px);
   flex: none;
   border-radius: 10px;
   overflow: hidden;
@@ -1599,6 +1604,7 @@ button,
   gap: clamp(8px, 2vmin, 22px);
   width: 100%;
   min-height: 0;
+  margin-top: clamp(6px, 1.4vmin, 14px);
 }
 
 .cc-card {
@@ -1707,6 +1713,7 @@ button,
   gap: clamp(12px, 4vmin, 48px);
   width: 100%;
   min-height: 0;
+  margin-top: clamp(6px, 1.4vmin, 14px);
 }
 
 .cc-door {
@@ -1840,9 +1847,9 @@ button,
 .cc-toasts {
   position: fixed;
   left: 50%;
-  top: calc(var(--rim) + var(--hit) + var(--gap) * 2);
+  top: calc(var(--rim) + 6px);
   transform: translateX(-50%);
-  z-index: 60;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1850,6 +1857,10 @@ button,
   pointer-events: none;
   width: max-content;
   max-width: 90vw;
+}
+
+.cc-root:is([data-mode="draft"], [data-mode="doors"], [data-mode="finale"]) .cc-toasts {
+  opacity: 0;
 }
 
 .cc-toast {

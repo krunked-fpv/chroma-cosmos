@@ -280,6 +280,40 @@ describe('Sketchbook UI (UiPort)', () => {
     expect(cb.onCloseBook).toHaveBeenCalledTimes(1);
   });
 
+  it('forwards pointer gestures to onGesture in book mode for Living Bookshelf pokes', () => {
+    const ui = createUi(root);
+    const cb = mockCallbacks();
+    const { deps } = mockDeps();
+    ui.mount(cb, deps);
+    const book = sampleHub().storybooks[0]!;
+    ui.showBook(book, 0, 3);
+
+    const makePtr = (type: string, x: number, y: number): PointerEvent => {
+      const ev = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent;
+      Object.defineProperties(ev, {
+        pointerId: { value: 1 },
+        clientX: { value: x },
+        clientY: { value: y },
+        pointerType: { value: 'touch' },
+        button: { value: 0 },
+        buttons: { value: type === 'pointerup' ? 0 : 1 },
+        pressure: { value: 0.6 },
+        tiltX: { value: 0 },
+        tiltY: { value: 0 },
+      });
+      return ev;
+    };
+
+    ui.canvasHost.dispatchEvent(makePtr('pointerdown', 120, 90));
+    ui.canvasHost.dispatchEvent(makePtr('pointermove', 125, 92));
+    ui.canvasHost.dispatchEvent(makePtr('pointerup', 125, 92));
+
+    expect(cb.onGesture).toHaveBeenCalledTimes(3);
+    expect(cb.onGesture).toHaveBeenNthCalledWith(1, expect.objectContaining({ phase: 'start', x: 120, y: 90 }));
+    expect(cb.onGesture).toHaveBeenNthCalledWith(2, expect.objectContaining({ phase: 'move', x: 125, y: 92 }));
+    expect(cb.onGesture).toHaveBeenNthCalledWith(3, expect.objectContaining({ phase: 'end', x: 125, y: 92 }));
+  });
+
   it('showDraft renders 3 illustrated cards and resolves with the chosen card id', async () => {
     const ui = createUi(root);
     const cb = mockCallbacks();

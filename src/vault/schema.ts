@@ -39,6 +39,7 @@ export function defaultVaultState(updatedAt = 0): VaultState {
     audioLevel: 2,
     run: null,
     stats: { runsCompleted: 0, regionsAwakened: 0, pokes: 0 },
+    prologueSeen: false,
     updatedAt,
   };
 }
@@ -96,7 +97,7 @@ export function parseRunCore(raw: unknown): RunCore | null {
 /**
  * Validates + normalises an untrusted object into a VaultState (null when invalid).
  * strict=false (storage tiers): missing optional fields fall back to defaults, wrong-typed fields are invalid.
- * strict=true (import): every field must be present and valid.
+ * strict=true (import): every required v1 field must be present and valid; backward-compat optional fields (e.g. prologueSeen) default when omitted.
  */
 export function parseVaultState(raw: unknown, strict = false): VaultState | null {
   if (!isRecord(raw) || raw.v !== 1) return null;
@@ -176,11 +177,17 @@ export function parseVaultState(raw: unknown, strict = false): VaultState | null
     }
   }
 
+  let prologueSeen = def.prologueSeen ?? false;
+  if (has('prologueSeen')) {
+    if (typeof raw.prologueSeen !== 'boolean') return null;
+    prologueSeen = raw.prologueSeen;
+  }
+
   let updatedAt = 0;
   if (has('updatedAt')) {
     if (!isFiniteNum(raw.updatedAt) || raw.updatedAt < 0) return null;
     updatedAt = raw.updatedAt;
   }
 
-  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats, updatedAt };
+  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats, prologueSeen, updatedAt };
 }

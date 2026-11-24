@@ -29,7 +29,9 @@ const WARDROBE_ORDER: readonly WardrobeItemId[] = WARDROBE_ITEMS.map((w) => w.id
 const CHAPTER_BY_CODE = new Map<string, ChapterId>(CHAPTERS.map((c) => [c.code, c.id]));
 const CODE_BY_CHAPTER = new Map<ChapterId, string>(CHAPTERS.map((c) => [c.id, c.code]));
 
-export function toCompactCookie(s: Readonly<VaultState>): CompactCookieV1 {
+export type CompactCookiePayload = CompactCookieV1 & { p?: 0 | 1 };
+
+export function toCompactCookie(s: Readonly<VaultState>): CompactCookiePayload {
   let m = 0;
   for (const id of s.unlockedMaterials) if (id >= 1 && id <= 31) m |= 1 << (id - 1);
   const equipped = WARDROBE_ORDER.filter((id) => s.wardrobe[id]);
@@ -44,7 +46,7 @@ export function toCompactCookie(s: Readonly<VaultState>): CompactCookieV1 {
       Math.max(0, PHASE_ORDER.indexOf(s.run.phase)),
     ];
   }
-  return {
+  const out: CompactCookiePayload = {
     v: 1,
     g: s.gems,
     b: bitsOf(s.badges, BADGE_ORDER),
@@ -56,6 +58,8 @@ export function toCompactCookie(s: Readonly<VaultState>): CompactCookieV1 {
     s: [s.stats.runsCompleted, s.stats.regionsAwakened],
     t: s.updatedAt,
   };
+  if (s.prologueSeen === true) out.p = 1;
+  return out;
 }
 
 export function encodeCookieValue(s: Readonly<VaultState>): string {
@@ -170,10 +174,15 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
     stats.runsCompleted = s[0];
     stats.regionsAwakened = s[1];
   }
+  let prologueSeen = def.prologueSeen ?? false;
+  if (has('p')) {
+    if (raw.p !== 0 && raw.p !== 1) return null;
+    prologueSeen = raw.p === 1;
+  }
   let updatedAt = 0;
   if (has('t')) {
     if (!isFiniteNum(raw.t) || raw.t < 0) return null;
     updatedAt = raw.t;
   }
-  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats, updatedAt };
+  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats, prologueSeen, updatedAt };
 }

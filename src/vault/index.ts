@@ -5,7 +5,7 @@ import type { StoryPageSnapshot } from '../contracts/simulation';
 import { buildCookieString, decodeCookieValue, extractCookieValue } from './cookie';
 import { IdbStore } from './idb';
 import { buildVaultExport, normalizeStoredBook, parseStoredPage, parseVaultExport } from './portable';
-import { cloneVault, deepFreeze, defaultVaultState, isRecord, parseVaultState } from './schema';
+import { cloneVault, deepFreeze, defaultVaultState, isFiniteNum, isRecord, parseVaultState } from './schema';
 
 export { BRUSH_ORDER, RELIC_ORDER, PHASE_ORDER, defaultVaultState, parseVaultState } from './schema';
 export { buildCookieString, decodeCookieValue, encodeCookieValue, extractCookieValue, toCompactCookie, COOKIE_MAX_CHARS } from './cookie';
@@ -302,7 +302,14 @@ export function createVault(b: Partial<VaultBackends> = {}, opts: VaultOptions =
     async listStorybooks(): Promise<StorybookSummary[]> {
       const books = await allBooks();
       return books
-        .map((bk) => ({ id: bk.id, title: bk.title, galaxyName: bk.galaxyName, createdAt: bk.createdAt, pageCount: bk.pages.length }))
+        .map((bk) => ({
+          id: bk.id,
+          title: bk.title,
+          galaxyName: bk.galaxyName,
+          createdAt: bk.createdAt,
+          pageCount: bk.pages.length,
+          ...(isFiniteNum(bk.seed) ? { seed: bk.seed } : {}),
+        }))
         .sort((a, c) => c.createdAt - a.createdAt || (a.id < c.id ? -1 : a.id > c.id ? 1 : 0));
     },
 

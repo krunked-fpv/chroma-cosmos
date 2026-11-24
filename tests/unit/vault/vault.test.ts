@@ -8,7 +8,7 @@ import { BADGE_ORDER, WARDROBE_ITEMS } from '../../../src/contracts/progression'
 import type { VaultBackends, VaultPort, VaultState } from '../../../src/contracts/vault';
 import { createVault } from '../../../src/vault';
 import { decodeCookieValue, extractCookieValue } from '../../../src/vault/cookie';
-import { defaultVaultState } from '../../../src/vault/schema';
+import { defaultVaultState, parseVaultState } from '../../../src/vault/schema';
 import { fakeCookie, fakeLocalStorage, makeBook, makePage, maxState, midState, putStateInCookie, rawDelete, rawGetRecord, rawPutRecord, rawStoreNames } from './helpers';
 
 interface Env {
@@ -53,6 +53,7 @@ describe('vault: defaults and fresh hydrate', () => {
     expect(s.audioLevel).toBe(2);
     expect(s.run).toBeNull();
     expect(s.stats).toEqual({ runsCompleted: 0, regionsAwakened: 0, pokes: 0 });
+    expect(s.prologueSeen).toBe(false);
     expect(v.lastReport()).toBeNull();
   });
 
@@ -408,7 +409,7 @@ describe('vault: storybooks', () => {
     const list = await v.listStorybooks();
     expect(list.map((b) => b.id)).toEqual(['new', 'mid', 'old']);
     expect(list.map((b) => b.pageCount)).toEqual([3, 2, 1]);
-    expect(list[0]).toEqual({ id: 'new', title: 'Book new', galaxyName: 'Galaxy new', createdAt: 300, pageCount: 3 });
+    expect(list[0]).toEqual({ id: 'new', title: 'Book new', galaxyName: 'Galaxy new', createdAt: 300, pageCount: 3, seed: 300 });
     expect(Object.keys(list[0]!)).not.toContain('pages');
 
     const got = await v.getStorybook('mid');
@@ -425,6 +426,139 @@ describe('vault: storybooks', () => {
     const e = makeEnv();
     await createVault(e.backends).saveStorybook(makeBook('keep', 5));
     expect((await createVault(e.backends).listStorybooks()).map((b) => b.id)).toEqual(['keep']);
+  });
+
+  it('listStorybooks() includes deterministic seed matching each saved Storybook.seed', async () => {
+    const e = makeEnv();
+    const v = createVault(e.backends);
+    await v.hydrate();
+    const books = [
+      { ...makeBook('zero-seed', 100, 1), seed: 0 },
+      { ...makeBook('cosmic-seed', 200, 2), seed: 0xdeadbeef },
+      { ...makeBook('small-seed', 300, 3), seed: 42 },
+    ];
+    for (const bk of books) await v.saveStorybook(bk);
+
+    const summaries = await v.listStorybooks();
+    expect(summaries.map((s) => ({ id: s.id, seed: s.seed }))).toEqual([
+      { id: 'small-seed', seed: 42 },
+      { id: 'cosmic-seed', seed: 0xdeadbeef },
+      { id: 'zero-seed', seed: 0 },
+    ]);
+
+    // Also verify after JSON export/import round-trip into a brand-new vault
+    const exported = await v.exportJson();
+    const v2 = createVault(makeEnv(2000).backends);
+    await v2.hydrate();
+    await v2.importJson(exported);
+    const reSummaries = await v2.listStorybooks();
+    expect(reSummaries.map((s) => ({ id: s.id, seed: s.seed }))).toEqual([
+      { id: 'small-seed', seed: 42 },
+      { id: 'cosmic-seed', seed: 0xdeadbeef },
+      { id: 'zero-seed', seed: 0 },
+    ]);
+  });
+});
+
+describe('vault: optional prologueSeen persistence & backward compatibility', () => {
+  it('round-trips prologueSeen across localStorage, IndexedDB, cookie heal, and JSON export/import', async () => {
+    const e = makeEnv(1000);
+    const v1 = createVault(e.backends);
+    await v1.hydrate();
+    expect(v1.get().prologueSeen).toBe(false);
+
+    e.clock.t = 2000;
+    v1.update((d) => {
+      d.gems = 19;
+      d.prologueSeen = true;
+    });
+    await v1.flush();
+
+    expect(v1.get().prologueSeen).toBe(true);
+    expect(lsState(e)?.prologueSeen).toBe(true);
+    expect((await rawGetRecord(e.idb)).vault.prologueSeen).toBe(true);
+    expect(cookieState(e)?.prologueSeen).toBe(true);
+
+    // 1. Hydrate from localStorage preserves prologueSeen: true
+    const fromLs = createVault(e.backends);
+    expect((await fromLs.hydrate()).source).toBe('localStorage');
+    expect(fromLs.get().prologueSeen).toBe(true);
+
+    // 2. Wipe localStorage + cookie -> hydrate from IndexedDB restores prologueSeen: true and heals LS + cookie
+    e.ls.map.clear();
+    e.cookie.wipe();
+    const fromIdb = createVault(e.backends);
+    expect(await fromIdb.hydrate()).toEqual({ source: 'indexedDB', healed: ['localStorage', 'cookie'] });
+    expect(fromIdb.get().prologueSeen).toBe(true);
+    expect(lsState(e)?.prologueSeen).toBe(true);
+    expect(cookieState(e)?.prologueSeen).toBe(true);
+
+    // 3. Total localStorage + IndexedDB wipe -> hydrate from shadow cookie restores prologueSeen: true and heals both tiers
+    e.ls.map.clear();
+    expect(await rawDelete(e.idb)).toBe('deleted');
+    const fromCookie = createVault(e.backends);
+    expect(await fromCookie.hydrate()).toEqual({ source: 'cookie', healed: ['localStorage', 'indexedDB'] });
+    expect(fromCookie.get().prologueSeen).toBe(true);
+    expect(lsState(e)?.prologueSeen).toBe(true);
+    expect((await rawGetRecord(e.idb)).vault.prologueSeen).toBe(true);
+
+    // 4. JSON export/import preserves prologueSeen: true across all tiers
+    const json = await fromCookie.exportJson();
+    const dst = makeEnv(5000);
+    const vDst = createVault(dst.backends);
+    await vDst.hydrate();
+    await vDst.importJson(json);
+    expect(vDst.get().prologueSeen).toBe(true);
+    expect(lsState(dst)?.prologueSeen).toBe(true);
+    expect((await rawGetRecord(dst.idb)).vault.prologueSeen).toBe(true);
+    expect(cookieState(dst)?.prologueSeen).toBe(true);
+  });
+
+  it('imports legacy v1 JSON exports without prologueSeen cleanly as prologueSeen: false and rejects non-boolean values', async () => {
+    const src = makeEnv(1000);
+    const vSrc = createVault(src.backends);
+    await vSrc.hydrate();
+    vSrc.update((d) => {
+      d.gems = 64;
+      d.prologueSeen = true;
+    });
+    const parsedExport = JSON.parse(await vSrc.exportJson()) as { vault: Record<string, unknown> };
+    delete parsedExport.vault.prologueSeen;
+    const legacyJson = JSON.stringify(parsedExport);
+
+    // Strict parseVaultState accepts legacy v1 object lacking prologueSeen and defaults to false
+    const parsedStrict = parseVaultState(parsedExport.vault, true);
+    expect(parsedStrict).not.toBeNull();
+    expect(parsedStrict!.prologueSeen).toBe(false);
+
+    // Invalid types for prologueSeen are rejected in both strict and non-strict modes
+    for (const badVal of ['true', 1, 0, null, {}, []]) {
+      expect(parseVaultState({ ...parsedExport.vault, prologueSeen: badVal }, false)).toBeNull();
+      expect(parseVaultState({ ...parsedExport.vault, prologueSeen: badVal }, true)).toBeNull();
+    }
+
+    // Legacy v1 JSON imports cleanly into a vault that previously had prologueSeen: true -> resets to false
+    const dst = makeEnv(2000);
+    const vDst = createVault(dst.backends);
+    await vDst.hydrate();
+    vDst.update((d) => {
+      d.prologueSeen = true;
+    });
+    await vDst.importJson(legacyJson);
+    expect(vDst.get().gems).toBe(64);
+    expect(vDst.get().prologueSeen).toBe(false);
+
+    // Malformed prologueSeen in JSON import is rejected without altering vault state
+    const badJson = JSON.stringify({ ...parsedExport, vault: { ...parsedExport.vault, prologueSeen: 'yes' } });
+    await expect(vDst.importJson(badJson)).rejects.toThrow(/vault data/);
+    expect(vDst.get().gems).toBe(64);
+    expect(vDst.get().prologueSeen).toBe(false);
+
+    // Corrupt prologueSeen in update() is refused
+    vDst.update((d) => {
+      (d as unknown as { prologueSeen: unknown }).prologueSeen = 123;
+    });
+    expect(vDst.get().prologueSeen).toBe(false);
   });
 });
 

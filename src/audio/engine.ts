@@ -4,13 +4,14 @@
  * (node, jsdom, before unlock, after dispose) and can never throw.
  */
 import type { ActorKind } from '../contracts/art';
-import type { AudioLevel, AudioPort, StemId } from '../contracts/audio';
+import type { AudioLevel, AudioPort, StemId, UiFoleyKind } from '../contracts/audio';
 import type { CausalityKind } from '../contracts/causality';
 import { AUDIO_LEVEL_GAIN } from '../contracts/constants';
 import type { MaterialId } from '../contracts/materials';
 import type { RegionKind } from '../contracts/regions';
 import { Brush } from './brush';
 import { playActorAwake, playAutoBloom, playCausality, playPageTurn, playPoke, playStage } from './events';
+import { playUiFoley } from './foley';
 import { glide, Rig, setVal } from './graph';
 import { BEAT_SEC, Pulse } from './pulse';
 
@@ -175,6 +176,9 @@ class AudioEngine implements AudioPort {
   }
   pageTurn(): void {
     this.run((r) => playPageTurn(r));
+  }
+  uiFoley(kind: UiFoleyKind): void {
+    this.run((r) => playUiFoley(r, kind));
   }
 
   /* ---- pulse ---- */

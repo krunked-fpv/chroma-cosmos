@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { createArt } from '../../src/art';
 import { createSimulation } from '../../src/simulation';
-import { PAGE_H, PAGE_PIXELS, PAGE_W } from '../../src/contracts/constants';
-import type { GestureEvent, WardrobeState } from '../../src/contracts';
+import {
+  AUTO_BLOOM_THRESHOLD,
+  GEM_REWARDS,
+  MAX_MATERIAL_ID,
+  PAGE_H,
+  PAGE_PIXELS,
+  PAGE_W,
+  REGION_RANGES,
+} from '../../src/contracts';
+import type { GestureEvent, MaterialId, WardrobeState } from '../../src/contracts';
+
+const MAX_COLOURABLE_ID = REGION_RANGES.dynamic[1];
 
 const DEFAULT_WARDROBE: WardrobeState = {
   violetPins: false,
@@ -11,6 +21,14 @@ const DEFAULT_WARDROBE: WardrobeState = {
   lumiCrown: false,
   novaBoosters: false,
   novaScarf: false,
+  violetHeadphones: false,
+  violetMoonHoodie: false,
+  violetSaturnHalo: false,
+  violetPrismRibbons: false,
+  lumiNebulaGarland: false,
+  lumiCelestialSaddle: false,
+  novaStarGoggles: false,
+  novaGalaxyBowtie: false,
 };
 
 function mulberry32(seed: number): () => number {
@@ -83,7 +101,7 @@ function isColourable(
   regions: ReturnType<ReturnType<typeof createArt>['compilePage']>['regions'],
   totals: Uint32Array,
 ): boolean {
-  if (id < 1 || id > 211) return false;
+  if (id < 1 || id > MAX_COLOURABLE_ID) return false;
   if ((totals[id] ?? 0) === 0) return false;
   const meta = regions[id];
   if (meta?.coverageExcluded) return false;
@@ -149,10 +167,18 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
 
     // Collect every colourable region ID for exhaustive verification.
     const colourableIds: number[] = [];
-    for (let id = 1; id <= 211; id++) {
+    for (let id = 1; id <= MAX_COLOURABLE_ID; id++) {
       if (isColourable(id, page.regions, page.regionTotalPixels)) colourableIds.push(id);
     }
     expect(colourableIds.length).toBeGreaterThan(5);
+
+    // Map each region ID to its parent Composite Hero Quest (if any) so we can distinguish
+    // intentional Sprint 2 82% Composite Hero Quest Auto-Bloom from forbidden cross-region pixel bleed.
+    const questSiblings = new Map<number, ReadonlySet<number>>();
+    for (const q of page.heroQuests ?? []) {
+      const set = new Set<number>(q.regionIds);
+      for (const rid of q.regionIds) questSiblings.set(rid, set);
+    }
 
     const rng = mulberry32(0xdeadbeef);
     const beforePct = new Float64Array(256);
@@ -176,6 +202,7 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
         beforePct[id] = sim.regionPercent(id);
       }
       sim.drainStampBatches();
+      sim.drainEvents();
 
       // Diagonal vector crossing directly through the 1px ink border into region B and beyond.
       const dirX = c.endX - c.startX;
@@ -200,6 +227,9 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
 
       // Verify GPU stamp batches strictly lock ONLY the initial region.
       const batches = sim.drainStampBatches();
+      const stepEvents = sim.drainEvents();
+      const questBloomedThisStroke = stepEvents.some((ev) => ev.type === 'heroQuestComplete');
+      const siblings = questSiblings.get(lockedRegion);
       totalBatches += batches.length;
       for (let b = 0; b < batches.length; b++) {
         const allowed = batches[b]!.allowed;
@@ -212,14 +242,19 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
         }
       }
 
-      // Verify ZERO pixel bleed into ANY other region.
+      // Verify ZERO pixel bleed into ANY other region (only intentional 100% Composite Hero Quest Auto-Bloom
+      // of sibling regions inside lockedRegion's own Hero Quest is permitted on the exact tick the quest blooms).
       for (let i = 0; i < colourableIds.length; i++) {
         const id = colourableIds[i]!;
         if (id === lockedRegion) continue;
         const after = sim.regionPercent(id);
         if (after !== beforePct[id]) {
-          pixelBleedViolations++;
-          throw new Error(`Cross-region pixel bleed on iter ${iter}: locked=${lockedRegion}, bledId=${id}, before=${beforePct[id]}, after=${after}`);
+          const isIntentionalQuestAutoBloom =
+            questBloomedThisStroke && after === 1 && Boolean(siblings?.has(id));
+          if (!isIntentionalQuestAutoBloom) {
+            pixelBleedViolations++;
+            throw new Error(`Cross-region pixel bleed on iter ${iter}: locked=${lockedRegion}, bledId=${id}, before=${beforePct[id]}, after=${after}`);
+          }
         }
       }
 
@@ -276,11 +311,11 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
     expect(allowedIds.length).toBe(1);
     const snappedId = allowedIds[0]!;
     expect(snappedId).toBeGreaterThanOrEqual(1);
-    expect(snappedId).toBeLessThanOrEqual(211);
+    expect(snappedId).toBeLessThanOrEqual(MAX_COLOURABLE_ID);
     expect(sim.regionPercent(snappedId)).toBeGreaterThan(0);
 
     // Every other colourable region must remain strictly 0%.
-    for (let id = 1; id <= 211; id++) {
+    for (let id = 1; id <= MAX_COLOURABLE_ID; id++) {
       if (id === snappedId) continue;
       if (isColourable(id, page.regions, page.regionTotalPixels)) {
         expect(sim.regionPercent(id)).toBe(0);
@@ -371,7 +406,7 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
     harvest();
     for (let i = 1; i < pts.length; i++) {
       const pctBefore = sim.regionPercent(targetId!);
-      if (pctBefore < 0.93) sawPreBloomPct = Math.max(sawPreBloomPct, pctBefore);
+      if (pctBefore < AUTO_BLOOM_THRESHOLD) sawPreBloomPct = Math.max(sawPreBloomPct, pctBefore);
       t += 10;
       sim.gesture(makeGesture('move', pts[i]!.x, pts[i]!.y, t, 1));
       harvest();
@@ -383,11 +418,11 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
     expect(sim.regionPercent(targetId!)).toBe(1);
     expect(autoBloomCount).toBe(1);
     expect(gemEventCount).toBe(1);
-    expect(gemTotal).toBe(3);
+    expect(gemTotal).toBe(GEM_REWARDS.regionBloom);
 
-    // Hammer the already-completed region with 10 full follow-up strokes across different materials.
+    // Hammer the already-completed region with 10 full follow-up strokes across different materials (including Sprint 2 exotics).
     for (let pass = 0; pass < 10; pass++) {
-      sim.setTool({ materialId: ((pass % 7) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7, brush: 'standard', doodle: false });
+      sim.setTool({ materialId: (((pass % MAX_MATERIAL_ID) + 1) as MaterialId), brush: 'standard', doodle: false });
       t += 20;
       sim.gesture(makeGesture('start', pts[0]!.x, pts[0]!.y, t, 1));
       for (let i = 1; i < pts.length; i += 2) {
@@ -403,6 +438,6 @@ describe('Red-Team Smart Touch-Lock Fuzz & Auto-Bloom Invariants', () => {
     expect(sim.regionPercent(targetId!)).toBe(1);
     expect(autoBloomCount).toBe(1);
     expect(gemEventCount).toBe(1);
-    expect(gemTotal).toBe(3);
+    expect(gemTotal).toBe(GEM_REWARDS.regionBloom);
   });
 });

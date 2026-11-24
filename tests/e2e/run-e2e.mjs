@@ -187,6 +187,44 @@ async function measureLayoutGeometry(page, namedSelectors) {
   }, namedSelectors);
 }
 
+/** Audit live DOM for Anti-Lunch-Tray invariants: zero inline SVG, zero brown trays, zero dashed borders. */
+async function auditAntiLunchTrayDom(page) {
+  return page.evaluate(() => {
+    const root = document.getElementById('app');
+    if (!root) return { svgCount: -1, brownHits: [], dashedHits: [], legacyText: false };
+    const svgCount = root.querySelectorAll('svg').length;
+    const appText = root.innerText ?? '';
+    const legacyText = /Next Page|Turn early/i.test(appText);
+
+    const forbiddenRgb = new Set([
+      'rgb(139, 90, 43)',   // #8b5a2b
+      'rgb(107, 68, 35)',   // #6b4423
+      'rgb(160, 82, 45)',   // #a0522d
+      'rgb(210, 180, 140)', // #d2b48c
+    ]);
+    const brownHits = [];
+    const dashedHits = [];
+
+    for (const el of root.querySelectorAll('*')) {
+      const s = window.getComputedStyle(el);
+      if (s.display === 'none' || s.visibility === 'hidden') continue;
+      if (forbiddenRgb.has(s.backgroundColor) || forbiddenRgb.has(s.borderColor)) {
+        brownHits.push(`${el.tagName}.${el.className}`);
+      }
+      if (
+        s.borderTopStyle === 'dashed' ||
+        s.borderRightStyle === 'dashed' ||
+        s.borderBottomStyle === 'dashed' ||
+        s.borderLeftStyle === 'dashed'
+      ) {
+        dashedHits.push(`${el.tagName}.${el.className}`);
+      }
+    }
+
+    return { svgCount, brownHits, dashedHits, legacyText };
+  });
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
 
@@ -207,54 +245,77 @@ async function main() {
     rebootMs: null,
     distRelativeAssetCheck: !hasAbsoluteAssetUrl,
     manifestHttp200: false,
+    spreadAudit: {
+      spreadViewportPct: 0,
+      canvasViewportPct: 0,
+      voyageNodeCount: 0,
+      medallionCount: 0,
+      lanternVisible: false,
+      dockPixelIconCount: 0,
+      clippedMedallionLabels: [],
+      hudOverlaps: [],
+      hudBoxes: [],
+      antiLunchTray: null,
+    },
+    hintAudit: {
+      lanternActive: false,
+      lanternDimAmount: 0,
+      lanternSource: null,
+      lanternQuestId: null,
+      wispMode: null,
+      wispGhostLen: 0,
+      medallionRoutedQuestId: null,
+      medallionActive: false,
+      medallionDimAmount: 0,
+    },
+    finaleAudit: {
+      ribbonVisible: false,
+      finaleActive: false,
+      finaleDurationMs: 0,
+      completedQuests: 0,
+      totalQuests: 0,
+      autoTurnedToDraft: false,
+      autoTurnElapsedMs: 0,
+      finaleHudOverlaps: [],
+      hasLegacyNextOrEarlyText: true,
+    },
+    draftAndDoorsAudit: {
+      tinVisible: false,
+      lidVisible: false,
+      hingesVisible: false,
+      cardCount: 0,
+      cardPixCount: 0,
+      pickedCardId: null,
+      doorCount: 0,
+      doorPixCount: 0,
+    },
+    midColoringRelicAudit: {
+      chapterSlot: 0,
+      relicStripVisible: false,
+      charmCount: 0,
+      litMedallionCount: 0,
+      partialRingCount: 0,
+      partialRingMaxProg: 0,
+      clippedMedallionLabels: [],
+      chapter2HudOverlaps: [],
+      stayAndDoodleChecked: false,
+    },
     hubAudit: {
       roleTabCount: -1,
       stationCount: 0,
       voyageVisible: false,
+      crystalPillNewGiftVisible: false,
+      stationNewGiftVisible: false,
       paintboxDrawerOpened: false,
+      exoticMediumCardCount: 0,
+      paintboxReadyBadgeCount: 0,
       wardrobeDrawerOpened: false,
+      wardrobePortraitCount: 0,
+      wardrobeItemCount: 0,
+      wardrobeReadyBadgeCount: 0,
       hubOverlaps: [],
+      antiLunchTray: null,
     },
-    prologueAudit: {
-      wispActive: false,
-      wispMode: null,
-      ghostStrokeT: 0,
-      prologueMist: 0,
-      dissolvedOnFirstStroke: false,
-    },
-    activeColoringAudit: {
-      litStarsMidPage: 0,
-      totalStars: 0,
-      gemsMidPage: 0,
-      wonderWhisperEffect: null,
-      wonderWhisperRegionId: 0,
-      spreadViewportPct: 0,
-      canvasViewportPct: 0,
-      hudOverlaps: [],
-      hudBoxes: [],
-    },
-    wandAudit: {
-      wandActive: false,
-      toolTagVisible: false,
-      toolTagText: '',
-      toolTagWordCount: 0,
-      pokeInviteCount: 0,
-    },
-    completedDogEarAudit: {
-      litStarsCompleted: 0,
-      totalStarsCompleted: 0,
-      hasLegacyNextOrEarlyText: true,
-      dogEarNextVisible: false,
-      dogEarEarlyHidden: false,
-      completedHudOverlaps: [],
-    },
-    astralTinAudit: {
-      tinVisible: false,
-      lidVisible: false,
-      hingesVisible: false,
-      deckleCardCount: 0,
-    },
-    ch1RegionsPainted: 0,
     effects: [],
     events: [],
     gemsAfterCh1: 0,
@@ -296,7 +357,6 @@ async function main() {
     const qaUrl = `${baseUrl}?qa=1`;
     report.url = qaUrl;
 
-    // Verify manifest.json is served with HTTP 200 under /chroma-cosmos/.
     const manifestRes = await fetch(`${baseUrl}manifest.json`);
     report.manifestHttp200 = manifestRes.status === 200;
 
@@ -334,346 +394,298 @@ async function main() {
       return target;
     };
 
-    // =========================================================================
-    // STATE 1: Cozy Stargazer Desk Hub + Paintbox & Sticker Wardrobe Drawers
-    // =========================================================================
+    // Boot into Hub first to measure cold boot time
     const bootStartMs = Date.now();
     await page.goto(qaUrl, { waitUntil: 'load', timeout: 30000 });
     await page.waitForFunction(() => Boolean(window.__chroma?.qa), undefined, { timeout: 60000, polling: 100 });
     await waitForMode(page, 'hub', 15000);
     report.bootMs = Date.now() - bootStartMs;
-    await page.waitForTimeout(550);
-
-    const hubCheck = await page.evaluate(() => {
-      const roleTabs = document.querySelectorAll('[role="tab"], [role="tablist"], .cc-tab, .cc-tabs').length;
-      const stationIds = ['paintbox', 'wardrobe', 'bookshelf', 'trinkets'];
-      const visibleStations = stationIds.filter((id) => {
-        const el = document.querySelector(`.cc-station[data-station="${id}"]`);
-        if (!el) return false;
-        const r = el.getBoundingClientRect();
-        return r.width > 0 && r.height > 0;
-      });
-      const voyageEl = document.querySelector('.cc-voyage-seal.cc-play');
-      const vr = voyageEl ? voyageEl.getBoundingClientRect() : null;
-      return {
-        roleTabs,
-        stationCount: visibleStations.length,
-        voyageVisible: Boolean(vr && vr.width > 0 && vr.height > 0),
-      };
-    });
-    const hubGeom = await measureLayoutGeometry(page, [
-      { name: 'crystalJar', selector: '.cc-crystal-jar' },
-      { name: 'bookmark', selector: '.cc-bookmark-ribbon' },
-      { name: 'voyageRibbon', selector: '.cc-voyage-ribbon' },
-      { name: 'station-paintbox', selector: '.cc-station[data-station="paintbox"]' },
-      { name: 'station-wardrobe', selector: '.cc-station[data-station="wardrobe"]' },
-      { name: 'station-bookshelf', selector: '.cc-station[data-station="bookshelf"]' },
-      { name: 'station-trinkets', selector: '.cc-station[data-station="trinkets"]' },
-    ]);
-    report.hubAudit.roleTabCount = hubCheck.roleTabs;
-    report.hubAudit.stationCount = hubCheck.stationCount;
-    report.hubAudit.voyageVisible = hubCheck.voyageVisible;
-    report.hubAudit.hubOverlaps = hubGeom.overlaps;
-
-    await snap('01-desk-hub.png');
-
-    // Open Hinged Wooden Paintbox close-up drawer -> 01b-hub-paintbox.png
-    await page.locator('.cc-station[data-station="paintbox"]').click();
-    await page.locator('.cc-drawer-paintbox').waitFor({ state: 'visible', timeout: 8000 });
-    await page.waitForTimeout(420);
-    report.hubAudit.paintboxDrawerOpened = await page.locator('.cc-drawer-paintbox').isVisible();
-    await snap('01b-hub-paintbox.png');
-    await page.locator('.cc-drawer-paintbox .cc-drawer-close').click();
-    await page.locator('.cc-drawer-paintbox').waitFor({ state: 'hidden', timeout: 8000 });
-    await page.waitForTimeout(180);
-
-    // Open Paper-Doll Sticker Wardrobe Card drawer -> 01c-hub-wardrobe.png
-    await page.locator('.cc-station[data-station="wardrobe"]').click();
-    await page.locator('.cc-drawer-wardrobe').waitFor({ state: 'visible', timeout: 8000 });
-    await page.waitForTimeout(420);
-    report.hubAudit.wardrobeDrawerOpened = await page.locator('.cc-drawer-wardrobe').isVisible();
-    await snap('01c-hub-wardrobe.png');
-    await page.locator('.cc-drawer-wardrobe .cc-drawer-close').click();
-    await page.locator('.cc-drawer-wardrobe').waitFor({ state: 'hidden', timeout: 8000 });
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(350);
 
     // =========================================================================
-    // STATE 2: Chapter 1 Sleepy-Hush Prologue + Starlight Wisp Ghost-Stroke
+    // STATE 1: Redesigned Midnight-Cloisonne Coloring Spread (Chapter 1)
     // =========================================================================
     await page.evaluate(() => window.__chroma.qa.startRun(4242));
     await waitForMode(page, 'chapter', 15000);
+    await page.waitForTimeout(300);
 
-    // Wait ~3.4s+ until Wisp enters 'prologueStroke' with visible rainbow ghost-stroke trail
+    // Dismiss Sleepy Hush prologue by tapping Enchanted Pencil so warm-ivory cotton paper & HUD shine cleanly,
+    // then allow the brief 2.5s whisper tool tag to fade out before measuring & capturing State 1.
+    await page.locator('.cc-tool-pencil[data-tool="pencil"]').click();
+    await page.waitForTimeout(2800);
+
+    const spreadCheck = await page.evaluate(() => {
+      const nodes = document.querySelectorAll('.cc-voyage-spine .cc-voyage-node').length;
+      const medallions = document.querySelectorAll('.cc-quest-rail .cc-story-medallion').length;
+      const lanternEl = document.querySelector('.cc-quest-rail .cc-hint-lantern');
+      const lr = lanternEl ? lanternEl.getBoundingClientRect() : null;
+      const dockPix = document.querySelectorAll('.cc-enamel-dock canvas.cc-pix').length;
+      const clippedLabels = Array.from(document.querySelectorAll('.cc-quest-rail .cc-medallion-label'))
+        .filter((el) => el.scrollWidth > el.clientWidth + 1)
+        .map((el) => el.textContent?.trim() ?? '');
+      return {
+        nodes,
+        medallions,
+        lanternVisible: Boolean(lr && lr.width >= 56 && lr.height >= 56),
+        dockPix,
+        clippedLabels,
+      };
+    });
+    const spreadGeom = await measureLayoutGeometry(page, [
+      { name: 'voyageSpine', selector: '.cc-voyage-pill' },
+      { name: 'crystalJar', selector: '.cc-crystal-jar' },
+      { name: 'cornerRight', selector: '.cc-corner-pill' },
+      { name: 'questRail', selector: '.cc-quest-rail' },
+      { name: 'enamelDock', selector: '.cc-enamel-bar' },
+    ]);
+    const spreadDomAudit = await auditAntiLunchTrayDom(page);
+
+    report.spreadAudit = {
+      spreadViewportPct: spreadGeom.spreadPct,
+      canvasViewportPct: spreadGeom.canvasPct,
+      voyageNodeCount: spreadCheck.nodes,
+      medallionCount: spreadCheck.medallions,
+      lanternVisible: spreadCheck.lanternVisible,
+      dockPixelIconCount: spreadCheck.dockPix,
+      clippedMedallionLabels: spreadCheck.clippedLabels,
+      hudOverlaps: spreadGeom.overlaps,
+      hudBoxes: spreadGeom.boxes,
+      antiLunchTray: spreadDomAudit,
+    };
+
+    await snap('01-midnight-coloring-spread.png');
+
+    // =========================================================================
+    // STATE 2: Active Firefly Hint Lantern Spotlight + Tap-Medallion Routing
+    // =========================================================================
+    await page.locator('.cc-hint-lantern[data-action="request-hint"]').click();
     await page.waitForFunction(
       () => {
-        const w = window.__chroma?.qa?.wisp();
-        return Boolean(w && w.active && w.mode === 'prologueStroke' && w.ghostStrokeT >= 0.25);
+        const h = window.__chroma?.qa?.hintState();
+        return Boolean(h && h.active && h.dimAmount > 0);
       },
       undefined,
-      { timeout: 10000 },
+      { timeout: 6000 },
     );
-    await page.waitForTimeout(120);
+    // Let the golden spotlight halo, non-target dim, and Wisp ghost-stroke blossom mid-animation
+    await page.waitForTimeout(420);
 
-    const wispDuringPrologue = await page.evaluate(() => window.__chroma.qa.wisp());
-    report.prologueAudit.wispActive = Boolean(wispDuringPrologue?.active);
-    report.prologueAudit.wispMode = wispDuringPrologue?.mode ?? null;
-    report.prologueAudit.ghostStrokeT = Math.round((wispDuringPrologue?.ghostStrokeT ?? 0) * 1000) / 1000;
-    report.prologueAudit.prologueMist = Math.round((wispDuringPrologue?.prologueMist ?? 0) * 1000) / 1000;
+    const lanternHint = await page.evaluate(() => ({
+      hint: window.__chroma.qa.hintState(),
+      wisp: window.__chroma.qa.wisp(),
+    }));
+    report.hintAudit.lanternActive = Boolean(lanternHint.hint?.active);
+    report.hintAudit.lanternDimAmount = Math.round((lanternHint.hint?.dimAmount ?? 0) * 1000) / 1000;
+    report.hintAudit.lanternSource = lanternHint.hint?.source ?? null;
+    report.hintAudit.lanternQuestId = lanternHint.hint?.questId ?? null;
+    report.hintAudit.wispMode = lanternHint.wisp?.mode ?? null;
+    report.hintAudit.wispGhostLen = lanternHint.wisp?.ghostPath?.length ?? 0;
 
-    await snap('02-ch1-prologue-wisp.png');
+    await snap('02-firefly-hint-spotlight.png');
 
-    // Make first stroke on target region -> assert prologue dissolves cleanly
-    const dissolved = await page.evaluate(async () => {
-      const qa = window.__chroma.qa;
-      const wBefore = qa.wisp();
-      const targetId = wBefore?.targetRegionId || 5;
-      await qa.paintRegion(targetId, 7);
-      await new Promise((r) => setTimeout(r, 260));
-      const wAfter = qa.wisp();
-      const rootPrologueAttr = document.querySelector('.cc-root')?.getAttribute('data-prologue');
-      return {
-        wispActiveAfter: Boolean(wAfter?.active),
-        wispModeAfter: wAfter?.mode ?? null,
-        rootPrologueAttr,
-      };
-    });
-    report.prologueAudit.dissolvedOnFirstStroke =
-      !dissolved.wispActiveAfter &&
-      dissolved.wispModeAfter === 'hidden' &&
-      dissolved.rootPrologueAttr === 'false';
+    // Verify Tap-Medallion routing switches spotlight immediately to Lumi (zero cooldown)
+    await page.locator('.cc-story-medallion[data-quest="lumi"]').click();
+    await page.waitForTimeout(180);
+    const medHint = await page.evaluate(() => window.__chroma.qa.hintState());
+    report.hintAudit.medallionRoutedQuestId = medHint?.questId ?? null;
+    report.hintAudit.medallionActive = Boolean(medHint?.active);
+    report.hintAudit.medallionDimAmount = Math.round((medHint?.dimAmount ?? 0) * 1000) / 1000;
 
     // =========================================================================
-    // STATE 3: Active Coloring (Enchanted Pencil + Wonder Whispers) & Starlight Wand
+    // STATE 4: Complete All Story Medallions -> Celebratory Auto-Page-Turn Finale
+    //          AND verify automatic transition to 'draft' (~2.8s) WITHOUT clicking!
     // =========================================================================
-    // Paint Violet (1..4) and Lumi (5..8) to light 2 Bookmark Story Stars & earn Prism Stardust Crystals
-    const midPaint = await page.evaluate(async () => {
+    await page.evaluate(async () => {
       const qa = window.__chroma.qa;
       const regs = qa.regions();
-      const byId = new Map(regs.map((r) => [r.id, r]));
-      let painted = 0;
 
-      const violetAndLumi = [
-        [1, 7], // violet_skin -> CottonCandyChalk
-        [2, 4], // violet_sandy_hair -> SolarCheetahAmber
-        [3, 1], // violet_suit -> LiquidAurora
-        [4, 2], // violet_helmet -> HoloFoil
-        [5, 7], // lumi_body -> CottonCandyChalk
-        [6, 6], // lumi_mane -> RainbowPrismWax
-        [7, 2], // lumi_horn -> HoloFoil
-        [8, 1], // lumi_tail -> LiquidAurora
-      ];
-      for (const [id, mat] of violetAndLumi) {
-        if (byId.has(id)) {
-          const ok = await qa.paintRegion(id, mat);
-          if (ok) painted++;
-        }
-      }
-      await new Promise((r) => setTimeout(r, 300));
+      // Trigger Rainbow Slide (cloud + mat 6) and Cheetah Racetrack (planet + mat 4) for causality telemetry
       const cloud = regs.find((r) => r.kind === 'cloud' && !r.coverageExcluded && r.percent < 1);
-      return {
-        painted,
-        cloudId: cloud?.id ?? null,
-        cloudClientPt: cloud ? qa.clientPointOf(cloud.id) : null,
-        stars: qa.storyStars(),
-        gems: window.__chroma.stats().gems,
-      };
-    });
+      if (cloud) await qa.paintRegion(cloud.id, 6);
+      const planet = regs.find((r) => (r.kind === 'planet' || r.kind === 'rings') && !r.coverageExcluded && r.percent < 1);
+      if (planet) await qa.paintRegion(planet.id, 4);
 
-    // Wait for Bookmark Story Star threads & toasts to clear cleanly, then select Rainbow Prism Wax (mat 6)
-    await page.waitForTimeout(2800);
-    await page.locator('.cc-swatch[data-material="6"]').click();
-    await page.waitForTimeout(150);
-
-    // Hover an uncolored Space-Cloud with Rainbow Prism Wax selected -> Pencil shimmer + Wonder Whispers dotted sketch
-    if (midPaint.cloudClientPt) {
-      await page.mouse.move(midPaint.cloudClientPt.x, midPaint.cloudClientPt.y);
-    }
-    const wonderState = await page.evaluate((cloudId) => {
-      if (cloudId !== null) {
-        window.__chroma.qa.hoverRegion(cloudId);
-      }
-      return {
-        whisper: window.__chroma.qa.wonderWhisper(),
-        stars: window.__chroma.qa.storyStars(),
-        gems: window.__chroma.stats().gems,
-      };
-    }, midPaint.cloudId);
-    await page.waitForTimeout(260);
-
-    const activeGeom = await measureLayoutGeometry(page, [
-      { name: 'crystalJar', selector: '.cc-crystal-jar' },
-      { name: 'bookmark', selector: '.cc-bookmark-ribbon' },
-      { name: 'cornerRight', selector: '.cc-corner-right' },
-      { name: 'dogEarEarly', selector: '.cc-dogear-early' },
-      { name: 'woodGroove', selector: '.cc-wood-groove' },
-    ]);
-
-    const litMidStars = wonderState.stars.filter((s) => s.lit).length;
-    report.activeColoringAudit.litStarsMidPage = litMidStars;
-    report.activeColoringAudit.totalStars = wonderState.stars.length;
-    report.activeColoringAudit.gemsMidPage = wonderState.gems;
-    report.activeColoringAudit.wonderWhisperEffect = wonderState.whisper?.effect ?? null;
-    report.activeColoringAudit.wonderWhisperRegionId = wonderState.whisper?.regionId ?? 0;
-    report.activeColoringAudit.spreadViewportPct = activeGeom.spreadPct;
-    report.activeColoringAudit.canvasViewportPct = activeGeom.canvasPct;
-    report.activeColoringAudit.hudOverlaps = activeGeom.overlaps;
-    report.activeColoringAudit.hudBoxes = activeGeom.boxes;
-
-    await snap('03-active-coloring-pencil.png');
-
-    // State 3b: Switch to Starlight Wand -> assert active, <=4-word micro-tag, sky doodle & poke rings
-    await page.locator('.cc-tool-wand[data-tool="wand"]').click();
-    await page.waitForTimeout(160);
-
-    // Gentle sky doodle + hover over open starry sky between clouds so Wand spotlight glow & sky sparkles shine
-    const skyBox = await page.evaluate(() => {
-      const host = document.querySelector('.cc-canvas-host');
-      const r = host ? host.getBoundingClientRect() : null;
-      return r ? { x: r.left + r.width * 0.36, y: r.top + r.height * 0.16 } : null;
-    });
-    if (skyBox) {
-      await page.mouse.move(skyBox.x, skyBox.y);
-      await page.mouse.down();
-      await page.mouse.move(skyBox.x + 36, skyBox.y - 12, { steps: 6 });
-      await page.mouse.move(skyBox.x + 70, skyBox.y + 8, { steps: 6 });
-      await page.mouse.up();
-      await page.mouse.move(skyBox.x + 48, skyBox.y - 2);
-    }
-    await page.waitForTimeout(140);
-
-    const wandCheck = await page.evaluate(() => {
-      const wandBtn = document.querySelector('.cc-tool-wand[data-tool="wand"]');
-      const tag = document.querySelector('.cc-tool-tag');
-      const tagText = document.querySelector('.cc-tool-tag-text')?.textContent?.trim() ?? '';
-      const words = tagText ? tagText.split(/\s+/).filter(Boolean).length : 0;
-      return {
-        wandActive: Boolean(wandBtn?.classList.contains('is-on') && wandBtn?.getAttribute('aria-pressed') === 'true'),
-        toolTagVisible: Boolean(tag && !tag.hasAttribute('hidden')),
-        toolTagText: tagText,
-        toolTagWordCount: words,
-        pokeInviteCount: window.__chroma.qa.pokeInvites().length,
-      };
-    });
-    report.wandAudit = wandCheck;
-
-    await snap('03b-active-wand.png');
-
-    // =========================================================================
-    // STATE 5 (captured BEFORE opening tin): Completed Chapter 1 + Glowing Dog-Ear
-    // =========================================================================
-    await page.locator('.cc-tool-pencil[data-tool="pencil"]').click();
-    await page.waitForTimeout(120);
-
-    const ch1Finish = await page.evaluate(async () => {
-      const qa = window.__chroma.qa;
-      const regs = qa.regions();
-      const byId = new Map(regs.map((r) => [r.id, r]));
-      let painted = 0;
-
-      // Finish Nova (9..11), Cloud with RainbowPrismWax (6), Planet/Rings with SolarCheetahAmber (4)
-      const restPlan = [
-        [9, 4],  // nova_body -> SolarCheetahAmber
-        [10, 5], // nova_spots -> SupernovaGlitter
-        [11, 4], // nova_tail -> SolarCheetahAmber
-      ];
-      for (const [id, mat] of restPlan) {
-        if (byId.has(id)) {
-          const ok = await qa.paintRegion(id, mat);
-          if (ok) painted++;
-        }
-      }
-
-      const cloud = regs.find((r) => r.kind === 'cloud' && !r.coverageExcluded && r.percent < 1);
-      if (cloud) {
-        const ok = await qa.paintRegion(cloud.id, 6);
-        if (ok) painted++;
-      }
-
-      const planetOrRing = regs.find(
-        (r) => (r.kind === 'planet' || r.kind === 'rings') && !r.coverageExcluded && r.percent < 1,
-      );
-      if (planetOrRing) {
-        const ok = await qa.paintRegion(planetOrRing.id, 4);
-        if (ok) painted++;
-      }
-
-      await new Promise((r) => setTimeout(r, 150));
-      const pokedLumi = await qa.poke('lumi');
-      const pokedNova = await qa.poke('nova');
-
+      // Complete all Chapter 1 Hero Quests (rooftop: violet, lumi, nova, rocket)
       await qa.completePage();
-      return { painted, pokedLumi, pokedNova };
+      await qa.poke('lumi');
+      await qa.poke('nova');
     });
 
-    await page.locator('.cc-dogear-next[data-action="turn-next"]').waitFor({ state: 'visible', timeout: 10000 });
-    await page.waitForTimeout(900);
+    // Wait for celebratory bottom-right Auto-Page-Turn Finale ribbon to appear
+    await page.locator('.cc-auto-turn-ribbon').waitFor({ state: 'visible', timeout: 10000 });
+    const finaleStartWall = Date.now();
+    await page.waitForTimeout(450);
 
-    const completedCheck = await page.evaluate(() => {
+    const finaleCheck = await page.evaluate(() => {
       const appText = document.getElementById('app')?.innerText ?? '';
-      const hasLegacyText = /Next Page|Turn early/i.test(appText);
-      const stars = window.__chroma.qa.storyStars();
-      const litDom = document.querySelectorAll('.cc-story-socket.is-lit').length;
-      const dogEarNext = document.querySelector('.cc-dogear-next[data-action="turn-next"]');
-      const dogEarEarly = document.querySelector('.cc-dogear-early[data-action="turn-early"]');
+      const quests = window.__chroma.qa.heroQuests();
+      const finale = window.__chroma.qa.pageFinale();
+      const ribbon = document.querySelector('.cc-auto-turn-ribbon');
       return {
-        litStars: stars.filter((s) => s.lit).length,
-        litDom,
-        totalStars: stars.length,
-        hasLegacyText,
-        dogEarNextVisible: Boolean(dogEarNext && !dogEarNext.hasAttribute('hidden')),
-        dogEarEarlyHidden: Boolean(dogEarEarly && dogEarEarly.hasAttribute('hidden')),
+        ribbonVisible: Boolean(ribbon && !ribbon.hasAttribute('hidden')),
+        finaleActive: Boolean(finale?.active),
+        finaleDurationMs: finale?.durationMs ?? 0,
+        completedQuests: quests.filter((q) => q.completed).length,
+        totalQuests: quests.length,
+        hasLegacyText: /Next Page|Turn early/i.test(appText),
       };
     });
-    const completedGeom = await measureLayoutGeometry(page, [
+    const finaleGeom = await measureLayoutGeometry(page, [
+      { name: 'voyageSpine', selector: '.cc-voyage-pill' },
       { name: 'crystalJar', selector: '.cc-crystal-jar' },
-      { name: 'bookmark', selector: '.cc-bookmark-ribbon' },
-      { name: 'cornerRight', selector: '.cc-corner-right' },
-      { name: 'dogEarNext', selector: '.cc-dogear-next' },
-      { name: 'woodGroove', selector: '.cc-wood-groove' },
+      { name: 'cornerRight', selector: '.cc-corner-pill' },
+      { name: 'questRail', selector: '.cc-quest-rail' },
+      { name: 'autoTurnRibbon', selector: '.cc-auto-turn-ribbon' },
+      { name: 'enamelDock', selector: '.cc-enamel-bar' },
     ]);
 
-    report.completedDogEarAudit.litStarsCompleted = completedCheck.litStars;
-    report.completedDogEarAudit.totalStarsCompleted = completedCheck.totalStars;
-    report.completedDogEarAudit.hasLegacyNextOrEarlyText = completedCheck.hasLegacyText;
-    report.completedDogEarAudit.dogEarNextVisible = completedCheck.dogEarNextVisible;
-    report.completedDogEarAudit.dogEarEarlyHidden = completedCheck.dogEarEarlyHidden;
-    report.completedDogEarAudit.completedHudOverlaps = completedGeom.overlaps;
+    report.finaleAudit.ribbonVisible = finaleCheck.ribbonVisible;
+    report.finaleAudit.finaleActive = finaleCheck.finaleActive;
+    report.finaleAudit.finaleDurationMs = finaleCheck.finaleDurationMs;
+    report.finaleAudit.completedQuests = finaleCheck.completedQuests;
+    report.finaleAudit.totalQuests = finaleCheck.totalQuests;
+    report.finaleAudit.hasLegacyNextOrEarlyText = finaleCheck.hasLegacyText;
+    report.finaleAudit.finaleHudOverlaps = finaleGeom.overlaps;
 
-    await snap('05-completed-dogear.png');
+    await snap('04-auto-page-turn-finale.png');
 
     const postCh1Stats = await page.evaluate(() => window.__chroma.stats());
-    report.ch1RegionsPainted = midPaint.painted + ch1Finish.painted;
     report.effects = postCh1Stats.effects;
     report.events = postCh1Stats.events;
     report.gemsAfterCh1 = postCh1Stats.gems;
 
+    // DO NOT CLICK ANY TURN PAGE BUTTON! Wait for the 2.8s automatic transition into 'draft'!
+    await waitForMode(page, 'draft', 7000);
+    report.finaleAudit.autoTurnElapsedMs = Date.now() - finaleStartWall;
+    report.finaleAudit.autoTurnedToDraft = (await page.evaluate(() => window.__chroma.qa.mode())) === 'draft';
+
     // =========================================================================
-    // STATE 4: Tap glowing bottom-right curled dog-ear -> Hinged Astral Pencil Tin
+    // STATE 5: Expanded Astral Pencil Tin 3-Card Draft + Star-Door Picker
     // =========================================================================
-    await page.locator('.cc-dogear-next[data-action="turn-next"]').click();
-    await waitForMode(page, 'draft', 10000);
     await page.locator('.cc-draft .cc-card').first().waitFor({ state: 'visible', timeout: 10000 });
     await page.waitForTimeout(550);
 
-    report.astralTinAudit = await page.evaluate(() => ({
+    const draftCheck = await page.evaluate(() => ({
       tinVisible: Boolean(document.querySelector('.cc-draft .cc-pencil-tin')),
       lidVisible: Boolean(document.querySelector('.cc-draft .cc-tin-lid-top')),
       hingesVisible: Boolean(document.querySelector('.cc-draft .cc-tin-hinges')),
-      deckleCardCount: document.querySelectorAll('.cc-draft .cc-card.cc-deckle-card').length,
+      cardCount: document.querySelectorAll('.cc-draft .cc-card.cc-deckle-card').length,
+      cardPixCount: document.querySelectorAll('.cc-draft .cc-card canvas.cc-pix').length,
+      firstCardId: document.querySelector('.cc-draft .cc-card')?.getAttribute('data-card') ?? null,
     }));
+    report.draftAndDoorsAudit.tinVisible = draftCheck.tinVisible;
+    report.draftAndDoorsAudit.lidVisible = draftCheck.lidVisible;
+    report.draftAndDoorsAudit.hingesVisible = draftCheck.hingesVisible;
+    report.draftAndDoorsAudit.cardCount = draftCheck.cardCount;
+    report.draftAndDoorsAudit.cardPixCount = draftCheck.cardPixCount;
+    report.draftAndDoorsAudit.pickedCardId = draftCheck.firstCardId;
 
-    await snap('04-astral-pencil-tin.png');
+    await snap('05-astral-tin-draft.png');
 
-    // Pick first holographic card -> Star-Doors -> Chapter 2
+    // Pick first holographic card -> Star-Doors
     await page.locator('.cc-draft .cc-card').first().click();
     await waitForMode(page, 'doors', 10000);
     await page.locator('.cc-doors .cc-door').first().waitFor({ state: 'visible', timeout: 10000 });
     await page.waitForTimeout(450);
+
+    const doorsCheck = await page.evaluate(() => ({
+      doorCount: document.querySelectorAll('.cc-doors .cc-door').length,
+      doorPixCount: document.querySelectorAll('.cc-doors .cc-door canvas.cc-pix').length,
+    }));
+    report.draftAndDoorsAudit.doorCount = doorsCheck.doorCount;
+    report.draftAndDoorsAudit.doorPixCount = doorsCheck.doorPixCount;
+
     await snap('05b-star-doors.png');
 
+    // Enter Chapter 2 (now equipped with the drafted Magical Brush or Sticker Relic!)
     await page.locator('.cc-doors .cc-door').first().click();
     await waitForMode(page, 'chapter', 15000);
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
+
+    // =========================================================================
+    // STATE 3: Mid-Coloring Live 360-deg Gold Radial Ring + Left-Margin Charm Strip (Chapter 2)
+    // =========================================================================
+    await page.evaluate(async () => {
+      const qa = window.__chroma.qa;
+      const quests = qa.heroQuests();
+      // 1. Fully complete the first Story Medallion so one completed gold medallion shines
+      if (quests[0]) {
+        for (const rid of quests[0].regionIds) {
+          await qa.paintRegion(rid, 1);
+        }
+      }
+      // 2. Partially paint a multi-region Story Medallion (~40..72%) so the live 360-deg gold radial ring fills visibly!
+      const multiQuest = quests.slice(1).find((q) => !q.completed && q.regionIds.length >= 2) ?? quests[1];
+      if (multiQuest) {
+        const regs = qa.regions();
+        const areaOf = (id) => {
+          const r = regs.find((x) => x.id === id);
+          return r ? Math.max(1, (r.bbox.x1 - r.bbox.x0) * (r.bbox.y1 - r.bbox.y0)) : 1;
+        };
+        const totalArea = multiQuest.regionIds.reduce((s, id) => s + areaOf(id), 0);
+        const sortedDesc = [...multiQuest.regionIds].sort((a, b) => areaOf(b) - areaOf(a));
+        const palette = [6, 1, 4, 2, 7];
+        let pIdx = 0;
+        let estFrac = 0;
+        for (const rid of sortedDesc) {
+          const frac = areaOf(rid) / totalArea;
+          if (estFrac + frac > 0.74 && estFrac >= 0.30) continue;
+          if (estFrac + frac > 0.78) continue;
+          await qa.paintRegion(rid, palette[pIdx++ % palette.length]);
+          const qNow = qa.heroQuests().find((q) => q.questId === multiQuest.questId);
+          estFrac = qNow ? qNow.progress : estFrac + frac;
+          if (!qNow || qNow.completed || qNow.progress >= 0.45) break;
+        }
+      }
+    });
+    await page.waitForTimeout(1600);
+
+    const ch2Check = await page.evaluate(() => {
+      const strip = document.querySelector('.cc-relic-strip');
+      const stripVisible = Boolean(strip && !strip.hasAttribute('hidden') && strip.getBoundingClientRect().width > 0);
+      const charms = document.querySelectorAll('.cc-relic-strip .cc-charm-badge').length;
+      const slot = Number(document.querySelector('.cc-voyage-spine')?.getAttribute('data-slot') ?? '0');
+      const meds = Array.from(document.querySelectorAll('.cc-story-medallion'));
+      const litCount = meds.filter((m) => m.classList.contains('is-lit')).length;
+      const partials = meds
+        .filter((m) => !m.classList.contains('is-lit'))
+        .map((m) => parseFloat(m.style.getPropertyValue('--prog') || '0'))
+        .filter((p) => p > 0.05 && p < 0.99);
+      const clippedLabels = Array.from(document.querySelectorAll('.cc-quest-rail .cc-medallion-label'))
+        .filter((el) => el.scrollWidth > el.clientWidth + 1)
+        .map((el) => el.textContent?.trim() ?? '');
+      return {
+        slot,
+        stripVisible,
+        charms,
+        litCount,
+        partialCount: partials.length,
+        partialMax: partials.length > 0 ? Math.round(Math.max(...partials) * 1000) / 1000 : 0,
+        clippedLabels,
+      };
+    });
+    const ch2Geom = await measureLayoutGeometry(page, [
+      { name: 'voyageSpine', selector: '.cc-voyage-pill' },
+      { name: 'crystalJar', selector: '.cc-crystal-jar' },
+      { name: 'cornerRight', selector: '.cc-corner-pill' },
+      { name: 'relicStrip', selector: '.cc-relic-strip' },
+      { name: 'questRail', selector: '.cc-quest-rail' },
+      { name: 'enamelDock', selector: '.cc-enamel-bar' },
+    ]);
+
+    report.midColoringRelicAudit = {
+      chapterSlot: ch2Check.slot,
+      relicStripVisible: ch2Check.stripVisible,
+      charmCount: ch2Check.charms,
+      litMedallionCount: ch2Check.litCount,
+      partialRingCount: ch2Check.partialCount,
+      partialRingMaxProg: ch2Check.partialMax,
+      clippedMedallionLabels: ch2Check.clippedLabels,
+      chapter2HudOverlaps: ch2Geom.overlaps,
+      stayAndDoodleChecked: false,
+    };
+
+    await snap('03-mid-coloring-relic-strip.png');
 
     // =========================================================================
     // 60FPS GPU Telemetry Crucible (5-second active paint + particle stress)
@@ -700,6 +712,15 @@ async function main() {
       const startWall = performance.now();
       let idx = 0;
       while (performance.now() - startWall < 5100) {
+        if (qa.mode() !== 'chapter') {
+          await new Promise((r) => setTimeout(r, 60));
+          continue;
+        }
+        // Pause auto-turn if Chapter 2 finishes mid-crucible so we keep stressing smoothly on canvas
+        const fin = qa.pageFinale();
+        if (fin?.active && !fin.stayAndDoodle) {
+          qa.setStayAndDoodle(true);
+        }
         if (idx < regs.length) {
           const reg = regs[idx];
           const mat = (idx % 7) + 1;
@@ -715,11 +736,13 @@ async function main() {
       return {
         telemetry: window.__chroma.telemetry(),
         maxGapMs: Math.round(maxGapMs * 100) / 100,
+        stayWasSet: Boolean(qa.pageFinale()?.stayAndDoodle),
       };
     });
 
     report.telemetry = perfResult.telemetry;
     report.maxFrameGapMs = perfResult.maxGapMs;
+    report.midColoringRelicAudit.stayAndDoodleChecked = perfResult.stayWasSet;
 
     // =========================================================================
     // Bidirectional krunked-cookie-vault-v1 Self-Healing Test
@@ -728,7 +751,7 @@ async function main() {
     const preWipeGems = await page.evaluate(() => window.__chroma.stats().gems);
     report.vaultHealing.preWipeGems = preWipeGems;
 
-    // Verify live onversionchange non-blocking deleteDatabase while app is open
+    // Non-blocking IDB delete while app is open
     await page.evaluate(async () => {
       await new Promise((resolvePromise, rejectPromise) => {
         const timer = setTimeout(() => rejectPromise(new Error('IDB deleteDatabase hung')), 5000);
@@ -797,6 +820,101 @@ async function main() {
     report.vaultHealing.cookieRegenerated = cookieRegen.cleared && cookieRegen.afterFocus;
 
     // =========================================================================
+    // STATE 6: Redesigned Stargazer Hub (10 Exotic Mediums, 14 Wardrobe, Affordable Pulse)
+    // =========================================================================
+    // Ensure >= 30 gems so multiple Exotic Mediums and Wardrobe items pulse "Ready to Unlock!" & "New Gift!"
+    await page.evaluate(() => {
+      const cur = window.__chroma.stats().gems;
+      if (cur < 30) window.__chroma.qa.addGems(30 - cur);
+    });
+    await page.waitForTimeout(450);
+
+    const hubCheck = await page.evaluate(() => {
+      const roleTabs = document.querySelectorAll('[role="tab"], [role="tablist"], .cc-tab, .cc-tabs').length;
+      const stationIds = ['paintbox', 'wardrobe', 'bookshelf', 'trinkets'];
+      const visibleStations = stationIds.filter((id) => {
+        const el = document.querySelector(`.cc-station[data-station="${id}"]`);
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+      const voyageEl = document.querySelector('.cc-voyage-seal.cc-play');
+      const vr = voyageEl ? voyageEl.getBoundingClientRect() : null;
+      const pillBadge = document.querySelector('.cc-crystal-jar .cc-affordable-badge');
+      const stationGiftDots = Array.from(document.querySelectorAll('.cc-station .cc-station-gift-dot')).filter(
+        (el) => !el.hasAttribute('hidden') && el.getBoundingClientRect().width > 0,
+      );
+      return {
+        roleTabs,
+        stationCount: visibleStations.length,
+        voyageVisible: Boolean(vr && vr.width > 0 && vr.height > 0),
+        crystalPillNewGiftVisible: Boolean(
+          pillBadge && !pillBadge.hasAttribute('hidden') && pillBadge.textContent?.includes('New Gift!'),
+        ),
+        stationNewGiftVisible: stationGiftDots.length >= 2,
+      };
+    });
+    const hubGeom = await measureLayoutGeometry(page, [
+      { name: 'crystalJar', selector: '.cc-crystal-jar' },
+      { name: 'voyageSpine', selector: '.cc-voyage-pill' },
+      { name: 'cornerRight', selector: '.cc-corner-pill' },
+      { name: 'voyageRibbon', selector: '.cc-voyage-ribbon' },
+      { name: 'station-paintbox', selector: '.cc-station[data-station="paintbox"]' },
+      { name: 'station-wardrobe', selector: '.cc-station[data-station="wardrobe"]' },
+      { name: 'station-bookshelf', selector: '.cc-station[data-station="bookshelf"]' },
+      { name: 'station-trinkets', selector: '.cc-station[data-station="trinkets"]' },
+    ]);
+    const hubDomAudit = await auditAntiLunchTrayDom(page);
+
+    report.hubAudit.roleTabCount = hubCheck.roleTabs;
+    report.hubAudit.stationCount = hubCheck.stationCount;
+    report.hubAudit.voyageVisible = hubCheck.voyageVisible;
+    report.hubAudit.crystalPillNewGiftVisible = hubCheck.crystalPillNewGiftVisible;
+    report.hubAudit.stationNewGiftVisible = hubCheck.stationNewGiftVisible;
+    report.hubAudit.hubOverlaps = hubGeom.overlaps;
+    report.hubAudit.antiLunchTray = hubDomAudit;
+
+    await snap('06-stargazer-hub.png');
+
+    // Open Exotic Mediums Paintbox -> 10 Exotic Mediums + "Ready to Unlock!" pulses
+    await page.locator('.cc-station[data-station="paintbox"]').click();
+    await page.locator('.cc-drawer-paintbox').waitFor({ state: 'visible', timeout: 8000 });
+    await page.waitForTimeout(420);
+    const paintboxCheck = await page.evaluate(() => ({
+      exoticCount: document.querySelectorAll('.cc-drawer-paintbox .cc-shop-item').length,
+      readyBadges: Array.from(document.querySelectorAll('.cc-drawer-paintbox .cc-ready-badge')).filter(
+        (el) => el.textContent?.includes('Ready to Unlock!'),
+      ).length,
+    }));
+    report.hubAudit.paintboxDrawerOpened = await page.locator('.cc-drawer-paintbox').isVisible();
+    report.hubAudit.exoticMediumCardCount = paintboxCheck.exoticCount;
+    report.hubAudit.paintboxReadyBadgeCount = paintboxCheck.readyBadges;
+    await snap('06b-hub-paintbox.png');
+    await page.locator('.cc-drawer-paintbox .cc-drawer-close').click();
+    await page.locator('.cc-drawer-paintbox').waitFor({ state: 'hidden', timeout: 8000 });
+    await page.waitForTimeout(180);
+
+    // Open Stargazer Wardrobe -> 3 live portraits + 14 Wardrobe Items + "Ready to Unlock!" pulses
+    await page.locator('.cc-station[data-station="wardrobe"]').click();
+    await page.locator('.cc-drawer-wardrobe').waitFor({ state: 'visible', timeout: 8000 });
+    await page.waitForTimeout(420);
+    const wardrobeCheck = await page.evaluate(() => ({
+      portraits: document.querySelectorAll('.cc-drawer-wardrobe .cc-doll-card').length,
+      items: document.querySelectorAll('.cc-drawer-wardrobe .cc-ward-item').length,
+      readyBadges: Array.from(document.querySelectorAll('.cc-drawer-wardrobe .cc-ready-badge')).filter(
+        (el) => el.textContent?.includes('Ready to Unlock!'),
+      ).length,
+    }));
+    report.hubAudit.wardrobeDrawerOpened = await page.locator('.cc-drawer-wardrobe').isVisible();
+    report.hubAudit.wardrobePortraitCount = wardrobeCheck.portraits;
+    report.hubAudit.wardrobeItemCount = wardrobeCheck.items;
+    report.hubAudit.wardrobeReadyBadgeCount = wardrobeCheck.readyBadges;
+    await snap('06c-hub-wardrobe.png');
+    await page.locator('.cc-drawer-wardrobe .cc-drawer-close').click();
+    await page.locator('.cc-drawer-wardrobe').waitFor({ state: 'hidden', timeout: 8000 });
+    await page.waitForTimeout(180);
+
+    // =========================================================================
     // Service Worker Subpath Scope Verification (/chroma-cosmos/)
     // =========================================================================
     const swInfo = await page.evaluate(async () => {
@@ -816,7 +934,7 @@ async function main() {
     report.serviceWorker = swInfo;
 
     // =========================================================================
-    // Full 5-Chapter Voyage -> Saved Storybook on Bookshelf -> Keepsake PNG
+    // Full 5-Chapter Voyage -> Celestial Bookshelf -> Keepsake PNG Sanity Check
     // =========================================================================
     try {
       const continueBtn = page.locator('.cc-voyage-seal.cc-continue');
@@ -841,13 +959,14 @@ async function main() {
           continue;
         }
         if (mode === 'chapter') {
-          const nextDogEar = page.locator('.cc-dogear-next[data-action="turn-next"]');
-          const earlyDogEar = page.locator('.cc-dogear-early[data-action="turn-early"]');
-          if (await nextDogEar.isVisible()) {
-            await nextDogEar.click();
+          const turnNow = page.locator('.cc-turn-now-btn[data-action="turn-now"]');
+          if (await turnNow.isVisible()) {
+            await turnNow.click();
           } else {
-            await earlyDogEar.waitFor({ state: 'visible', timeout: 8000 });
-            await earlyDogEar.click();
+            await page.locator('.cc-settings-btn').click();
+            const skipBtn = page.locator('.cc-skip-page-btn[data-action="skip-page"]');
+            await skipBtn.waitFor({ state: 'visible', timeout: 5000 });
+            await skipBtn.click();
           }
           await waitModeLeave('chapter');
         } else if (mode === 'draft') {
@@ -868,32 +987,30 @@ async function main() {
         await page.waitForTimeout(350);
         await page.locator('.cc-finale').click();
         await waitForMode(page, 'hub', 10000);
-        await page.waitForTimeout(380);
+        await page.waitForTimeout(350);
 
-        // Open Heirloom Wooden Bookshelf station (NO legacy .cc-tab!)
         await page.locator('.cc-station[data-station="bookshelf"]').click();
         await page.locator('.cc-drawer-bookshelf').waitFor({ state: 'visible', timeout: 10000 });
         await page.locator('.cc-book-spine.cc-cover').first().waitFor({ state: 'visible', timeout: 10000 });
-        await page.waitForTimeout(350);
+        await page.waitForTimeout(300);
         await page.locator('.cc-book-spine.cc-cover').first().click();
         await waitForMode(page, 'book', 10000);
-        await page.waitForTimeout(450);
+        await page.waitForTimeout(350);
         report.bookshelf.openedSavedBook = true;
 
-        await snap('06-bookshelf.png');
-
-        // Trigger Save Keepsake PNG and ensure zero console/page errors
         const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
         await page.locator('.cc-keepsake').click();
         await downloadPromise;
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(250);
         report.bookshelf.keepsakeTriggered = true;
       }
     } catch (bonusErr) {
       report.bookshelf.error = String(bonusErr);
     }
 
-    // Evaluate all red-team & E2E assertions
+    // =========================================================================
+    // Evaluate All Sprint 2 Red-Team & 6-State Visual/Functional Assertions
+    // =========================================================================
     report.assertions = {
       distRelativeAssetCheck: report.distRelativeAssetCheck === true,
       manifestHttp200: report.manifestHttp200 === true,
@@ -901,41 +1018,74 @@ async function main() {
       zeroConsoleErrors: report.consoleErrors.length === 0,
       zeroPageErrors: report.pageErrors.length === 0,
       zeroNetworkErrors: report.networkErrors.length === 0,
-      hubZeroRoleTabs: report.hubAudit.roleTabCount === 0,
-      hubFourCraftStations: report.hubAudit.stationCount === 4 && report.hubAudit.voyageVisible,
-      hubDrawersOpened: report.hubAudit.paintboxDrawerOpened && report.hubAudit.wardrobeDrawerOpened,
-      hubZeroOverlap: report.hubAudit.hubOverlaps.length === 0,
-      prologueWispActive:
-        report.prologueAudit.wispActive &&
-        (report.prologueAudit.wispMode === 'prologueStroke' || report.prologueAudit.wispMode === 'prologueTapPencil'),
-      prologueDissolvedOnFirstStroke: report.prologueAudit.dissolvedOnFirstStroke === true,
-      midPageTwoStoryStarsAndGems:
-        report.activeColoringAudit.litStarsMidPage >= 2 && report.activeColoringAudit.gemsMidPage > 0,
-      wonderWhisperRainbowSlide: report.activeColoringAudit.wonderWhisperEffect === 'rainbowSlide',
-      spreadBreathingRoomGe78Pct: report.activeColoringAudit.spreadViewportPct >= 78,
-      activeHudZeroOverlap: report.activeColoringAudit.hudOverlaps.length === 0,
-      wandActiveWithMicroTagAndInvites:
-        report.wandAudit.wandActive &&
-        report.wandAudit.toolTagVisible &&
-        report.wandAudit.toolTagWordCount > 0 &&
-        report.wandAudit.toolTagWordCount <= 4 &&
-        report.wandAudit.pokeInviteCount > 0,
-      completedFiveStoryStarsAndDogEar:
-        report.completedDogEarAudit.litStarsCompleted === 5 &&
-        !report.completedDogEarAudit.hasLegacyNextOrEarlyText &&
-        report.completedDogEarAudit.dogEarNextVisible &&
-        report.completedDogEarAudit.dogEarEarlyHidden &&
-        report.completedDogEarAudit.completedHudOverlaps.length === 0,
-      astralPencilTinThreeCards:
-        report.astralTinAudit.tinVisible &&
-        report.astralTinAudit.lidVisible &&
-        report.astralTinAudit.hingesVisible &&
-        report.astralTinAudit.deckleCardCount === 3,
+      state1SpreadBreathingRoomGe78Pct: report.spreadAudit.spreadViewportPct >= 78,
+      state1VoyageRibbonAndMedallions:
+        report.spreadAudit.voyageNodeCount === 5 &&
+        report.spreadAudit.medallionCount === 4 &&
+        report.spreadAudit.lanternVisible &&
+        report.spreadAudit.dockPixelIconCount >= 9,
+      state1ZeroHudOverlapsAndAntiLunchTray:
+        report.spreadAudit.hudOverlaps.length === 0 &&
+        report.spreadAudit.clippedMedallionLabels.length === 0 &&
+        report.spreadAudit.antiLunchTray?.svgCount === 0 &&
+        report.spreadAudit.antiLunchTray?.brownHits.length === 0 &&
+        report.spreadAudit.antiLunchTray?.dashedHits.length === 0 &&
+        report.spreadAudit.antiLunchTray?.legacyText === false,
+      state2FireflyHintSpotlightAndRouting:
+        report.hintAudit.lanternActive &&
+        report.hintAudit.lanternDimAmount > 0 &&
+        report.hintAudit.wispMode === 'hintBeam' &&
+        report.hintAudit.wispGhostLen >= 2 &&
+        report.hintAudit.medallionRoutedQuestId === 'lumi' &&
+        report.hintAudit.medallionActive &&
+        report.hintAudit.medallionDimAmount > 0,
+      state3MidColoringRingAndCharmStrip:
+        report.midColoringRelicAudit.chapterSlot === 2 &&
+        report.midColoringRelicAudit.relicStripVisible &&
+        report.midColoringRelicAudit.charmCount >= 1 &&
+        report.midColoringRelicAudit.litMedallionCount >= 1 &&
+        report.midColoringRelicAudit.partialRingCount >= 1 &&
+        report.midColoringRelicAudit.partialRingMaxProg >= 0.25 &&
+        report.midColoringRelicAudit.clippedMedallionLabels.length === 0 &&
+        report.midColoringRelicAudit.chapter2HudOverlaps.length === 0,
+      state4AutoPageTurnFinaleAndAutoDraft:
+        report.finaleAudit.ribbonVisible &&
+        report.finaleAudit.finaleActive &&
+        report.finaleAudit.finaleDurationMs === 2800 &&
+        report.finaleAudit.completedQuests === 4 &&
+        !report.finaleAudit.hasLegacyNextOrEarlyText &&
+        report.finaleAudit.finaleHudOverlaps.length === 0 &&
+        report.finaleAudit.autoTurnedToDraft,
+      state5AstralTinAndStarDoors:
+        report.draftAndDoorsAudit.tinVisible &&
+        report.draftAndDoorsAudit.lidVisible &&
+        report.draftAndDoorsAudit.hingesVisible &&
+        report.draftAndDoorsAudit.cardCount === 3 &&
+        report.draftAndDoorsAudit.cardPixCount >= 3 &&
+        report.draftAndDoorsAudit.doorCount === 2 &&
+        report.draftAndDoorsAudit.doorPixCount >= 2,
+      state6StargazerHubCatalogAndPulses:
+        report.hubAudit.roleTabCount === 0 &&
+        report.hubAudit.stationCount === 4 &&
+        report.hubAudit.voyageVisible &&
+        report.hubAudit.crystalPillNewGiftVisible &&
+        report.hubAudit.stationNewGiftVisible &&
+        report.hubAudit.paintboxDrawerOpened &&
+        report.hubAudit.exoticMediumCardCount === 10 &&
+        report.hubAudit.paintboxReadyBadgeCount >= 1 &&
+        report.hubAudit.wardrobeDrawerOpened &&
+        report.hubAudit.wardrobePortraitCount === 3 &&
+        report.hubAudit.wardrobeItemCount === 14 &&
+        report.hubAudit.wardrobeReadyBadgeCount >= 1 &&
+        report.hubAudit.hubOverlaps.length === 0 &&
+        report.hubAudit.antiLunchTray?.svgCount === 0 &&
+        report.hubAudit.antiLunchTray?.brownHits.length === 0 &&
+        report.hubAudit.antiLunchTray?.dashedHits.length === 0,
       rainbowSlideTriggered: report.effects.includes('rainbowSlide'),
       cheetahRacetrackTriggered: report.effects.includes('cheetahRacetrack'),
       autoBloomTriggered: report.events.includes('autoBloom'),
       pokeTriggered: report.events.includes('poke'),
-      gemsEarned: report.gemsAfterCh1 > 0,
+      gemsEarned: report.gemsAfterCh1 >= 10,
       telemetrySamplesOk: (report.telemetry?.samples ?? 0) >= 120,
       telemetryMedianOk: (report.telemetry?.frameMsMedian ?? 999) <= 16.7,
       noCatastrophicStall: (report.maxFrameGapMs ?? 999) <= 150,
@@ -969,15 +1119,24 @@ async function main() {
           bootMs: report.bootMs,
           rebootMs: report.rebootMs,
           assertions: report.assertions,
-          spreadViewportPct: report.activeColoringAudit.spreadViewportPct,
-          hudOverlaps: report.activeColoringAudit.hudOverlaps,
-          completedHudOverlaps: report.completedDogEarAudit.completedHudOverlaps,
+          spreadAudit: {
+            spreadViewportPct: report.spreadAudit.spreadViewportPct,
+            clippedMedallionLabels: report.spreadAudit.clippedMedallionLabels,
+            hudOverlaps: report.spreadAudit.hudOverlaps,
+            antiLunchTray: report.spreadAudit.antiLunchTray,
+          },
+          hintAudit: report.hintAudit,
+          finaleAudit: report.finaleAudit,
+          midColoringRelicAudit: report.midColoringRelicAudit,
           hubOverlaps: report.hubAudit.hubOverlaps,
           telemetry: report.telemetry,
           maxFrameGapMs: report.maxFrameGapMs,
+          vaultHealing: report.vaultHealing,
+          serviceWorker: report.serviceWorker,
           consoleErrors: report.consoleErrors,
           pageErrors: report.pageErrors,
           networkErrors: report.networkErrors,
+          fatalError: report.fatalError,
         },
         null,
         2,

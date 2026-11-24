@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { ActorKind, CompiledPage, SpriteLibrary, SpriteSheet } from '../../../src/contracts/art';
 import { PAGE_H, PAGE_W } from '../../../src/contracts/constants';
-import type { ActorRenderState } from '../../../src/contracts/simulation';
+import type { ActorRenderState, WispRenderState } from '../../../src/contracts/simulation';
 import { AdaptiveResolution, initialResolution, median } from '../../../src/renderer/adaptive';
-import { blitActor, blitActors, buildRegionTexData, liveSlotMask } from '../../../src/renderer/pageData';
+import {
+  FALLBACK_WISP_SHEET,
+  blitActor,
+  blitActors,
+  blitWisp,
+  buildRegionTexData,
+  liveSlotMask,
+} from '../../../src/renderer/pageData';
 import { PixelPlane } from '../../../src/renderer/pixelPlane';
 
 describe('buildRegionTexData', () => {
@@ -71,6 +78,73 @@ describe('live slots + sprite blit', () => {
     expect(p.count).toBe(0);
     blitActors(p, lib, [actor({ x: 0, y: 0 })]);
     expect(p.count).toBeGreaterThan(0);
+  });
+});
+
+describe('Starlight Wisp sprite blitting', () => {
+  const mkWisp = (over: Partial<WispRenderState> = {}): WispRenderState => ({
+    active: true,
+    mode: 'idleGuide',
+    x: 120,
+    y: 90,
+    targetRegionId: 5,
+    ghostStrokeT: 0,
+    ghostPath: [],
+    prologueMist: 0,
+    alpha: 1,
+    ...over,
+  });
+
+  it('provides a crisp 11x11 procedural fallback wisp using 231/232 when custom sheet is omitted', () => {
+    const frames = FALLBACK_WISP_SHEET.anims.idle?.frames ?? [];
+    expect(frames.length).toBeGreaterThanOrEqual(4);
+    for (const fr of frames) {
+      expect(fr.w).toBe(11);
+      expect(fr.h).toBe(11);
+      for (const px of fr.pixels) expect([231, 232, 255]).toContain(px);
+    }
+    const p = new PixelPlane();
+    const written = blitWisp(p, mkWisp(), null, 0);
+    expect(written).toBeGreaterThan(20);
+    expect(p.idAt(120, 90)).toBe(231); // bright starlight core at anchor
+    const ids = new Set<number>();
+    for (let i = 0; i < PAGE_W * PAGE_H; i++) {
+      if (p.data[i * 4 + 3] === 255) ids.add(p.data[i * 4] as number);
+    }
+    expect(ids.has(231) && ids.has(232)).toBe(true);
+  });
+
+  it('blits a custom SpriteSheet, picks idle vs float by mode, dithers low alpha, and ignores hidden/inactive wisps', () => {
+    const customSheet: SpriteSheet = {
+      anchorX: 1,
+      anchorY: 1,
+      anims: {
+        idle: { frames: [{ w: 3, h: 3, pixels: Uint8Array.from([255, 232, 255, 232, 231, 232, 255, 232, 255]) }], frameMs: 120, loop: true },
+        float: { frames: [{ w: 3, h: 3, pixels: Uint8Array.from([232, 231, 232, 231, 212, 231, 232, 231, 232]) }], frameMs: 100, loop: true },
+      },
+    };
+    const pIdle = new PixelPlane();
+    expect(blitWisp(pIdle, mkWisp({ mode: 'prologueTapPencil' }), customSheet, 0)).toBe(5);
+    expect(pIdle.idAt(120, 90)).toBe(231);
+
+    const pFloat = new PixelPlane();
+    expect(blitWisp(pFloat, mkWisp({ mode: 'prologueStroke' }), customSheet, 0)).toBe(9);
+    expect(pFloat.idAt(120, 90)).toBe(212);
+
+    const pFull = new PixelPlane();
+    const pFade = new PixelPlane();
+    blitWisp(pFull, mkWisp({ alpha: 1 }), null, 0);
+    blitWisp(pFade, mkWisp({ alpha: 0.35 }), null, 0);
+    expect(pFade.count).toBeGreaterThan(0);
+    expect(pFade.count).toBeLessThan(pFull.count);
+
+    const pSkip = new PixelPlane();
+    expect(blitWisp(pSkip, mkWisp({ active: false }), customSheet, 0)).toBe(0);
+    expect(blitWisp(pSkip, mkWisp({ mode: 'hidden' }), customSheet, 0)).toBe(0);
+    expect(blitWisp(pSkip, mkWisp({ alpha: 0.01 }), customSheet, 0)).toBe(0);
+    expect(blitWisp(pSkip, mkWisp({ x: -100, y: -100 }), customSheet, 0)).toBe(0);
+    expect(blitWisp(pSkip, mkWisp({ x: NaN }), customSheet, 0)).toBe(0);
+    expect(pSkip.count).toBe(0);
   });
 });
 

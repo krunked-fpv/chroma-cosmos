@@ -18,7 +18,14 @@ export { QUAD_VERT } from './glsl-util';
 
 function systemFixedGlsl(): string {
   const lines = SYSTEM_REGIONS.map((r) => {
-    const v = typeof r.fixed === 'number' ? r.fixed : r.fixed === 'eyeShine' ? -1 : r.fixed === 'blush' ? -2 : -3;
+    let v: number;
+    if (typeof r.fixed === 'number') v = r.fixed;
+    else if (r.fixed === 'eyeShine') v = -1;
+    else if (r.fixed === 'blush') v = -2;
+    else if (r.fixed === 'selected') v = -3;
+    else if (r.fixed === 'wispCore') v = -4;
+    else if (r.fixed === 'wispAura') v = -5;
+    else v = -6; // 'wonderChalk'
     return `  if (id == ${r.id}) return ${v};`;
   });
   return `int sysFixed(int id) {\n${lines.join('\n')}\n  return 0;\n}`;
@@ -37,14 +44,19 @@ uniform float uScale;     // output pixels per internal pixel
 uniform float uTime;      // seconds
 uniform float uBeat;
 uniform float uAwakening;
-uniform float uClean;     // 1 = keepsake capture (no mist, no wiggle)
+uniform float uClean;     // 1 = keepsake capture (no mist, no wiggle, no guide overlays)
 uniform float uFlipY;     // 1 when rendering into a RenderTexture
 uniform int uSelected;
 uniform int uLiveSlots;   // bit s set => actor slot s is drawn live (static pixels replaced by base map)
+uniform int uHoverRegion; // 0 = none (uncompleted region hovered in Enchanted Pencil mode)
+uniform int uToolMode;    // 0 = pencil, 1 = wand
 uniform vec3 uSkyTop;
 uniform vec3 uSkyBot;
 uniform vec3 uMist;
 uniform vec4 uFlashlight; // x, y, r, active
+uniform vec4 uWandGlow;   // x, y, r, active
+uniform float uPrologueMist; // 0..1 Sleepy Hush lavender mist veil
+uniform float uDogEarGlow;   // 0..1 bottom-right curled corner Star-Door light
 uniform vec2 uSparkle[${MAX_SPARKLES}];
 uniform int uSparkleN;
 
@@ -59,6 +71,7 @@ const int FLAG_REVEALED = ${REGION_FLAG.ghostRevealed};
 const int FLAG_WIGGLE = ${REGION_FLAG.wiggle};
 const int FLAG_FLASH = ${REGION_FLAG.flash};
 const int FLAG_HIDDEN = ${REGION_FLAG.hidden};
+const int FLAG_GUIDE_GLOW = ${REGION_FLAG.guideGlow};
 const float STROKE_S = ${f(STROKE_SCALE)};
 const float RIPPLE_MAX = 300.0;
 
@@ -74,7 +87,10 @@ int decodeId(float v) { return int(floor(v * 255.0 + 0.5)); }
 int rid(ivec2 q) {
   if (q.x < 0 || q.y < 0 || q.x >= ${PAGE_W} || q.y >= ${PAGE_H}) return 255;
   vec4 a = texelFetch(uActorTex, q, 0);
-  if (a.a > 0.0) return decodeId(a.r);
+  if (a.a > 0.0) {
+    int aid = decodeId(a.r);
+    if (uClean < 0.5 || aid < 231 || aid > 233) return aid;
+  }
   vec4 r = texelFetch(uRegionTex, q, 0);
   int slot = decodeId(r.b);
   if (slot > 0 && ((uLiveSlots >> slot) & 1) == 1) return decodeId(r.g);
@@ -137,6 +153,37 @@ vec3 skyColor(vec2 pp, ivec2 ip) {
     float w = vnoise(q) * 0.65 + vnoise(q * 2.1 + 9.0) * 0.35;
     float wisp = smoothstep(0.42 + 0.3 * uAwakening, 0.8 + 0.15 * uAwakening, w);
     c = mix(c, uMist, al * wisp);
+    if (uToolMode == 1) {
+      // Subtle sky-wide celestial dust shimmer signalling open night sky is drawable
+      vec2 wq = vec2(ip) + vec2(floor(uTime * 1.6), 0.0);
+      vec2 wCell = floor(wq / 12.0);
+      vec2 wPos = floor(hash22(wCell + 13.7) * 12.0);
+      vec2 wLp = floor(wq - wCell * 12.0);
+      float wDot = (abs(wLp.x - wPos.x) + abs(wLp.y - wPos.y) < 0.5) ? 1.0 : 0.0;
+      float wTw = 0.35 + 0.65 * pow(0.5 + 0.5 * sin(uTime * 2.8 + hash12(wCell) * 24.0), 2.0);
+      vec3 wStarCol = mix(vec3(0.86, 0.94, 1.0), vec3(1.0, 0.92, 0.72), hash12(wCell + 5.1));
+      c = mix(c, wStarCol, wDot * wTw * 0.42);
+      c += vec3(0.025, 0.02, 0.05) * (0.5 + 0.5 * sin(uTime * 1.8 + pp.x * 0.025 + pp.y * 0.02));
+      if (uWandGlow.w > 0.5) {
+        float wd = distance(pp, uWandGlow.xy);
+        float wr = max(uWandGlow.z, 1.0);
+        if (wd < wr * 1.45) {
+          float fall = 1.0 - smoothstep(0.0, wr * 1.45, wd);
+          c += vec3(0.11, 0.09, 0.22) * (fall * fall);
+          vec2 nCell = floor(vec2(ip) / 5.0);
+          float nh = hash12(nCell + 31.4);
+          if (nh > 0.68) {
+            vec2 nCp = (nCell + 0.5) * 5.0;
+            float nd = abs(pp.x - nCp.x) + abs(pp.y - nCp.y);
+            float nTw = 0.4 + 0.6 * sin(uTime * 5.2 + nh * 47.0);
+            float mote = (1.0 - smoothstep(0.2, 1.6, nd)) * nTw * fall;
+            c = mix(c, mix(vec3(1.0, 0.95, 0.78), vec3(0.75, 0.95, 1.0), fract(nh * 7.3)), mote * 0.75);
+          }
+          float ring = (1.0 - smoothstep(0.0, 1.8, abs(wd - wr))) * (0.2 + 0.1 * sin(uTime * 4.0 + (pp.x + pp.y) * 0.16));
+          c = mix(c, vec3(0.95, 0.9, 1.0), ring);
+        }
+      }
+    }
   }
   return c;
 }
@@ -149,8 +196,65 @@ vec3 ghostShimmer(vec2 pp) {
 vec3 fixedColor(int fx, vec2 pp, ivec2 ip) {
   if (fx == -1) return ${vec3Hex('#fffaf0')} * (0.94 + 0.06 * sin(uTime * 3.0 + pp.x * 0.3));
   if (fx == -2) return ${vec3Hex('#ffb3c7')};
+  if (fx == -4) {
+    float p = 0.5 + 0.5 * sin(uTime * 5.0 + (pp.x + pp.y) * 0.25);
+    return mix(${vec3Hex('#fff8dc')}, ${vec3Hex('#ffe28a')}, p * 0.65);
+  }
+  if (fx == -5) {
+    float shimmer = 0.5 + 0.5 * sin(uTime * 4.2 + dot(pp, vec2(0.18, 0.24)));
+    float spark = 0.5 + 0.5 * sin(uTime * 6.4 - pp.x * 0.3 + pp.y * 0.2);
+    vec3 aura = mix(${vec3Hex('#ffd27d')}, ${vec3Hex('#cbb2ff')}, shimmer);
+    return mix(aura, vec3(1.0, 0.96, 0.86), spark * 0.28);
+  }
+  if (fx == -6) {
+    float breathe = 0.5 + 0.5 * sin(uTime * 3.4 + (pp.x - pp.y) * 0.12);
+    vec3 chalk = ${vec3Hex('#3b2d5c')};
+    vec3 paperGold = vec3(0.98, 0.91, 0.72);
+    float shadeMix = (gFxVar > 1.5) ? (0.46 + 0.16 * breathe) : (0.18 + 0.12 * breathe);
+    return mix(chalk, paperGold, shadeMix);
+  }
   int m = (fx == -3) ? uSelected : fx;
   return shadeMaterial(clamp(m, 1, MAT_COUNT - 1), pp, ip, vec2(0.0), 0.0, vec2(3.0, 7.0));
+}
+
+// Sleepy Hush prologue lavender mist veil + bottom-right Star-Door curled dog-ear glow
+vec3 applyPageOverlays(vec3 c, vec2 pp, bool aboveMist) {
+  if (uClean >= 0.5) return clamp(c, 0.0, 1.0);
+  if (uPrologueMist > 0.001 && !aboveMist) {
+    float pm = clamp(uPrologueMist, 0.0, 1.0);
+    vec2 mq = pp * 0.014 + vec2(uTime * 0.032, -uTime * 0.014);
+    float n1 = vnoise(mq);
+    float n2 = vnoise(mq * 2.3 + vec2(-uTime * 0.025, 5.7));
+    float fbm = n1 * 0.62 + n2 * 0.38;
+    float veil = smoothstep(0.18 + (1.0 - pm) * 0.58, 0.88, fbm + pm * 0.45) * pm;
+    vec3 hushCol = mix(${vec3Hex('#8d78b8')}, ${vec3Hex('#c8b4f0')}, smoothstep(0.25, 0.85, n2));
+    c = mix(c, hushCol, veil * 0.56);
+    vec2 drift = vec2(uTime * 5.0, -uTime * 2.5);
+    vec2 sc = floor((pp + drift) / 10.0);
+    float sh = hash12(sc + 23.1);
+    if (sh > 0.78) {
+      vec2 sp = (sc + 0.5) * 10.0 - drift;
+      float sd = length(pp - sp);
+      float tw = 0.4 + 0.6 * sin(uTime * 4.5 + sh * 52.0);
+      float mote = (1.0 - smoothstep(0.2, 1.8, sd)) * tw * pm;
+      c = mix(c, mix(${vec3Hex('#c8b4f0')}, vec3(1.0, 0.96, 0.82), fract(sh * 13.0)), mote * 0.75);
+    }
+  }
+  if (uDogEarGlow > 0.001 && pp.x > 426.0 && pp.y > 224.0) {
+    float dg = clamp(uDogEarGlow, 0.0, 1.0);
+    float tx = (pp.x - 426.0) / (${f(PAGE_W)} - 426.0);
+    float ty = (pp.y - 224.0) / (${f(PAGE_H)} - 224.0);
+    float tri = tx + ty - 1.0;
+    if (tri > -0.18) {
+      float breathe = 0.82 + 0.18 * sin(uTime * 3.0);
+      float edgeGlow = smoothstep(-0.18, 0.42, tri);
+      float coreGlow = smoothstep(0.15, 0.95, tri);
+      vec3 amber = mix(vec3(1.0, 0.76, 0.34), vec3(1.0, 0.94, 0.72), coreGlow);
+      float ray = 0.5 + 0.5 * sin((tx - ty) * 12.0 - uTime * 2.4);
+      c = mix(c, amber, clamp(edgeGlow * (0.55 + 0.22 * ray) * dg * breathe, 0.0, 0.92));
+    }
+  }
+  return clamp(c, 0.0, 1.0);
 }
 
 void main() {
@@ -164,10 +268,11 @@ void main() {
 
   int id = rid(ip);
   vec4 actorPx = texelFetch(uActorTex, ip, 0);
-  bool isActor = actorPx.a > 0.0;
+  int actorId = decodeId(actorPx.r);
+  bool isActor = actorPx.a > 0.0 && (uClean < 0.5 || actorId < 231 || actorId > 233);
   gFxVar = isActor ? floor(actorPx.g * 255.0 + 0.5) : 0.0;
 
-  // 4-neighbour ids (ink sel-out, wiggle)
+  // 4-neighbour ids (ink sel-out, wiggle, guide glow)
   int nE = rid(ip + ivec2(1, 0));
   int nW = rid(ip + ivec2(-1, 0));
   int nS = rid(ip + ivec2(0, 1));
@@ -214,25 +319,50 @@ void main() {
       }
     }
     if (!touchesRegular && touchesGhost && !ghostVisible) {
+      if (uClean < 0.5 && uToolMode == 1 && uWandGlow.w > 0.5) {
+        float wd = distance(pp, uWandGlow.xy);
+        float wr = max(uWandGlow.z, 1.0);
+        if (wd <= wr) {
+          float wFall = 1.0 - smoothstep(wr * 0.25, wr, wd);
+          float wPulse = 0.7 + 0.3 * sin(uTime * 4.0 + (pp.x + pp.y) * 0.15);
+          vec3 peekInk = mix(skyColor(pp, ip), ghostShimmer(pp), 0.38 * wFall * wPulse);
+          fragColor = vec4(applyPageOverlays(peekInk, pp, false), 1.0);
+          return;
+        }
+      }
+      if (uClean < 0.5 && (uPrologueMist > 0.001 || uDogEarGlow > 0.001)) {
+        fragColor = vec4(applyPageOverlays(skyColor(pp, ip), pp, false), 1.0);
+        return;
+      }
       fragColor = vec4(skyColor(pp, ip), 1.0);
       return;
     }
 
     col = INK;
+    bool selOutDone = false;
+    bool guideInk = false;
     int ids4[4] = int[4](nE, nW, nS, nN);
     for (int k = 0; k < 4; k++) {
       int nid = ids4[k];
       if ((nid > 0 && nid < 212) || (nid >= 234 && nid <= 254)) {
         ivec4 s0 = regionRow0(nid);
-        if (hasFlag(s0.a, FLAG_COMPLETE) && s0.r > 0) {
+        if (!selOutDone && hasFlag(s0.a, FLAG_COMPLETE) && s0.r > 0) {
           vec3 tint = PALAVG[clamp(s0.r, 1, MAT_COUNT - 1)];
           col = mix(INK, tint * 0.52, 0.72);
           if (hasFlag(s0.a, FLAG_FLASH)) col = mix(col, GOLD_WHITE, 0.55 + 0.25 * sin(uTime * 22.0));
-          break;
+          selOutDone = true;
+        }
+        if (uClean < 0.5 && !hasFlag(s0.a, FLAG_COMPLETE) && hasFlag(s0.a, FLAG_GUIDE_GLOW)) {
+          guideInk = true;
         }
       }
     }
-    fragColor = vec4(col, 1.0);
+    if (guideInk) {
+      float gWave = 0.5 + 0.5 * sin(uTime * 3.2 + (pp.x + pp.y) * 0.08);
+      float gSpark = smoothstep(0.74, 0.98, hash12(vec2(ip) + floor(uTime * 4.0) * 0.13));
+      col = mix(col, vec3(1.0, 0.89, 0.55), 0.28 + 0.30 * gWave + 0.22 * gSpark * gWave);
+    }
+    fragColor = vec4(applyPageOverlays(col, pp, false), 1.0);
     return;
   }
 
@@ -246,14 +376,25 @@ void main() {
     bool visible = hasFlag(s0.a, FLAG_REVEALED);
     if (!visible && uFlashlight.w > 0.5) visible = distance(pp, uFlashlight.xy) <= uFlashlight.z;
     if (!visible) {
-      fragColor = vec4(skyColor(pp, ip), 1.0);
+      vec3 sk = skyColor(pp, ip);
+      if (uClean < 0.5 && uToolMode == 1 && uWandGlow.w > 0.5) {
+        float wd = distance(pp, uWandGlow.xy);
+        float wr = max(uWandGlow.z, 1.0);
+        if (wd <= wr) {
+          float wFall = 1.0 - smoothstep(wr * 0.2, wr, wd);
+          float wPulse = 0.65 + 0.35 * sin(uTime * 3.8 + (pp.x - pp.y) * 0.1);
+          sk = mix(sk, ghostShimmer(pp), 0.26 * wFall * wPulse);
+        }
+      }
+      fragColor = vec4(applyPageOverlays(sk, pp, false), 1.0);
       return;
     }
     base = mix(skyColor(pp, ip), ghostShimmer(pp), 0.5);
   } else if (id >= 212 && id <= 233) {
     int fx = sysFixed(id);
     vec3 sc = fixedColor(fx, pp, ip);
-    fragColor = vec4(sc, 1.0);
+    bool aboveMist = (id == 231 || id == 232);
+    fragColor = vec4(applyPageOverlays(sc, pp, aboveMist), 1.0);
     return;
   } else {
     base = paperColor(pp);
@@ -265,6 +406,27 @@ void main() {
   vec2 flow = vec2(0.0);
   float ripple = 0.0;
   bool complete = paintable && hasFlag(s0.a, FLAG_COMPLETE);
+
+  // Enchanted Pencil hover shimmer + idle Starlight Wisp guide breathing on uncompleted regions
+  if (uClean < 0.5 && paintable && !complete) {
+    if (uToolMode == 0 && uHoverRegion > 0 && id == uHoverRegion) {
+      float hBreath = 0.5 + 0.5 * sin(uTime * 3.6 + (pp.x + pp.y) * 0.045);
+      float pulse = 0.14 + 0.14 * hBreath;
+      base = mix(base, vec3(1.0, 0.94, 0.74), pulse);
+      float innerEdge = edgeAmount(ip, id);
+      base = mix(base, vec3(1.0, 0.91, 0.62), innerEdge * (0.28 + 0.16 * hBreath));
+    }
+    if (hasFlag(s0.a, FLAG_GUIDE_GLOW)) {
+      float gPulse = 0.5 + 0.5 * sin(uTime * 3.2);
+      float gWave = 0.5 + 0.5 * sin(uTime * 3.2 + (pp.x * 0.05 - pp.y * 0.04));
+      float gEdge = edgeAmount(ip, id);
+      float gDust = smoothstep(0.84, 0.99, hash12(floor(pp * 0.5) + floor(uTime * 3.0) * 0.37));
+      base = mix(base, vec3(1.0, 0.93, 0.68), 0.12 + 0.16 * gPulse + 0.08 * gWave);
+      base = mix(base, vec3(1.0, 0.88, 0.52), gEdge * (0.32 + 0.24 * gPulse));
+      base = mix(base, vec3(1.0, 0.97, 0.84), gDust * (0.25 + 0.35 * gPulse));
+    }
+  }
+
   if (isActor && paintable) {
     mat = s0.r;
     a = mat > 0 ? 1.0 : 0.0;
@@ -320,7 +482,7 @@ void main() {
   if (complete && hasFlag(s0.a, FLAG_FLASH)) {
     col = mix(col, GOLD_WHITE, clamp(0.5 + 0.25 * sin(uTime * 22.0), 0.0, 0.8));
   }
-  fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+  fragColor = vec4(applyPageOverlays(col, pp, false), 1.0);
 }
 `;
 }

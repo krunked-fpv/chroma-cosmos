@@ -1,5 +1,5 @@
-/** Derives pixel-star particles (snapped to internal pixels) from effect states. Pure. */
-import type { EffectRenderState } from '../contracts/simulation';
+/** Derives pixel-star particles (snapped to internal pixels) from effect, wisp & poke states. Pure. */
+import type { EffectRenderState, PokeInvite, WispRenderState } from '../contracts/simulation';
 import { clamp01, easeOut, mulberry32 } from './rng';
 
 export interface PixelParticle {
@@ -124,4 +124,80 @@ export function particlesForEffects(effects: readonly EffectRenderState[]): Pixe
   const out: PixelParticle[] = [];
   for (const e of effects) particlesForEffect(e, out);
   return out;
+}
+
+/** Trailing warm stardust motes orbiting and drifting softly behind the Luminous Starlight Wisp. */
+export function particlesForWisp(
+  wisp: WispRenderState | undefined,
+  timeMs: number,
+  out: PixelParticle[],
+): void {
+  if (out.length >= MAX_PARTICLES || !wisp || !wisp.active || wisp.mode === 'hidden') return;
+  if (!Number.isFinite(wisp.x) || !Number.isFinite(wisp.y) || !Number.isFinite(wisp.alpha) || wisp.alpha <= 0.02) {
+    return;
+  }
+  const safeTime = Number.isFinite(timeMs) && timeMs >= 0 ? timeMs : 0;
+  const baseAlpha = clamp01(wisp.alpha);
+  const moteCount = 6;
+  for (let i = 0; i < moteCount && out.length < MAX_PARTICLES; i++) {
+    const phase = ((safeTime * 0.0011 + i / moteCount) % 1 + 1) % 1;
+    const angle = safeTime * 0.0024 + i * 1.15;
+    const drift = 4 + phase * 11;
+    const px = wisp.x + Math.cos(angle) * drift - phase * 4;
+    const py = wisp.y + Math.sin(angle * 1.3) * (drift * 0.65) + phase * 5;
+    const tw = 0.55 + 0.45 * Math.sin(safeTime * 0.012 + i * 2.1);
+    const alpha = clamp01((1 - phase * 0.85) * tw * baseAlpha);
+    if (alpha > 0.02) {
+      const color = i % 3 === 0 ? GOLD : i % 3 === 1 ? CREAM : LAV;
+      out.push({ x: px, y: py, color, alpha });
+    }
+  }
+  if (wisp.mode === 'prologueStroke' && wisp.ghostPath.length >= 2 && wisp.ghostStrokeT > 0.02) {
+    const t = clamp01(wisp.ghostStrokeT);
+    const maxIdx = wisp.ghostPath.length - 1;
+    for (let k = 0; k < 3 && out.length < MAX_PARTICLES; k++) {
+      const u = clamp01(t - k * 0.08);
+      const pos = u * maxIdx;
+      const i0 = Math.min(maxIdx, Math.floor(pos));
+      const i1 = Math.min(maxIdx, i0 + 1);
+      const frac = pos - i0;
+      const p0 = wisp.ghostPath[i0]!;
+      const p1 = wisp.ghostPath[i1]!;
+      if (!Number.isFinite(p0.x) || !Number.isFinite(p0.y) || !Number.isFinite(p1.x) || !Number.isFinite(p1.y)) {
+        continue;
+      }
+      const sx = p0.x + (p1.x - p0.x) * frac + Math.sin(safeTime * 0.009 + k * 2.3) * 2.5;
+      const sy = p0.y + (p1.y - p0.y) * frac + Math.cos(safeTime * 0.008 + k * 1.7) * 2.5;
+      const alpha = clamp01((0.9 - k * 0.22) * baseAlpha);
+      if (alpha > 0.02) out.push({ x: sx, y: sy, color: k === 0 ? CREAM : GOLD, alpha });
+    }
+  }
+}
+
+/** Golden starlight sparkles pulsing around interactive Poke Invites (extra warm when `firstAwake`). */
+export function particlesForPokeInvites(
+  invites: readonly PokeInvite[] | undefined,
+  timeMs: number,
+  out: PixelParticle[],
+): void {
+  if (!invites || invites.length === 0 || out.length >= MAX_PARTICLES) return;
+  const safeTime = Number.isFinite(timeMs) && timeMs >= 0 ? timeMs : 0;
+  for (let idx = 0; idx < invites.length && out.length < MAX_PARTICLES; idx++) {
+    const inv = invites[idx]!;
+    if (!Number.isFinite(inv.x) || !Number.isFinite(inv.y)) continue;
+    const warm = inv.firstAwake;
+    const count = warm ? 6 : 3;
+    const period = warm ? 1400 : 1800;
+    for (let i = 0; i < count && out.length < MAX_PARTICLES; i++) {
+      const ph = ((safeTime / period) + i / count) % 1;
+      const r = (warm ? 11 : 10) + (warm ? 16 : 11) * easeOut(ph);
+      const a = (i / count) * Math.PI * 2 + safeTime * (warm ? 0.0022 : 0.0014) + idx * 0.9;
+      const tw = 0.6 + 0.4 * Math.sin(safeTime * 0.011 + i * 1.9 + idx);
+      const alpha = clamp01((1 - ph * 0.72) * tw * (warm ? 0.95 : 0.72));
+      if (alpha > 0.02) {
+        const color = warm ? (i % 2 === 0 ? GOLD : CREAM) : i % 2 === 0 ? GOLD : LAV;
+        out.push({ x: inv.x + Math.cos(a) * r, y: inv.y + Math.sin(a) * r, color, alpha });
+      }
+    }
+  }
 }

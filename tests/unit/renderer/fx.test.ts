@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import type { CausalityKind } from '../../../src/contracts/causality';
 import { PAGE_H, PAGE_W } from '../../../src/contracts/constants';
-import type { EffectKind, EffectRenderState } from '../../../src/contracts/simulation';
-import { FX_ID, rasterizeEffect, rasterizeEffects } from '../../../src/renderer/fx';
+import type { EffectKind, EffectRenderState, PokeInvite, WispRenderState, WonderWhisperHint } from '../../../src/contracts/simulation';
+import {
+  FX_ID,
+  rasterizeEffect,
+  rasterizeEffects,
+  rasterizePokeInvites,
+  rasterizeWispGhostStroke,
+  rasterizeWonderWhisper,
+} from '../../../src/renderer/fx';
 import { PixelPlane } from '../../../src/renderer/pixelPlane';
-import { MAX_PARTICLES, particlesForEffects } from '../../../src/renderer/particles';
+import {
+  MAX_PARTICLES,
+  particlesForEffects,
+  particlesForPokeInvites,
+  particlesForWisp,
+} from '../../../src/renderer/particles';
+import type { PixelParticle } from '../../../src/renderer/particles';
 
 const ALL_KINDS: EffectKind[] = [
   'rainbowSlide', 'starlightFlowerRain', 'zeroGTrampoline', 'cheetahRacetrack', 'discoMirage', 'gentleSparkle',
@@ -196,5 +210,212 @@ describe('particles', () => {
     const many = Array.from({ length: 400 }, (_, i) => fx('starBurst', i, 50, { seed: i }));
     expect(particlesForEffects(many).length).toBeLessThanOrEqual(MAX_PARTICLES);
     expect(particlesForEffects([fx('starBurst', NaN, 3)])).toHaveLength(0);
+  });
+
+  it('derives warm trailing stardust motes for active wisp and golden sparkles for poke invites', () => {
+    const wisp: WispRenderState = {
+      active: true,
+      mode: 'prologueStroke',
+      x: 180,
+      y: 120,
+      targetRegionId: 5,
+      ghostStrokeT: 0.7,
+      ghostPath: [
+        { x: 140, y: 110 },
+        { x: 165, y: 125 },
+        { x: 195, y: 115 },
+      ],
+      prologueMist: 0.4,
+      alpha: 1,
+    };
+    const out: PixelParticle[] = [];
+    particlesForWisp(wisp, 1200, out);
+    expect(out.length).toBeGreaterThanOrEqual(6);
+    for (const q of out) {
+      expect(Number.isFinite(q.x) && Number.isFinite(q.y)).toBe(true);
+      expect(q.alpha).toBeGreaterThan(0);
+      expect(q.alpha).toBeLessThanOrEqual(1);
+    }
+
+    const inactiveOut: PixelParticle[] = [];
+    particlesForWisp({ ...wisp, active: false }, 1200, inactiveOut);
+    particlesForWisp({ ...wisp, mode: 'hidden' }, 1200, inactiveOut);
+    particlesForWisp({ ...wisp, alpha: 0 }, 1200, inactiveOut);
+    particlesForWisp({ ...wisp, x: NaN }, 1200, inactiveOut);
+    expect(inactiveOut).toHaveLength(0);
+
+    const softInv: PokeInvite = { instanceId: 'lumi-1', kind: 'lumi', x: 220, y: 140, firstAwake: false };
+    const warmInv: PokeInvite = { instanceId: 'lumi-1', kind: 'lumi', x: 220, y: 140, firstAwake: true };
+    const softList: PixelParticle[] = [];
+    const warmList: PixelParticle[] = [];
+    particlesForPokeInvites([softInv], 900, softList);
+    particlesForPokeInvites([warmInv], 900, warmList);
+    expect(softList.length).toBeGreaterThan(0);
+    expect(warmList.length).toBeGreaterThan(softList.length);
+  });
+});
+
+describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', () => {
+  it('exposes system FX ids 231..233', () => {
+    expect(FX_ID.wispCore).toBe(231);
+    expect(FX_ID.wispAura).toBe(232);
+    expect(FX_ID.wonderChalk).toBe(233);
+  });
+
+  it('draws a softly spaced looping rainbow ghost-stroke along ghostPath up to ghostStrokeT', () => {
+    const baseWisp: WispRenderState = {
+      active: true,
+      mode: 'prologueStroke',
+      x: 200,
+      y: 120,
+      targetRegionId: 5,
+      ghostStrokeT: 1,
+      ghostPath: [
+        { x: 120, y: 100 },
+        { x: 180, y: 120 },
+        { x: 140, y: 150 },
+        { x: 210, y: 165 },
+      ],
+      prologueMist: 0.3,
+      alpha: 1,
+    };
+
+    const pQuarter = new PixelPlane();
+    const pFull = new PixelPlane();
+    rasterizeWispGhostStroke(pQuarter, { ...baseWisp, ghostStrokeT: 0.25 }, 600);
+    rasterizeWispGhostStroke(pFull, baseWisp, 600);
+    const aFull = audit(pFull);
+    expect(pQuarter.count).toBeGreaterThan(0);
+    expect(pFull.count).toBeGreaterThan(pQuarter.count);
+    expect(aFull.pixels).toBe(pFull.count);
+
+    const ids = new Set<number>();
+    const rainbowVariants = new Set<number>();
+    for (let i = 0; i < PAGE_W * PAGE_H; i++) {
+      if (pFull.data[i * 4 + 3] === 255) {
+        const id = pFull.data[i * 4] as number;
+        ids.add(id);
+        if (id === FX_ID.rainbow) rainbowVariants.add(pFull.data[i * 4 + 1] as number);
+      }
+    }
+    expect(ids.has(FX_ID.rainbow)).toBe(true);
+    expect(ids.has(FX_ID.wispAura)).toBe(true);
+    expect(rainbowVariants.size).toBeGreaterThanOrEqual(3);
+
+    // Non-prologueStroke or inactive wisp draws nothing
+    const pIdle = new PixelPlane();
+    rasterizeWispGhostStroke(pIdle, { ...baseWisp, mode: 'idleGuide' }, 600);
+    rasterizeWispGhostStroke(pIdle, { ...baseWisp, active: false }, 600);
+    rasterizeWispGhostStroke(pIdle, { ...baseWisp, ghostStrokeT: 0 }, 600);
+    rasterizeWispGhostStroke(pIdle, { ...baseWisp, ghostPath: [{ x: 100, y: 100 }] }, 600);
+    expect(pIdle.count).toBe(0);
+
+    // Extreme / NaN coordinates stay safely clamped
+    const pWild = new PixelPlane();
+    rasterizeWispGhostStroke(
+      pWild,
+      { ...baseWisp, ghostPath: [{ x: -1e6, y: 50 }, { x: NaN, y: 100 }, { x: 1e6, y: 200 }] },
+      600,
+    );
+    audit(pWild);
+  });
+
+  it('rasterizes Wonder Whispers with custom wonderSketch callback and with built-in fallback for all 5 causality kinds', () => {
+    const hint: WonderWhisperHint = {
+      regionId: 14,
+      effect: 'rainbowSlide',
+      x: 220,
+      y: 95,
+      x0: 190,
+      y0: 75,
+      x1: 250,
+      y1: 115,
+    };
+
+    // Custom callback delegation
+    const pCustom = new PixelPlane();
+    rasterizeWonderWhisper(pCustom, hint, 500, () => [
+      { x: 201, y: 81, shade: 1 },
+      { x: 205, y: 84, shade: 2 },
+      { x: -10, y: 999, shade: 1 }, // clamped out
+    ]);
+    expect(pCustom.count).toBe(2);
+    expect(pCustom.idAt(201, 81)).toBe(FX_ID.wonderChalk);
+    expect(pCustom.data[(81 * PAGE_W + 201) * 4 + 1]).toBe(1);
+    expect(pCustom.idAt(205, 84)).toBe(FX_ID.wonderChalk);
+    expect(pCustom.data[(84 * PAGE_W + 205) * 4 + 1]).toBe(2);
+
+    // Built-in procedural fallback for all 5 causality kinds
+    const kinds: CausalityKind[] = [
+      'rainbowSlide',
+      'starlightFlowerRain',
+      'zeroGTrampoline',
+      'cheetahRacetrack',
+      'discoMirage',
+    ];
+    for (const effect of kinds) {
+      const p1 = new PixelPlane();
+      const p2 = new PixelPlane();
+      rasterizeWonderWhisper(p1, { ...hint, effect }, 1250);
+      rasterizeWonderWhisper(p2, { ...hint, effect }, 1250);
+      const a = audit(p1);
+      expect(a.pixels, effect).toBeGreaterThan(10);
+      expect(Buffer.from(p1.data).equals(Buffer.from(p2.data)), `${effect} deterministic`).toBe(true);
+      const shades = new Set<number>();
+      for (let i = 0; i < PAGE_W * PAGE_H; i++) {
+        if (p1.data[i * 4 + 3] === 255) {
+          expect(p1.data[i * 4]).toBe(FX_ID.wonderChalk);
+          shades.add(p1.data[i * 4 + 1] as number);
+        }
+      }
+      expect(shades.has(1) && shades.has(2), `${effect} uses both shades 1 & 2`).toBe(true);
+    }
+
+    // gentleSparkle / null / NaN draws nothing
+    const pEmpty = new PixelPlane();
+    rasterizeWonderWhisper(pEmpty, { ...hint, effect: 'gentleSparkle' }, 1250);
+    rasterizeWonderWhisper(pEmpty, null, 1250);
+    rasterizeWonderWhisper(
+      pEmpty,
+      { regionId: 14, effect: 'discoMirage', x: NaN, y: NaN, x0: NaN, y0: NaN, x1: NaN, y1: NaN },
+      1250,
+    );
+    expect(pEmpty.count).toBe(0);
+  });
+
+  it('draws pulsing concentric starlight poke rings using 232 & 227, extra prominent when firstAwake', () => {
+    const soft = new PixelPlane();
+    const warm = new PixelPlane();
+    rasterizePokeInvites(soft, [{ instanceId: 'l1', kind: 'lumi', x: 240, y: 135, firstAwake: false }], 700);
+    rasterizePokeInvites(warm, [{ instanceId: 'l1', kind: 'lumi', x: 240, y: 135, firstAwake: true }], 700);
+    const aSoft = audit(soft);
+    const aWarm = audit(warm);
+    expect(aSoft.pixels).toBeGreaterThan(10);
+    expect(aWarm.pixels).toBeGreaterThan(aSoft.pixels);
+
+    let warmGold = 0;
+    let warmAura = 0;
+    for (let i = 0; i < PAGE_W * PAGE_H; i++) {
+      if (warm.data[i * 4 + 3] === 255) {
+        const id = warm.data[i * 4] as number;
+        expect(id === FX_ID.wispAura || id === FX_ID.goldDoodle).toBe(true);
+        if (id === FX_ID.goldDoodle) warmGold++;
+        if (id === FX_ID.wispAura) warmAura++;
+      }
+    }
+    expect(warmGold).toBeGreaterThan(0);
+    expect(warmAura).toBeGreaterThan(0);
+
+    // Off-page and non-finite invites draw nothing
+    const pNone = new PixelPlane();
+    rasterizePokeInvites(
+      pNone,
+      [
+        { instanceId: 'off', kind: 'nova', x: -200, y: -200, firstAwake: true },
+        { instanceId: 'nan', kind: 'nova', x: NaN, y: 100, firstAwake: true },
+      ],
+      700,
+    );
+    expect(pNone.count).toBe(0);
   });
 });

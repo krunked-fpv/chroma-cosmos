@@ -13,9 +13,9 @@ import {
 } from 'pixi.js';
 import type { MeshGeometry, Shader } from 'pixi.js';
 import type { FrameInput, RendererPort, RendererStats } from '../contracts/renderer';
-import type { CompiledPage, SpriteLibrary } from '../contracts/art';
+import type { CompiledPage, SpriteLibrary, SpriteSheet } from '../contracts/art';
 import type { GpuStampBatch } from '../contracts/simulation';
-import { BG_HEX, MAX_STAMPS_PER_BATCH, PAGE_H, PAGE_TURN_MS, PAGE_W } from '../contracts/constants';
+import { BG_HEX, MAX_STAMPS_PER_BATCH, PAGE_H, PAGE_TURN_MS, PAGE_W, WAND_UV_PEEK_RADIUS } from '../contracts/constants';
 import { REGION_FLAG, REGION_STATE_BYTES, REGION_STATE_H, REGION_STATE_W } from '../contracts/regions';
 import {
   MAX_SPARKLES,
@@ -27,10 +27,16 @@ import {
   hexToRgb,
 } from '../shaders';
 import { AdaptiveResolution, initialResolution } from './adaptive';
-import { rasterizeEffects } from './fx';
+import {
+  rasterizeEffects,
+  rasterizePokeInvites,
+  rasterizeWispGhostStroke,
+  rasterizeWonderWhisper,
+} from './fx';
 import { DataTexture, createQuadGeometry, createShader, glOf, validateProgram } from './gpu';
-import { blitActors, buildRegionTexData, liveSlotMask } from './pageData';
-import { MAX_PARTICLES, particlesForEffects } from './particles';
+import { blitActors, blitWisp, buildRegionTexData, liveSlotMask } from './pageData';
+import { MAX_PARTICLES, particlesForEffect, particlesForPokeInvites, particlesForWisp } from './particles';
+import type { PixelParticle } from './particles';
 import { PixelPlane } from './pixelPlane';
 import { easeInOut, clamp01 } from './rng';
 import { RtPool } from './rtPool';
@@ -63,6 +69,7 @@ export function createRenderer(): RendererPort {
 
   let page: CompiledPage | null = null;
   let sprites: SpriteLibrary | null = null;
+  let wispSheet: SpriteSheet | null = null;
   let needsReseed = false;
   let lastFrame: FrameInput | null = null;
 
@@ -90,6 +97,9 @@ export function createRenderer(): RendererPort {
   let lu: Uniforms = {};
   const plane = new PixelPlane();
   let planeWasDirty = false;
+  let planeHasGuides = false;
+  const particleScratch: PixelParticle[] = [];
+  const targetScratch = { w: 0, h: 0, offX: 0, offY: 0, scale: 1, flip: false, clean: false };
   const sparkleArr = new Float32Array(MAX_SPARKLES * 2);
   const skyTop = new Float32Array([0.07, 0.05, 0.17]);
   const skyBot = new Float32Array([0.16, 0.1, 0.3]);
@@ -140,12 +150,57 @@ export function createRenderer(): RendererPort {
     setUniform('uFlipY', target.flip ? 1 : 0);
     setUniform('uSelected', f.selectedMaterial);
     setUniform('uLiveSlots', liveSlotMask(f.view.actors));
+
+    const interactive = !target.clean && f.mode !== 'book';
+    const toolModeInt =
+      interactive && (f.toolMode === 'wand' || (f.toolMode === undefined && !!f.view.wandGlow)) ? 1 : 0;
+    setUniform('uToolMode', toolModeInt);
+
+    let hoverId = 0;
+    if (interactive && toolModeInt === 0) {
+      if (f.view.hoveredRegionId !== undefined) {
+        const raw = Math.floor(f.view.hoveredRegionId);
+        hoverId = raw > 0 && raw < 255 ? raw : 0;
+      } else if (f.hoverPos && page && Number.isFinite(f.hoverPos.x) && Number.isFinite(f.hoverPos.y)) {
+        const hx = Math.floor(f.hoverPos.x);
+        const hy = Math.floor(f.hoverPos.y);
+        if (hx >= 0 && hy >= 0 && hx < PAGE_W && hy < PAGE_H) {
+          const rid = page.regionMap[hy * PAGE_W + hx] ?? 0;
+          if (rid > 0 && rid < 212) hoverId = rid;
+        }
+      }
+    }
+    setUniform('uHoverRegion', hoverId);
+
     const fl = f.view.uvFlashlight;
     const flu = cu.uFlashlight as Float32Array;
     flu[0] = fl ? fl.x : 0;
     flu[1] = fl ? fl.y : 0;
     flu[2] = fl ? fl.r : 0;
     flu[3] = fl ? 1 : 0;
+
+    const wgu = cu.uWandGlow as Float32Array;
+    const wg = interactive ? f.view.wandGlow : null;
+    if (wg && Number.isFinite(wg.x) && Number.isFinite(wg.y)) {
+      wgu[0] = wg.x;
+      wgu[1] = wg.y;
+      wgu[2] = Number.isFinite(wg.r) ? Math.max(0, wg.r) : WAND_UV_PEEK_RADIUS;
+      wgu[3] = 1;
+    } else if (interactive && toolModeInt === 1 && f.hoverPos && Number.isFinite(f.hoverPos.x) && Number.isFinite(f.hoverPos.y)) {
+      wgu[0] = f.hoverPos.x;
+      wgu[1] = f.hoverPos.y;
+      wgu[2] = WAND_UV_PEEK_RADIUS;
+      wgu[3] = 1;
+    } else {
+      wgu[0] = 0;
+      wgu[1] = 0;
+      wgu[2] = 0;
+      wgu[3] = 0;
+    }
+
+    setUniform('uPrologueMist', interactive && f.view.wisp ? clamp01(f.view.wisp.prologueMist) : 0);
+    setUniform('uDogEarGlow', interactive ? clamp01(f.dogEarGlow ?? (f.view.pageComplete && f.mode === 'chapter' ? 1 : 0)) : 0);
+
     const n = Math.min(MAX_SPARKLES, f.view.sparkleSources.length);
     sparkleArr.fill(0);
     for (let i = 0; i < n; i++) {
@@ -160,7 +215,14 @@ export function createRenderer(): RendererPort {
   }
 
   function screenTarget(): { w: number; h: number; offX: number; offY: number; scale: number; flip: boolean; clean: boolean } {
-    return { w: canvas().width, h: canvas().height, offX: fit.offX, offY: fit.offY, scale: fit.scale, flip: false, clean: false };
+    targetScratch.w = canvas().width;
+    targetScratch.h = canvas().height;
+    targetScratch.offX = fit.offX;
+    targetScratch.offY = fit.offY;
+    targetScratch.scale = fit.scale;
+    targetScratch.flip = false;
+    targetScratch.clean = false;
+    return targetScratch;
   }
 
   // ---- stroke RT ----
@@ -233,12 +295,17 @@ export function createRenderer(): RendererPort {
 
   function updateParticles(f: FrameInput): void {
     if (!particles) return;
-    const list = particlesForEffects(f.view.effects);
-    const n = Math.min(list.length, MAX_PARTICLES);
+    particleScratch.length = 0;
+    for (const e of f.view.effects) particlesForEffect(e, particleScratch);
+    if (f.mode !== 'book') {
+      particlesForWisp(f.view.wisp, f.timeMs, particleScratch);
+      particlesForPokeInvites(f.view.pokeInvites, f.timeMs, particleScratch);
+    }
+    const n = Math.min(particleScratch.length, MAX_PARTICLES);
     for (let i = 0; i < particleObjs.length; i++) {
       const p = particleObjs[i] as Particle;
       if (i < n) {
-        const q = list[i] as { x: number; y: number; color: number; alpha: number };
+        const q = particleScratch[i] as PixelParticle;
         const ix = Math.floor(q.x);
         const iy = Math.floor(q.y);
         // 3x3 star centred on internal pixel (ix, iy), snapped to the internal pixel grid
@@ -285,15 +352,27 @@ export function createRenderer(): RendererPort {
       reseedStroke(stateTex.data);
     }
     if (f.stampBatches.length > 0) stampBatches(f.stampBatches);
-    // actor plane: live sprites + FX pixels
+    // actor plane: live sprites + FX pixels + interactive guide overlays
     plane.clear();
     if (sprites) blitActors(plane, sprites, f.view.actors);
     rasterizeEffects(plane, f.view.effects);
+    const hasGuides =
+      f.mode !== 'book' &&
+      (!!f.view.wonderWhisper ||
+        (!!f.view.pokeInvites && f.view.pokeInvites.length > 0) ||
+        (!!f.view.wisp && f.view.wisp.active && f.view.wisp.mode !== 'hidden'));
+    if (hasGuides) {
+      rasterizeWonderWhisper(plane, f.view.wonderWhisper, f.timeMs, f.wonderSketch);
+      rasterizePokeInvites(plane, f.view.pokeInvites, f.timeMs);
+      rasterizeWispGhostStroke(plane, f.view.wisp, f.timeMs);
+      blitWisp(plane, f.view.wisp, wispSheet, f.timeMs);
+    }
     if (plane.count > 0 || planeWasDirty) {
       actorTex.data.set(plane.data);
       actorTex.update();
     }
     planeWasDirty = plane.count > 0;
+    planeHasGuides = hasGuides;
     updateParticles(f);
     applyCompositeUniforms(f, f.timeMs / 1000, screenTarget());
   }
@@ -403,10 +482,15 @@ export function createRenderer(): RendererPort {
       uFlipY: { value: 0, type: 'f32' },
       uSelected: { value: 1, type: 'i32' },
       uLiveSlots: { value: 0, type: 'i32' },
+      uHoverRegion: { value: 0, type: 'i32' },
+      uToolMode: { value: 0, type: 'i32' },
       uSkyTop: v3(),
       uSkyBot: v3(),
       uMist: v3(),
       uFlashlight: { value: new Float32Array(4), type: 'vec4<f32>' },
+      uWandGlow: { value: new Float32Array(4), type: 'vec4<f32>' },
+      uPrologueMist: { value: 0, type: 'f32' },
+      uDogEarGlow: { value: 0, type: 'f32' },
       uSparkle: { value: sparkleArr, type: 'vec2<f32>', size: MAX_SPARKLES },
       uSparkleN: { value: 0, type: 'i32' },
     } as const;
@@ -504,16 +588,18 @@ export function createRenderer(): RendererPort {
   }
 
   // ---- RendererPort ----
-  function loadPage(p: CompiledPage, s: SpriteLibrary): void {
+  function loadPage(p: CompiledPage, s: SpriteLibrary, wisp?: SpriteSheet): void {
     if (!app || !regionTex || !actorTex || !stateTex) return;
     page = p;
     sprites = s;
+    wispSheet = wisp ?? null;
     buildRegionTexData(p, regionTex.data);
     regionTex.update();
     plane.clear();
     actorTex.data.fill(0);
     actorTex.update();
     planeWasDirty = false;
+    planeHasGuides = false;
     stateTex.data.fill(0);
     stateTex.update();
     skyTop.set(hexToRgb(p.sky.top));
@@ -666,6 +752,14 @@ export function createRenderer(): RendererPort {
     if (!app || !pool || !compMeshRt || !lastFrame || contextLost) return out;
     const rt = pool.acquire(w, h);
     beginFrame();
+    const stripGuides = planeHasGuides && !!actorTex;
+    if (stripGuides && actorTex) {
+      plane.clear();
+      if (sprites) blitActors(plane, sprites, lastFrame.view.actors);
+      rasterizeEffects(plane, lastFrame.view.effects);
+      actorTex.data.set(plane.data);
+      actorTex.update();
+    }
     applyCompositeUniforms(lastFrame, lastFrame.timeMs / 1000, { w, h, offX: 0, offY: 0, scale: s, flip: true, clean: true });
     (compShader!.resources as Record<string, unknown>).uStrokeTex = strokeSrc().source;
     renderCompositeTo(rt);
@@ -676,6 +770,14 @@ export function createRenderer(): RendererPort {
       ctx.drawImage(extracted as CanvasImageSource, 0, 0, w, h);
     }
     pool.discard(rt);
+    if (stripGuides && actorTex) {
+      rasterizeWonderWhisper(plane, lastFrame.view.wonderWhisper, lastFrame.timeMs, lastFrame.wonderSketch);
+      rasterizePokeInvites(plane, lastFrame.view.pokeInvites, lastFrame.timeMs);
+      rasterizeWispGhostStroke(plane, lastFrame.view.wisp, lastFrame.timeMs);
+      blitWisp(plane, lastFrame.view.wisp, wispSheet, lastFrame.timeMs);
+      actorTex.data.set(plane.data);
+      actorTex.update();
+    }
     applyCompositeUniforms(lastFrame, lastFrame.timeMs / 1000, screenTarget());
     endFrame();
     return out;

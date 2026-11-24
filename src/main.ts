@@ -221,7 +221,7 @@ async function boot(): Promise<void> {
   };
 
   const currentTitle = (): string => {
-    if (currentMode === 'hub') return "Violet's Starlight Bedroom";
+    if (currentMode === 'hub') return "Violet's Stargazer Bedroom";
     if (currentMode === 'book' && activeBook) return activeBook.title;
     const ch = run.core() ? CHAPTERS.find((c) => c.id === run.currentChapter()) : undefined;
     return ch?.title ?? currentPage?.title ?? APP_NAME;
@@ -790,6 +790,9 @@ async function boot(): Promise<void> {
   window.addEventListener('focus', () => vault.healCheck());
   window.addEventListener('pagehide', () => {
     vault.healCheck();
+    if (currentMode === 'chapter' && run.core() && currentPage) {
+      void vault.saveRunPages(sim.snapshotPage(), donePages);
+    }
     void vault.flush();
   });
 

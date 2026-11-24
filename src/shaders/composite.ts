@@ -243,16 +243,18 @@ vec3 applyPageOverlays(vec3 c, vec2 pp, bool aboveMist) {
   if (uDogEarGlow > 0.001 && pp.x > 426.0 && pp.y > 224.0) {
     float dg = clamp(uDogEarGlow, 0.0, 1.0);
     vec2 br = max(vec2(${f(PAGE_W)}, ${f(PAGE_H)}), (uRes - uOffset) / max(uScale, 0.001));
-    float tx = clamp((pp.x - 426.0) / max(br.x - 426.0, 1.0), 0.0, 1.0);
-    float ty = clamp((pp.y - 224.0) / max(br.y - 224.0, 1.0), 0.0, 1.0);
-    float tri = tx + ty - 0.85;
-    if (tri > -0.18) {
-      float breathe = 0.82 + 0.18 * sin(uTime * 3.0);
-      float edgeGlow = smoothstep(-0.18, 0.42, tri);
-      float coreGlow = smoothstep(0.15, 0.95, tri);
-      vec3 amber = mix(vec3(1.0, 0.76, 0.34), vec3(1.0, 0.94, 0.72), coreGlow);
+    float tx = clamp((pp.x - 426.0) / (${f(PAGE_W)} - 426.0), 0.0, 1.0);
+    float ty = clamp((pp.y - 224.0) / (${f(PAGE_H)} - 224.0), 0.0, 1.0);
+    float tri = tx + ty - 1.0;
+    float marginFade = smoothstep(486.0, 474.0, pp.x) * smoothstep(276.0, 264.0, pp.y)
+      * smoothstep(0.0, 8.0, br.x - pp.x) * smoothstep(0.0, 8.0, br.y - pp.y);
+    if (tri > -0.18 && marginFade > 0.001) {
+      float breathe = 0.84 + 0.16 * sin(uTime * 3.0);
+      float edgeGlow = smoothstep(-0.18, 0.45, tri);
+      float coreGlow = smoothstep(0.2, 0.95, tri);
+      vec3 amber = mix(vec3(1.0, 0.78, 0.36), vec3(1.0, 0.95, 0.76), coreGlow);
       float ray = 0.5 + 0.5 * sin((tx - ty) * 12.0 - uTime * 2.4);
-      c = mix(c, amber, clamp(edgeGlow * (0.55 + 0.22 * ray) * dg * breathe, 0.0, 0.92));
+      c = mix(c, amber, clamp(edgeGlow * (0.48 + 0.2 * ray) * dg * breathe * marginFade, 0.0, 0.82));
     }
   }
   return clamp(c, 0.0, 1.0);

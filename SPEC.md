@@ -116,16 +116,16 @@ Constellation milestones: firstRun→OpalPearl, threeRuns→AuroraSherbet, fiveR
 Wardrobe (cost, system region): violetPins 20/215, violetCape 25/216, lumiWings 25/217, lumiCrown 30/218, novaBoosters 30/219, novaScarf 20/220.
 
 ## 7. Vault schema (`vault.ts`)
-`VaultState {v:1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats{runsCompleted,regionsAwakened,pokes}, updatedAt}`.
+`VaultState {v:1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats{runsCompleted,regionsAwakened,pokes}, prologueSeen?, updatedAt}`.
 
 Shadow cookie `krunked-cookie-vault-v1`:
 `value = base64url(JSON(CompactCookieV1)) + '.' + fnv1a32hex(base64urlBody)`, attrs `SameSite=Lax; path=/; max-age=31536000`, < 1500 chars.
-`CompactCookieV1 {v:1, g gems, b badge bits, m material bits (id-1), o owned wardrobe bits, w equipped wardrobe bits, a audioLevel, r [seed, chapterIndex, pathCodes, brushBits, relicBits, phaseCode] | 0, s [runsCompleted, regionsAwakened], t updatedAt}`.
+`CompactCookieV1 {v:1, g gems, b badge bits, m material bits (id-1), o owned wardrobe bits, w equipped wardrobe bits, a audioLevel, r [seed, chapterIndex, pathCodes, brushBits, relicBits, phaseCode] | 0, s [runsCompleted, regionsAwakened], p? 0|1, t updatedAt}`.
 
 Hydration: read localStorage, IndexedDB `run_state/current`, cookie; validate (checksum + schema); newest valid `updatedAt` wins;
 write back to missing/stale tiers; report `{source, healed[]}`.
 Export JSON: `{format:'chroma-cosmos-vault', version:1, exportedAt, vault, storybooks}` (typed arrays as base64).
-Storybook: `{id, title, galaxyName, createdAt, seed, pages: StoryPageSnapshot[]}`.
+Storybook: `{id, title, galaxyName, createdAt, seed, pages: StoryPageSnapshot[]}`; `StorybookSummary` includes deterministic `seed?`.
 
 ## 8. Component boundaries
 See ARCHITECTURE.md §1 and §8. Port interfaces: `ArtPort`, `RendererPort`, `SimulationPort`, `RunManagerPort`, `AudioPort`,
@@ -141,9 +141,7 @@ icons `icon-192.png` (192²), `icon-512.png` (512²), `apple-touch-icon.png` (18
 
 ## 10. QA hook API (`window.__chroma`)
 - Always: `telemetry() → {frameMsMedian, frameMsP95, fps, samples, longFrames}`, `resetTelemetry()`, `stats() → {renderer, audio, mode, gems, vaultReport, effects, events}`.
-- `?qa=1` only: `qa.regions()`, `qa.clientPointOf(id)`, `qa.paintRegion(id, materialId)` (real PointerEvents), `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`.
+- `?qa=1` only: `qa.regions()`, `qa.clientPointOf(id)`, `qa.paintRegion(id, materialId)` (real PointerEvents), `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`, `qa.setToolMode(mode)`, `qa.hoverRegion(id)`, `qa.storyStars()`, `qa.wisp()`, `qa.wonderWhisper()`, `qa.pokeInvites()`, `qa.nudgeMilestone(id)`.
 
 ## 11. Acceptance gates
-`npm run typecheck`, `npm test`, `npm run build` clean; headed `/browser` e2e: zero console errors/page errors/4xx,
-median frame ≤ 16.7 ms, vault self-heals after localStorage + IndexedDB wipe, shadow cookie regenerates after cookie wipe,
-PNG icons have magic `89 50 4E 47 0D 0A 1A 0A` and exact IHDR sizes.
+`npm run typecheck`, `npm test`, `npm run build` clean; zero `speechSynthesis` anywhere in `src/**`; headed `/browser` e2e: zero console errors/page errors/4xx, cold boot ≤ 10 s, spread breathing room ≥ 78%, zero HUD overlaps, median frame ≤ 16.7 ms, vault self-heals after localStorage + IndexedDB wipe, shadow cookie regenerates after cookie wipe, PNG icons have magic `89 50 4E 47 0D 0A 1A 0A` and exact IHDR sizes.

@@ -30,36 +30,42 @@ Factories: `createArt`, `createRenderer`, `createSimulation`, `createRunManager`
 
 PixiJS v8 `Application`: `preference:'webgl'`, `preferWebGLVersion:2`, `antialias:false`, `autoDensity:true`,
 `resolution = min(devicePixelRatio, 2)` (adaptive downshift to 1.5 / 1 when median frame > 18 ms for 2 s),
-background `#120d2b`. If WebGL2 is unavailable a friendly DOM message is shown.
+background `#fbf3e0` (cotton sketchbook paper). If WebGL2 is unavailable a friendly DOM message is shown.
 
 Canvas sizing: canvas fills `ui.canvasHost` (16:9). `s = floor(min(hostW*dpr/480, hostH*dpr/270))`;
-if `s >= 2` use an exact integer scale centred, else a fractional aspect-locked scale. All pixel-art lookups use
-NEAREST + `texelFetch`.
+if `s >= 2` use an exact integer scale centred, else a fractional aspect-locked scale. Out-of-page pixels render
+seamless warm cotton paper with a crisp 1 px `#231942` + 3 px `#d9ae5b` plate frame (`uClean=1` keepsake capture
+uses exact 480×270 bounds). All pixel-art lookups use NEAREST + `texelFetch`.
 
 ### Data textures (`BufferImageSource`, `format:'rgba8unorm'`, `scaleMode:'nearest'`, `alphaMode:'no-premultiply-alpha'`, `source.update()` after mutation)
 | Texture | Size | Contents |
 |---|---|---|
 | `uRegionTex` | 480x270 | R regionMap id, G baseRegionMap id (actors removed), B actorSlot (0 none, 1..15 incl. ink of actor resting pose), A 255. Uploaded once per page. |
-| `uActorTex` | 480x270 | R region id (0 ink), A 255 where an actor/FX pixel exists else 0. CPU-blitted each frame from sprite frames + FX pixels. |
+| `uActorTex` | 480x270 | R region id (0 ink, 231..233 Wisp/Wonder-Chalk), G FX variant/shade, A 255 where an actor/FX pixel exists else 0. CPU-blitted each frame from sprite frames + FX pixels. |
 | `uRegionStateTex` | 256x2 | bytes straight from `SimView.regionState` (layout in SPEC §REGION_STATE). |
 | `uAllowedTex` | 256x1 | 1 = region id allowed for the current stamp batch. |
+| `uPalTex` | 8x16 | RGBA8 material palette table (`texelFetch` indexed by materialId & stop, avoiding large GLSL const arrays for fast ANGLE compile). |
 | `uStrokeTex` | 1920x1080 ×2 | ping-pong RenderTextures, RGBA8 LINEAR: R coverage, G materialId/255 (texelFetch), B/A flow dx/dy (0.5-centred). |
 
-### Layers (composite pass is full-screen at native resolution)
+### Layers (single-exit composite pass is full-screen at native resolution)
 - **Layer 0 — Paper & Parallax Space.** Region 1..254 uncoloured: warm cream cotton paper tooth + faint compass/grid
-  markings. Region 255: 3 parallax star planes, Sleepy Hush mist `#6b5b8a` with alpha `(1-pageAwakening)*0.55` as
-  drifting wisps that part as the page awakens, plus Free-Starlight doodle strokes.
+  markings; hovered uncolored region (`uHoverRegion`) in Pencil mode pulses warm cream-gold shimmer, and idle-guided
+  regions (`REGION_FLAG.guideGlow`) breathe stardust glow. Region 255: 3 parallax star planes, Sleepy Hush mist
+  `#6b5b8a`, Wand sky stardust shimmer + soft UV ghost peek (`uWandGlow`), plus Free-Starlight doodle strokes.
 - **Layer 1 — Dual-Buffer Stay-In-The-Lines masking.** CPU: `Uint8Array(480*270)` region map drives touch-lock in
   simulation. GPU: the stamp pass reads the previous stroke RT plus `uAllowedTex` and writes coverage only where the
   NEAREST-sampled internal region id is allowed. Output = max coverage; material/flow replaced where the new stamp dominates.
   One full-RT quad per batch, ≤64 stamps per batch.
-- **Layer 2 — GLSL Pigment Materials.** One unified fragment shader branching on `program` (1..10) for the 12 material
+- **Layer 2 — GLSL Pigment Materials.** One unified single-exit fragment shader (deduplicated `snoise`, `skyColor`,
+  `edgeAmount`, and `applyPageOverlays` for ~3 s cold boot) branching on `program` (1..10) for the 12 material
   ids (24K Solar Flare = program 4 + gold palette; Aurora Sherbet = program 1 + sherbet palette). Smooth gradients
   stay razor-sharp inside integer ink borders because the region id is sampled NEAREST.
-- **Layer 3 — Ink, Sel-Out, Living Sprites.** Ink `#231942` while uncompleted. A completed region flashes golden-white
-  then ink pixels adjacent to it become sel-out (darkened pigment colour via 4-neighbour id + completion flags).
-  Actors become multi-frame sprites carrying their painted GLSL coat. Particles: `ParticleContainer` of a 3×3 pixel star,
-  positions snapped to internal pixels × scale.
+- **Layer 3 — Ink, Sel-Out, Living Sprites, Wisp & Wonder Whispers.** Ink `#231942` while uncompleted. A completed
+  region flashes golden-white then ink pixels adjacent to it become sel-out. Actors carry their painted GLSL coat.
+  Indigo-rimmed Luminous Starlight Wisp (`231`/`232`), looping prologue rainbow ghost-stroke, luminous chalk Wonder
+  Whispers (`233`), pulsing concentric poke rings, Sleepy Hush prologue veil (`uPrologueMist`), and feathered corner
+  dog-ear glow (`uDogEarGlow`) layer cleanly and are suppressed on `uClean=1` keepsake capture. Particles:
+  `ParticleContainer` of a 3×3 pixel star snapped to internal pixels × scale.
 
 Id resolution per pixel: if `uActorTex.a>0` use its id; else if B>0 and bit B of `uLiveSlots` is set use G (base map) and suppress stale actor stroke pixels in `uStrokeTex` (`vacatedSlot`);
 else R. Ink (`id == 0`) adjacent only to unrevealed ghosts (`234..254`, outside `uFlashlight`) falls back to sky. Id decode `int(floor(texelFetch(t,p,0).r*255.0+0.5))`.
@@ -117,13 +123,14 @@ flowchart LR
 - Cookie: `base64url(JSON) + '.' + fnv1a32hex`, `SameSite=Lax; path=/; max-age=31536000`, < 1500 chars.
 - Portable JSON export/import: `{format:'chroma-cosmos-vault', version:1, exportedAt, vault, storybooks}`.
 
-## 7. PWA / Service Worker
+## 7. PWA / Service Worker & Offline Typography
 - `public/manifest.json`, `public/sw.js`, 3 raster PNG icons generated by `scripts/generate-pwa-icons.mjs`.
+- Self-hosted offline Latin `@fontsource/fraunces`, `@fontsource/quicksand`, and `@fontsource/patrick-hand` bundled into `dist/assets/` (zero external CDN requests).
 - All URLs relative (`./`). SW registered from `main.ts` in production only with `{ scope: './' }`.
 - `sw.js`: `CACHE_VERSION = 'chroma-cosmos-v2'` (== `src/contracts/constants.ts`); install precache + skipWaiting;
   activate deletes older `chroma-cosmos-*` caches + clients.claim; fetch is network-first for same-origin GET with
   cache fallback (navigations fall back to `./index.html`).
-- `beforeinstallprompt` → dismissible "Install Sketchbook" star badge when not in standalone display mode.
+- `beforeinstallprompt` → dismissible "Install Sketchbook" star-charm inside the Brass Desk-Corner Trinket Dish when not in standalone display mode.
 - CI: `.github/workflows/deploy-pages.yml` (Node 22, typecheck + test + build, upload-pages-artifact, deploy-pages).
 
 ## 8. File ownership
@@ -141,4 +148,4 @@ flowchart LR
 
 ## 9. QA hook (`window.__chroma`)
 Always: `telemetry()`, `resetTelemetry()`, `stats()` (`{renderer, audio, mode, gems, vaultReport, effects, events}`). With `?qa=1`: `qa.regions()`, `qa.clientPointOf(id)`,
-`qa.paintRegion(id, materialId)`, `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`.
+`qa.paintRegion(id, materialId)`, `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`, `qa.setToolMode(mode)`, `qa.hoverRegion(id)`, `qa.storyStars()`, `qa.wisp()`, `qa.wonderWhisper()`, `qa.pokeInvites()`, `qa.nudgeMilestone(id)`.

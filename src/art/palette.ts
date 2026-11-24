@@ -38,6 +38,18 @@ const CANON: Record<number, string> = {
 };
 
 const SYSTEM: Record<number, string> = {
+  200: '#a8fff0',
+  201: '#18c9b8',
+  202: '#f5f0ff',
+  203: '#ffd700',
+  204: '#ff5e8e',
+  205: '#7b3fa0',
+  206: '#eac46f',
+  207: '#ff8fd8',
+  208: '#4ae0cb',
+  209: '#3f2278',
+  210: '#4287f5',
+  211: '#a29bfe',
   212: '#ffffff',
   213: '#ff8fa8',
   214: '#ffd43b',

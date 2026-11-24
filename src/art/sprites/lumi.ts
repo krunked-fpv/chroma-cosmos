@@ -15,14 +15,16 @@ const LEG: Legend = {
   M: 6, // lumi_mane
   H: 7, // lumi_horn
   T: 8, // lumi_tail
+  G: 208, // lumi_nebula_garland (wardrobe)
+  S: 209, // lumi_celestial_saddle (wardrobe)
   E: 212, // eye_shine
   A: 213, // cheek_blush
   W: 217, // lumi_wings (wardrobe)
   C: 218, // lumi_crown (wardrobe)
 };
 
-// Front-most first: accents, horn, mane, body, tail, wings
-const PRIO = [212, 213, 218, 7, 6, 5, 8, 217];
+// Front-most first: accents, crown, garland, saddle, horn, mane, body, tail, wings
+const PRIO = [212, 213, 218, 208, 209, 7, 6, 5, 8, 217];
 
 // Base standing/trotting unicorn upper body (head, horn, neck, mane, torso, tail A) — 66x54
 const LUMI_STAND = parseGrid(
@@ -591,6 +593,56 @@ const CROWN = parseGrid(
   LEG,
 );
 
+// Wardrobe overlay: Nebula Flower Garland (208) draped across Lumi's arched neck/chest
+const GARLAND_STAND = parseGrid(
+  [
+    '.........GGG....',
+    '......GGGG#GG...',
+    '...GGG#GGGGGG...',
+    '..GG#GGGG#GG....',
+    '...GGGGGGGG.....',
+    '.....GGGG.......',
+  ],
+  LEG,
+);
+
+const GARLAND_SLEEP = parseGrid(
+  [
+    '.......GGG......',
+    '....GGGG#GGG....',
+    '..GGG#GGGG#GG...',
+    '...GGGGGGGGG....',
+    '.....GGGGG......',
+  ],
+  LEG,
+);
+
+// Wardrobe overlay: Celestial Saddle Blanket (209) draped over Lumi's back with star filigree
+const SADDLE_STAND = parseGrid(
+  [
+    '..SSSSSSSSSSSS..',
+    '.SSSSSSSSSSSSSS.',
+    '.SSSSSS#SSSSSSS.',
+    '.SSSSS###SSSSSS.',
+    '.SSSSSS#SSSSSSS.',
+    '..SSSSSSSSSSSS..',
+    '...SS..SS..SS...',
+  ],
+  LEG,
+);
+
+const SADDLE_SLEEP = parseGrid(
+  [
+    '..SSSSSSSSSSSS..',
+    '.SSSSSSSSSSSSSS.',
+    '.SSSSSS#SSSSSSS.',
+    '.SSSSS###SSSSSS.',
+    '.SSSSSS#SSSSSSS.',
+    '..SSSSSSSSSSSS..',
+  ],
+  LEG,
+);
+
 function buildStandFrame(
   w: WardrobeState,
   legs: Grid,
@@ -621,6 +673,8 @@ function buildStandFrame(
   const eyeY = (o.earPerk ? 13 : 14) + dy;
   if (o.blink) layers.push({ g: LUMI_BLINK, x: 0, y: eyeY });
   else if (o.happyEye) layers.push({ g: LUMI_HAPPY_EYE, x: 0, y: eyeY });
+  if (w.lumiCelestialSaddle) layers.push({ g: SADDLE_STAND, x: 22, y: 28 + dy });
+  if (w.lumiNebulaGarland) layers.push({ g: GARLAND_STAND, x: 34, y: 21 + dy });
   if (w.lumiCrown) layers.push({ g: CROWN, x: o.earPerk ? 44 : 43, y: (o.earPerk ? 4 : 5) + dy });
   return finishSprite(compose(W, H, layers), PRIO, W, H);
 }
@@ -629,6 +683,8 @@ function buildRearFrame(w: WardrobeState, dy: number, flap: boolean) {
   const layers: Array<{ g: Grid; x: number; y: number }> = [];
   if (w.lumiWings) layers.push({ g: flap ? WINGS_FLAP : WINGS_UP, x: -3, y: 12 + dy });
   layers.push({ g: LUMI_REAR, x: 0, y: dy });
+  if (w.lumiCelestialSaddle) layers.push({ g: SADDLE_STAND, x: 18, y: 28 + dy });
+  if (w.lumiNebulaGarland) layers.push({ g: GARLAND_STAND, x: 30, y: 21 + dy });
   if (w.lumiCrown) layers.push({ g: CROWN, x: 37, y: 4 + dy });
   return finishSprite(compose(W, H, layers), PRIO, W, H);
 }
@@ -638,6 +694,8 @@ function buildSleepFrame(w: WardrobeState, dy: number, tailB: boolean) {
   layers.push({ g: LUMI_SLEEP, x: 0, y: dy });
   if (tailB) layers.push({ g: SLEEP_TAIL_B, x: 2, y: 34 + dy });
   if (w.lumiWings) layers.push({ g: WINGS_SLEEP, x: 0, y: 27 + dy });
+  if (w.lumiCelestialSaddle) layers.push({ g: SADDLE_SLEEP, x: 18, y: 36 + dy });
+  if (w.lumiNebulaGarland) layers.push({ g: GARLAND_SLEEP, x: 34, y: 33 + dy });
   if (w.lumiCrown) layers.push({ g: CROWN, x: 41, y: 20 + dy });
   return finishSprite(compose(W, H, layers), PRIO, W, H);
 }

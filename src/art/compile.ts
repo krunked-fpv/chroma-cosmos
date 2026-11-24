@@ -1,5 +1,15 @@
-/** compilePage: scene generator -> CompiledPage (region maps, actors, metas, paths). */
-import type { ActorKind, ActorSpawn, CompiledPage, SpriteFrame, SpriteLibrary, StoryMilestone, StoryMilestoneKind } from '../contracts/art';
+/** compilePage: scene generator -> CompiledPage (region maps, actors, metas, paths, Hero Quests). */
+import type {
+  ActorKind,
+  ActorSpawn,
+  CompiledPage,
+  HeroQuestId,
+  HeroStoryQuestSpec,
+  SpriteFrame,
+  SpriteLibrary,
+  StoryMilestone,
+  UiSpriteId,
+} from '../contracts/art';
 import { PAGE_H, PAGE_W } from '../contracts/constants';
 import { CANONICAL_REGIONS, SYSTEM_REGIONS, type RegionKind, type RegionMeta } from '../contracts/regions';
 import type { SceneId } from '../contracts/roguelike';
@@ -19,48 +29,201 @@ const KIND_OF_ACTOR: Record<ActorKind, RegionKind> = {
   cometCar: 'prop',
   flower: 'flora',
   gem: 'star',
+  butterfly: 'system',
+  bubble: 'system',
 };
 
-const MILESTONE_SPECS: ReadonlyArray<{ kind: StoryMilestoneKind; label: string; ids: readonly number[] }> = [
-  { kind: 'violet', label: 'Violet', ids: [1, 2, 3, 4] },
-  { kind: 'lumi', label: 'Lumi', ids: [5, 6, 7, 8] },
-  { kind: 'nova', label: 'Nova', ids: [9, 10, 11] },
-  { kind: 'planet', label: 'Ringed Planet', ids: [12, 13] },
-  { kind: 'cloud', label: 'Space Clouds', ids: [14, 15] },
-];
+const QUEST_THUMB: Record<HeroQuestId, UiSpriteId> = {
+  violet: 'quest_violet',
+  lumi: 'quest_lumi',
+  nova: 'quest_nova',
+  planet: 'quest_planet',
+  cloud: 'quest_cloud',
+  rocket: 'quest_rocket',
+  milkshake: 'quest_milkshake',
+  asteroid: 'quest_asteroid',
+  moonCat: 'quest_moonCat',
+  suns: 'quest_suns',
+  boba: 'quest_boba',
+  whale: 'quest_whale',
+  heart: 'quest_heart',
+  comet: 'quest_comet',
+};
 
-function buildStoryMilestones(coreRegionIds: readonly number[], regions: readonly (RegionMeta | undefined)[]): StoryMilestone[] {
-  const present = new Set<number>(coreRegionIds);
-  const out: StoryMilestone[] = [];
-  for (const spec of MILESTONE_SPECS) {
-    const regionIds = spec.ids.filter((id) => present.has(id));
-    if (regionIds.length === 0) continue;
+function clampCoord(v: number, max: number): number {
+  return Math.max(0, Math.min(max - 1, Math.round(v)));
+}
+
+function buildHeroQuests(
+  sceneId: SceneId,
+  regions: readonly (RegionMeta | undefined)[],
+  spawns: readonly ActorSpawn[],
+): HeroStoryQuestSpec[] {
+  const used = new Set<number>();
+  const out: HeroStoryQuestSpec[] = [];
+
+  const isValid = (id: number): boolean => {
+    const m = regions[id];
+    return Boolean(m && !m.coverageExcluded && id >= 1 && id <= 199);
+  };
+
+  const findRegions = (pred: (m: RegionMeta) => boolean): number[] => {
+    const found: number[] = [];
+    for (let id = 1; id <= 199; id++) {
+      const m = regions[id];
+      if (!m || m.coverageExcluded) continue;
+      if (pred(m)) found.push(id);
+    }
+    return found;
+  };
+
+  const actorRegionIds = (kind: ActorKind): number[] => {
+    const sp = spawns.find((a) => a.kind === kind);
+    return sp ? sp.regionIds : [];
+  };
+
+  const addQuest = (questId: HeroQuestId, label: string, candidateIds: Iterable<number>): boolean => {
+    const picked: number[] = [];
+    const seenLocal = new Set<number>();
+    for (const id of candidateIds) {
+      if (seenLocal.has(id) || used.has(id) || !isValid(id)) continue;
+      seenLocal.add(id);
+      picked.push(id);
+    }
+    if (picked.length === 0) return false;
+    picked.sort((a, b) => a - b);
+    for (const id of picked) used.add(id);
+
     let sx = 0;
     let sy = 0;
     let count = 0;
-    for (const id of regionIds) {
+    for (const id of picked) {
       const m = regions[id];
       if (!m) continue;
       sx += m.centroid.x;
       sy += m.centroid.y;
       count++;
     }
-    const first = regions[regionIds[0] as number];
+    const first = regions[picked[0] as number];
     const centroid =
       count > 0
-        ? { x: Math.round(sx / count), y: Math.round(sy / count) }
+        ? { x: clampCoord(sx / count, PAGE_W), y: clampCoord(sy / count, PAGE_H) }
         : first
-          ? { x: first.centroid.x, y: first.centroid.y }
+          ? { x: clampCoord(first.centroid.x, PAGE_W), y: clampCoord(first.centroid.y, PAGE_H) }
           : { x: Math.floor(PAGE_W / 2), y: Math.floor(PAGE_H / 2) };
+
     out.push({
-      id: spec.kind,
-      kind: spec.kind,
-      label: spec.label,
-      regionIds,
+      questId,
+      label,
+      thumbnailSpriteId: QUEST_THUMB[questId],
+      regionIds: picked,
       centroid,
     });
+    return true;
+  };
+
+  switch (sceneId) {
+    case 'rooftop':
+      addQuest('violet', 'Violet', [1, 2, 3, 4]);
+      addQuest('lumi', 'Lumi', [5, 6, 7, 8]);
+      addQuest('nova', 'Nova', [9, 10, 11]);
+      addQuest('rocket', 'Paper Rocket', [21, ...findRegions((m) => m.kind === 'rocket')]);
+      break;
+
+    case 'milkshakeNebula': {
+      const c18 = regions[18]?.centroid;
+      const msExtras = findRegions(
+        (m) =>
+          m.kind === 'milkshake' &&
+          /^(whipped cream|striped straw|cherry|glass foot)$/i.test(m.label) &&
+          (!c18 || Math.abs(m.centroid.x - c18.x) <= 100),
+      );
+      addQuest('violet', 'Violet', [1, 2, 3, 4]);
+      addQuest('milkshake', 'Milkshake', [18, ...msExtras]);
+      addQuest('planet', 'Ringed Planet', [12, 13]);
+      addQuest('cloud', 'Cream Clouds', [14, 15]);
+      break;
+    }
+
+    case 'asteroidGarden': {
+      addQuest('lumi', 'Lumi', [5, 6, 7, 8]);
+      addQuest('asteroid', 'Crystals', [
+        20,
+        ...findRegions((m) => m.kind === 'asteroid' && /crystal/i.test(m.label) && !/moon-cat|perch/i.test(m.label)),
+      ]);
+      addQuest('planet', 'Ringed Planet', [12, 13]);
+      const addedCat = addQuest('moonCat', 'Moon-Cat', [
+        17,
+        ...actorRegionIds('moonCat'),
+        ...findRegions((m) => /moon-cat|perch/i.test(m.label)),
+      ]);
+      if (!addedCat) addQuest('cloud', 'Space Clouds', [14, 15]);
+      break;
+    }
+
+    case 'cheetahSavannah':
+      addQuest('nova', 'Nova', [9, 10, 11]);
+      addQuest('suns', 'Twin Suns', findRegions((m) => m.kind === 'star' && /sun/i.test(m.label)));
+      addQuest('planet', 'Ringed Planet', [12, 13]);
+      addQuest('cloud', 'Orion Clouds', [14, 15]);
+      break;
+
+    case 'saturnRings':
+      addQuest('lumi', 'Lumi', [5, 6, 7, 8]);
+      addQuest('planet', 'Saturn', [12, 13]);
+      addQuest('cloud', 'Dream Clouds', [14, 15]);
+      addQuest('comet', 'Star Comet', [16, ...actorRegionIds('comet')]);
+      break;
+
+    case 'bubbleTea':
+      addQuest('violet', 'Violet', [1, 2, 3, 4]);
+      addQuest(
+        'boba',
+        'Boba Cup',
+        findRegions(
+          (m) =>
+            m.kind === 'milkshake' &&
+            /^(giant boba straw|caramel swirl base|cosmic milk tea|domed bubble lid|cup rim collar)$/i.test(m.label),
+        ),
+      );
+      addQuest('planet', 'Ringed Planet', [12, 13]);
+      addQuest('moonCat', 'Moon-Cat', [17, ...actorRegionIds('moonCat')]);
+      break;
+
+    case 'whaleSea':
+      addQuest('whale', 'Star Whale', [19, ...actorRegionIds('whale')]);
+      addQuest('planet', 'Ringed Planet', [12, 13]);
+      addQuest('cloud', 'Sea Clouds', [14, 15]);
+      break;
+
+    case 'heartOfUniverse':
+      addQuest('heart', 'Star Heart', findRegions((m) => /cosmic heart core|inner heart petal/i.test(m.label)));
+      addQuest('violet', 'Violet', [1, 2, 3, 4]);
+      addQuest('lumi', 'Lumi', [5, 6, 7, 8]);
+      addQuest('nova', 'Nova', [9, 10, 11]);
+      break;
+
+    case 'bedroomHub':
+      addQuest('violet', 'Violet', [1, 2, 3, 4]);
+      addQuest('lumi', 'Lumi', [5, 6, 7, 8]);
+      addQuest('nova', 'Nova', [9, 10, 11]);
+      addQuest('planet', 'Ringed Planet', [12, 13]);
+      addQuest('suns', 'Star Garlands', findRegions((m) => m.kind === 'star'));
+      break;
   }
+
   return out;
+}
+
+function toStoryMilestones(quests: readonly HeroStoryQuestSpec[]): StoryMilestone[] {
+  return quests.map((q) => ({
+    id: q.questId,
+    kind: q.questId,
+    label: q.label,
+    thumbnailSpriteId: q.thumbnailSpriteId,
+    regionIds: [...q.regionIds],
+    centroid: { x: q.centroid.x, y: q.centroid.y },
+  }));
 }
 
 export function sceneTitle(id: SceneId): string {
@@ -218,7 +381,7 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
       if (x > (x1[a] as number)) x1[a] = x;
       if (y < (y0[a] as number)) y0[a] = y;
       if (y > (y1[a] as number)) y1[a] = y;
-      if (a > 211) continue;
+      if (a > 199) continue;
       const dirs: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
       for (const [dx, dy] of dirs) {
         const nx = x + dx;
@@ -231,7 +394,7 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
           if (mx < 0 || my < 0 || mx >= PAGE_W || my >= PAGE_H) continue;
           b = map[my * PAGE_W + mx] as number;
         }
-        if (b !== a && b >= 1 && b <= 211) adj[a * 256 + b] = 1;
+        if (b !== a && b >= 1 && b <= 199) adj[a * 256 + b] = 1;
       }
     }
   }
@@ -288,7 +451,7 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     const core = canon ? canon.core : false;
     const ghost = isGhostId(a);
     const neighbors: number[] = [];
-    if (a <= 211) for (let b = 1; b <= 211; b++) if (adj[a * 256 + b] || adj[b * 256 + a]) neighbors.push(b);
+    if (a <= 199) for (let b = 1; b <= 199; b++) if (adj[a * 256 + b] || adj[b * 256 + a]) neighbors.push(b);
     const meta: RegionMeta = {
       id: a,
       key: d.key,
@@ -307,7 +470,8 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     if (core) coreRegionIds.push(a);
   }
 
-  const storyMilestones = buildStoryMilestones(coreRegionIds, regions);
+  const heroQuests = buildHeroQuests(sceneId, regions, spawns);
+  const storyMilestones = toStoryMilestones(heroQuests);
 
   const page: CompiledPage = {
     sceneId,
@@ -319,6 +483,7 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     regionTotalPixels: totals,
     regions,
     coreRegionIds,
+    heroQuests,
     storyMilestones,
     actors: spawns,
     paths: build.paths,

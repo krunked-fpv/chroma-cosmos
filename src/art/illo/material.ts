@@ -204,6 +204,81 @@ export function drawMaterial(material: MaterialId, lw: number, lh: number): Canv
           if (crest < 0.07) col = mix(col, WHITE, (1 - crest / 0.07) * 0.65);
           break;
         }
+
+        case MaterialId.StrawberrySupernova: {
+          // Glossy berry-pink supernova glaze with shimmering golden sugar-crystal facets
+          const swirl = Math.sin(nx * 5.2 + Math.cos(ny * 4.6) * 1.4) * 0.16;
+          const t = Math.max(0, Math.min(0.999, (nx * 0.35 + ny * 0.72) + swirl));
+          const k = t * (pal.length - 1);
+          const i = Math.floor(k);
+          col = dith(p(i), p(i + 1), k - i, x, y);
+          const sugar = vnoise(x * 0.85, y * 0.85, 1301);
+          if (sugar > 0.88) col = p(3); // golden sugar glint
+          else if (sugar > 0.82) col = mix(col, WHITE, 0.55);
+          break;
+        }
+
+        case MaterialId.CrystalGlacierMint: {
+          // Faceted translucent ice-mint crystal prisms with specular frost ridges
+          const fx = Math.floor((nx * 5.2 + ny * 1.8));
+          const fy = Math.floor((ny * 5.2 - nx * 1.8));
+          const cellHash = vnoise(fx * 1.7, fy * 1.7, 1409);
+          const facet = Math.max(0, Math.min(0.999, cellHash * 0.7 + (1 - ny) * 0.3));
+          const k = facet * (pal.length - 1);
+          const i = Math.floor(k);
+          col = dith(p(i), p(i + 1), k - i, x, y);
+          const edgeA = Math.abs(((nx * 5.2 + ny * 1.8) % 1 + 1) % 1 - 0.5);
+          const edgeB = Math.abs(((ny * 5.2 - nx * 1.8) % 1 + 1) % 1 - 0.5);
+          if (edgeA > 0.44 || edgeB > 0.44) col = mix(col, p(3), 0.75);
+          break;
+        }
+
+        case MaterialId.CosmicCottonSwirl: {
+          // Whipped pastel pink/sky/lavender candy vortex spirals
+          const dx = nx - 0.5;
+          const dy = ny - 0.5;
+          const r = Math.hypot(dx, dy);
+          const ang = Math.atan2(dy, dx);
+          const spiral = ((ang / (Math.PI * 2) * 3 + r * 3.4) % 1 + 1) % 1;
+          const fluff = (vnoise(nx * 6, ny * 6, 1511) - 0.5) * 0.14;
+          const t = Math.max(0, Math.min(0.999, spiral + fluff));
+          const k = t * (pal.length - 1);
+          const i = Math.floor(k);
+          col = dith(p(i), p(i + 1), k - i, x, y);
+          if (r < 0.16) col = mix(col, p(3), (1 - r / 0.16) * 0.6);
+          break;
+        }
+
+        case MaterialId.DragonflyIridescence: {
+          // Angle-shifting teal/sapphire/violet/emerald wing-vein iridescence
+          const shift = Math.sin(nx * 6.5 - ny * 5.2) * 0.25 + (nx * 0.55 + ny * 0.45);
+          const u = ((shift % 1) + 1) % 1;
+          col = ramp(pal, u);
+          // Delicate stained-glass wing-vein lattice
+          const v1 = Math.abs(Math.sin((nx * 4.5 + ny * 3.2) * Math.PI));
+          const v2 = Math.abs(Math.sin((nx * 3.2 - ny * 5.4) * Math.PI));
+          if (v1 < 0.08 || v2 < 0.08) col = mix(col, rgb('#18133d'), 0.48);
+          else if (v1 < 0.14) col = mix(col, WHITE, 0.35);
+          break;
+        }
+
+        case MaterialId.RoyalAstralGold: {
+          // Deep midnight-indigo velvet inlaid with gleaming burnished-gold astrolabe filigree
+          const velvet = fbm(nx * 4.0, ny * 4.0, 1709);
+          col = dith(p(0), p(1), Math.max(0, Math.min(1, velvet * 1.15 - 0.1)), x, y);
+          const dx = nx - 0.5;
+          const dy = ny - 0.5;
+          const r = Math.hypot(dx, dy);
+          const ang = Math.atan2(dy, dx);
+          // Concentric astrolabe gold rings & cardinal filigree rays
+          const ringA = Math.abs(r - 0.34) < 0.032;
+          const ringB = Math.abs(r - 0.18) < 0.025;
+          const spoke = r > 0.18 && r < 0.46 && Math.abs(Math.sin(ang * 4)) < 0.08;
+          if (ringA || ringB || spoke) {
+            col = dith(p(2), p(3), Math.max(0, 1 - (nx + ny) * 0.55), x, y);
+          }
+          break;
+        }
       }
 
       c.set(x, y, col);
@@ -211,11 +286,11 @@ export function drawMaterial(material: MaterialId, lw: number, lh: number): Canv
   }
 
   // Extra material-specific surface details
-  if (material === MaterialId.SupernovaGlitter) {
+  if (material === MaterialId.SupernovaGlitter || material === MaterialId.StrawberrySupernova) {
     for (let i = 0; i < 10; i++) {
       const gx = rng.range(5, lw - 5);
       const gy = rng.range(5, lh - 5);
-      c.sparkle(gx, gy, rng.chance(0.35) ? 2 : 1, WHITE, p(1));
+      c.sparkle(gx, gy, rng.chance(0.35) ? 2 : 1, WHITE, material === MaterialId.StrawberrySupernova ? p(3) : p(1));
     }
   } else if (material === MaterialId.DeepSpaceBiolum) {
     for (let i = 0; i < 6; i++) {
@@ -224,6 +299,11 @@ export function drawMaterial(material: MaterialId, lw: number, lh: number): Canv
       const bc = i % 2 === 0 ? p(1) : p(2);
       c.glow(bx, by, Math.max(3, s * 0.1), bc, 0.55);
       c.dot(bx, by, WHITE);
+    }
+  } else if (material === MaterialId.RoyalAstralGold) {
+    c.sparkle(lw * 0.5, lh * 0.5, Math.max(2, Math.round(s * 0.09)), p(2), p(3));
+    for (let i = 0; i < 5; i++) {
+      c.sparkle(rng.range(6, lw - 6), rng.range(6, lh - 6), 1, p(2), p(3));
     }
   }
 

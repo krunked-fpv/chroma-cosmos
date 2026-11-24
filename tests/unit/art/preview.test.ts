@@ -4,15 +4,15 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createArt } from '../../../src/art';
 import type { ActorKind } from '../../../src/contracts/art';
-import type { WardrobeState } from '../../../src/contracts/progression';
+import { WARDROBE_ITEMS, type WardrobeState } from '../../../src/contracts/progression';
 import type { SceneId } from '../../../src/contracts/roguelike';
 import { encodePng, spriteSheetImage } from './helpers/png';
 
 const OUT = process.env.PREVIEW_DIR ?? 'C:/Users/alexg/.gemini/antigravity/brain/89d93c47-15aa-4ee2-bd85-ae10a079bb0b/previews';
 const SCENES: SceneId[] = ['rooftop', 'milkshakeNebula', 'asteroidGarden', 'cheetahSavannah', 'saturnRings', 'bubbleTea', 'whaleSea', 'heartOfUniverse', 'bedroomHub'];
-const KINDS: ActorKind[] = ['violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem'];
-const NONE: WardrobeState = { violetPins: false, violetCape: false, lumiWings: false, lumiCrown: false, novaBoosters: false, novaScarf: false };
-const ALL: WardrobeState = { violetPins: true, violetCape: true, lumiWings: true, lumiCrown: true, novaBoosters: true, novaScarf: true };
+const KINDS: ActorKind[] = ['violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem', 'butterfly', 'bubble'];
+const NONE = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, false])) as WardrobeState;
+const ALL = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, true])) as WardrobeState;
 
 describe.skipIf(!process.env.PREVIEW)('visual previews', () => {
   const art = createArt();

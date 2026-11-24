@@ -130,9 +130,9 @@ export class SceneCtx {
     return id;
   }
 
-  /** allocate a dynamic colourable id 32..211 */
+  /** allocate a dynamic colourable id 32..199 */
   dyn(kind: RegionKind, label: string): number {
-    if (this.nextDyn > 211) throw new Error('dynamic region ids exhausted');
+    if (this.nextDyn > 199) throw new Error('dynamic region ids exhausted');
     const id = this.nextDyn++;
     this.defs.set(id, { id, key: `dyn_${id}`, kind, label });
     return id;

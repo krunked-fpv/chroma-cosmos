@@ -12,14 +12,14 @@ export const SKY = 255;
 export type Pt = readonly [number, number];
 
 export function isSystemId(id: number): boolean {
-  return id >= 212 && id <= 233;
+  return id >= 200 && id <= 233;
 }
 export function isGhostId(id: number): boolean {
   return id >= 234 && id <= 254;
 }
-/** Colourable = canonical/dynamic 1..211 or a ghost (becomes colourable when revealed). */
+/** Colourable = canonical/dynamic 1..199 or a ghost (becomes colourable when revealed). */
 export function isColourable(id: number): boolean {
-  return (id >= 1 && id <= 211) || isGhostId(id);
+  return (id >= 1 && id <= 199) || isGhostId(id);
 }
 
 export interface Paint {
@@ -252,7 +252,7 @@ export class Raster {
  *  - a sky pixel 4-adjacent to any region pixel becomes ink (outline sits outside objects);
  *  - where two different colourable regions touch, the pixel of the region painted earlier
  *    (lower paint order) becomes ink, so front objects keep their silhouette.
- * System ids (212..233) are fixed-shader accents and never get separated from their neighbours.
+ * System ids (200..233) are fixed-shader accents and never get separated from their neighbours.
  * Guarantees: no two 4-adjacent pixels belong to different colourable regions afterwards.
  */
 export function inkPass(ids: Uint8Array, z: Uint32Array, w = W, h = H): Uint8Array {

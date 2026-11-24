@@ -11,6 +11,12 @@ const STICKER_BG: Record<RelicId, { inner: RGB; edge: RGB; rim: RGB }> = {
   prismRibbon: { inner: rgb('#2b4a8c'), edge: rgb('#1d1a59'), rim: rgb('#7fe7f0') },
   uvFlashlight: { inner: rgb('#4d218a'), edge: rgb('#1c0d42'), rim: rgb('#d08cff') },
   kaleidoSharpener: { inner: rgb('#6e2570'), edge: rgb('#27124d'), rim: rgb('#ff8fd0') },
+  sleepyMoonCat: { inner: rgb('#3c2678'), edge: rgb('#1a1042'), rim: rgb('#eac46f') },
+  gravityFlipFlop: { inner: rgb('#22457a'), edge: rgb('#141c4a'), rim: rgb('#7fe7f0') },
+  doubleMilkshake: { inner: rgb('#782766'), edge: rgb('#361142'), rim: rgb('#ff9ec2') },
+  starlightMagnet: { inner: rgb('#5c236e'), edge: rgb('#221045'), rim: rgb('#eac46f') },
+  chromaticButterfly: { inner: rgb('#1b4a70'), edge: rgb('#101d42'), rim: rgb('#7bffb8') },
+  constellationCrown: { inner: rgb('#442178'), edge: rgb('#1b0e42'), rim: rgb('#eac46f') },
 };
 
 export function drawRelicSticker(relic: RelicId, lw: number, lh: number): Canvas {

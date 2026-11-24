@@ -1,5 +1,5 @@
 /**
- * Wardrobe accessory icons on a soft starry storybook badge for all 6 WARDROBE_ITEMS.
+ * Wardrobe accessory icons on a soft starry storybook badge for all 14 WARDROBE_ITEMS.
  * Pure + deterministic.
  */
 import type { WardrobeItemId } from '../../contracts/progression';
@@ -13,6 +13,14 @@ const BADGE_PAL: Record<WardrobeItemId, { top: RGB; bot: RGB; ring: RGB; halo: R
   lumiCrown: { top: rgb('#4d216e'), bot: rgb('#231147'), ring: rgb('#ffe066'), halo: rgb('#ffd43b') },
   novaBoosters: { top: rgb('#361459'), bot: rgb('#190c3b'), ring: rgb('#ff4ad9'), halo: rgb('#b6ff3b') },
   novaScarf: { top: rgb('#3b2266'), bot: rgb('#1e1247'), ring: rgb('#ffd43b'), halo: rgb('#ff9a3c') },
+  violetHeadphones: { top: rgb('#4f1b5e'), bot: rgb('#210e3d'), ring: rgb('#ff7eb6'), halo: rgb('#ff9ec2') },
+  violetMoonHoodie: { top: rgb('#2b1c66'), bot: rgb('#150e3d'), ring: rgb('#b69cff'), halo: rgb('#eac46f') },
+  violetSaturnHalo: { top: rgb('#231654'), bot: rgb('#120b33'), ring: rgb('#eac46f'), halo: rgb('#fff3c4') },
+  violetPrismRibbons: { top: rgb('#3a206e'), bot: rgb('#1c1147'), ring: rgb('#ff8fd8'), halo: rgb('#9be2ff') },
+  lumiNebulaGarland: { top: rgb('#1c3c66'), bot: rgb('#111d45'), ring: rgb('#4ae0cb'), halo: rgb('#ff9ec2') },
+  lumiCelestialSaddle: { top: rgb('#28165e'), bot: rgb('#130b36'), ring: rgb('#eac46f'), halo: rgb('#7c4dff') },
+  novaStarGoggles: { top: rgb('#162f63'), bot: rgb('#0e1740'), ring: rgb('#18c9b8'), halo: rgb('#7bffb8') },
+  novaGalaxyBowtie: { top: rgb('#321b6b'), bot: rgb('#170e40'), ring: rgb('#a29bfe'), halo: rgb('#eac46f') },
 };
 
 export function drawWardrobe(item: WardrobeItemId, lw: number, lh: number): Canvas {
@@ -288,6 +296,202 @@ export function drawWardrobe(item: WardrobeItemId, lw: number, lh: number): Canv
         l.rrect(cx - iconR * 0.45, cy - iconR * 0.02, cx + iconR * 0.04, cy + iconR * 0.34, iconR * 0.12, rainbowFill);
       }, { rim: 0.24, deep: true });
       c.sparkle(cx + iconR * 0.65, cy - iconR * 0.52, 2, WHITE, rgb('#ffd43b'));
+      break;
+    }
+
+    case 'violetHeadphones': {
+      // Starlight Cat-Ear Headphones: curved berry-pink headband, glowing cat ears & plush earcups
+      c.obj((l) => {
+        // Curved headband arch
+        l.arc(cx, cy + iconR * 0.1, iconR * 0.54, iconR * 0.74, Math.PI, Math.PI * 2, vgrad(cy - iconR, cy, [rgb('#ff9ec2'), rgb('#ff5e8e')]));
+        // Twin cat ears atop headband
+        for (const dir of [-1, 1] as const) {
+          l.poly([
+            [cx + dir * iconR * 0.2, cy - iconR * 0.58],
+            [cx + dir * iconR * 0.58, cy - iconR * 1.02],
+            [cx + dir * iconR * 0.66, cy - iconR * 0.4],
+          ], rgb('#ff5e8e'));
+          l.poly([
+            [cx + dir * iconR * 0.3, cy - iconR * 0.56],
+            [cx + dir * iconR * 0.53, cy - iconR * 0.84],
+            [cx + dir * iconR * 0.56, cy - iconR * 0.46],
+          ], rgb('#fff5b8'));
+          // Plush rounded earcups
+          l.rrect(cx + dir * iconR * 0.54 - iconR * 0.22, cy - iconR * 0.08, cx + dir * iconR * 0.54 + iconR * 0.22, cy + iconR * 0.68, iconR * 0.16, rgrad(cx + dir * iconR * 0.5, cy + iconR * 0.15, iconR * 0.5, [rgb('#ffd6e8'), rgb('#ff5e8e'), rgb('#b82868')]));
+          l.star(cx + dir * iconR * 0.54, cy + iconR * 0.28, iconR * 0.15, iconR * 0.07, rgb('#fff5b8'));
+        }
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx, cy - iconR * 0.82, 2, WHITE, rgb('#fff5b8'));
+      break;
+    }
+
+    case 'violetMoonHoodie': {
+      // Cozy Moon-Pajama Hoodie: plump indigo hooded sweatshirt with golden crescent pocket & star toggles
+      c.obj((l) => {
+        // Cozy hood dome behind collar
+        l.ellipse(cx, cy - iconR * 0.52, iconR * 0.52, iconR * 0.38, rgb('#5c2d91'));
+        l.ellipse(cx, cy - iconR * 0.5, iconR * 0.3, iconR * 0.2, rgb('#2a1554'));
+        // Sloping sleeves & plush body
+        l.poly([
+          [cx - iconR * 0.54, cy - iconR * 0.32],
+          [cx + iconR * 0.54, cy - iconR * 0.32],
+          [cx + iconR * 0.92, cy + iconR * 0.36],
+          [cx + iconR * 0.68, cy + iconR * 0.48],
+          [cx + iconR * 0.54, cy + iconR * 0.12],
+          [cx + iconR * 0.54, cy + iconR * 0.78],
+          [cx - iconR * 0.54, cy + iconR * 0.78],
+          [cx - iconR * 0.54, cy + iconR * 0.12],
+          [cx - iconR * 0.68, cy + iconR * 0.48],
+          [cx - iconR * 0.92, cy + iconR * 0.36],
+        ], vgrad(cy - iconR * 0.4, cy + iconR * 0.8, [rgb('#8a4fd4'), rgb('#532896'), rgb('#2d1b69')], true));
+        // Golden crescent moon emblem on chest
+        const mr = iconR * 0.26;
+        l.shape(cx - mr, cy - mr, cx + mr, cy + mr, (px, py) =>
+          Math.hypot(px - cx, py - (cy + iconR * 0.05)) <= mr &&
+          Math.hypot(px - (cx + mr * 0.42), py - (cy + iconR * 0.05 - mr * 0.18)) >= mr * 0.76,
+          rgb('#eac46f'));
+        // Kangaroo front pocket + drawstring stars
+        l.rrect(cx - iconR * 0.36, cy + iconR * 0.38, cx + iconR * 0.36, cy + iconR * 0.68, iconR * 0.1, rgb('#7b3fa0'));
+        l.line(cx - iconR * 0.16, cy - iconR * 0.26, cx - iconR * 0.18, cy + iconR * 0.02, CREAM);
+        l.line(cx + iconR * 0.16, cy - iconR * 0.26, cx + iconR * 0.18, cy + iconR * 0.02, CREAM);
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx + iconR * 0.58, cy - iconR * 0.58, 2, WHITE, rgb('#eac46f'));
+      break;
+    }
+
+    case 'violetSaturnHalo': {
+      // Floating Mini-Saturn Orbit Halo: gleaming burnished-gold orbital ellipse with tiny ringed planet
+      c.obj((l) => {
+        // Golden tilted halo ring
+        l.ering(cx, cy + iconR * 0.12, iconR * 0.92, iconR * 0.34, 0.72, lgrad(cx - iconR, cy, cx + iconR, cy, [rgb('#fff3c4'), rgb('#eac46f'), rgb('#b87c24')]), -0.22);
+        // Tiny orbiting starlet on left
+        l.star(cx - iconR * 0.62, cy + iconR * 0.26, iconR * 0.2, iconR * 0.09, WHITE);
+        // Mini-Saturn planet perched upper-right on the halo
+        const sx = cx + iconR * 0.38;
+        const sy = cy - iconR * 0.28;
+        const sr = iconR * 0.34;
+        l.disc(sx, sy, sr, rgrad(sx - sr * 0.3, sy - sr * 0.3, sr * 1.2, [rgb('#fff3c4'), rgb('#eac46f'), rgb('#7c4dff')]));
+        l.ering(sx, sy, sr * 1.65, sr * 0.52, 0.68, rgb('#fff3c4'), -0.35);
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx - iconR * 0.22, cy - iconR * 0.56, 2, WHITE, rgb('#eac46f'));
+      break;
+    }
+
+    case 'violetPrismRibbons': {
+      // Prism Ankle Ribbons: dainty paired holographic pastel pink/sky silk bow with fluttering tails
+      c.obj((l) => {
+        // Fluttering tails streaming down
+        l.stroke([[cx - iconR * 0.1, cy + iconR * 0.05], [cx - iconR * 0.42, cy + iconR * 0.45], [cx - iconR * 0.66, cy + iconR * 0.82]], iconR * 0.18, lgrad(cx, cy, cx - iconR, cy + iconR, [rgb('#ff8fd8'), rgb('#9be2ff')]), iconR * 0.12);
+        l.stroke([[cx + iconR * 0.1, cy + iconR * 0.05], [cx + iconR * 0.42, cy + iconR * 0.45], [cx + iconR * 0.66, cy + iconR * 0.82]], iconR * 0.18, lgrad(cx, cy, cx + iconR, cy + iconR, [rgb('#d6a8ff'), rgb('#9be2ff')]), iconR * 0.12);
+        // Left & right plump bow loops
+        l.ellipse(cx - iconR * 0.46, cy - iconR * 0.12, iconR * 0.46, iconR * 0.32, lgrad(cx - iconR, cy - iconR * 0.4, cx, cy, [rgb('#fff0fa'), rgb('#ff8fd8'), rgb('#d6a8ff')]), -0.25);
+        l.ellipse(cx + iconR * 0.46, cy - iconR * 0.12, iconR * 0.46, iconR * 0.32, lgrad(cx, cy - iconR * 0.4, cx + iconR, cy, [rgb('#fff0fa'), rgb('#9be2ff'), rgb('#d6a8ff')]), 0.25);
+        // Center pearl knot
+        l.disc(cx, cy - iconR * 0.08, iconR * 0.22, rgrad(cx - 1, cy - iconR * 0.12, iconR * 0.3, [WHITE, rgb('#eac46f'), rgb('#ff8fd8')]));
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx, cy - iconR * 0.56, 2, WHITE, rgb('#9be2ff'));
+      break;
+    }
+
+    case 'lumiNebulaGarland': {
+      // Nebula Flower Garland: lush floral wreath of glacier-mint, rose & gold cosmic blossoms
+      c.obj((l) => {
+        // Woven star-vine base circle
+        l.ring(cx, cy, iconR * 0.48, iconR * 0.7, rgb('#2ca69a'));
+        const fCols: RGB[] = [rgb('#4ae0cb'), rgb('#ff8fd8'), rgb('#a8fff0'), rgb('#eac46f'), rgb('#d6a8ff'), rgb('#7cc8ff')];
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3 - Math.PI / 2;
+          const fx = cx + Math.cos(a) * iconR * 0.6;
+          const fy = cy + Math.sin(a) * iconR * 0.6;
+          const fc = fCols[i] as RGB;
+          for (let p = 0; p < 5; p++) {
+            const pa = (p * Math.PI * 2) / 5;
+            l.disc(fx + Math.cos(pa) * iconR * 0.14, fy + Math.sin(pa) * iconR * 0.14, iconR * 0.14, fc);
+          }
+          l.disc(fx, fy, iconR * 0.1, rgb('#fff3c4'));
+        }
+      }, { rim: 0.2, deep: true });
+      c.sparkle(cx, cy, 2, WHITE, rgb('#a8fff0'));
+      break;
+    }
+
+    case 'lumiCelestialSaddle': {
+      // Celestial Saddle Blanket: royal indigo draped blanket with burnished-gold border, tassels & central star
+      c.obj((l) => {
+        // Scalloped royal velvet saddle cloth
+        l.poly([
+          [cx - iconR * 0.72, cy - iconR * 0.54],
+          [cx + iconR * 0.72, cy - iconR * 0.54],
+          [cx + iconR * 0.88, cy + iconR * 0.48],
+          [cx, cy + iconR * 0.78],
+          [cx - iconR * 0.88, cy + iconR * 0.48],
+        ], vgrad(cy - iconR * 0.5, cy + iconR * 0.8, [rgb('#4a2896'), rgb('#281563'), rgb('#1c1142')], true));
+        // Burnished-gold trim piping & tassels
+        l.polyline([
+          [cx - iconR * 0.64, cy - iconR * 0.42],
+          [cx + iconR * 0.64, cy - iconR * 0.42],
+          [cx + iconR * 0.74, cy + iconR * 0.4],
+          [cx, cy + iconR * 0.65],
+          [cx - iconR * 0.74, cy + iconR * 0.4],
+          [cx - iconR * 0.64, cy - iconR * 0.42],
+        ], rgb('#eac46f'));
+        // Central gold astrolabe star
+        l.star(cx, cy + iconR * 0.04, iconR * 0.36, iconR * 0.16, rgrad(cx - 1, cy - 1, iconR * 0.4, [WHITE, rgb('#fff3c4'), rgb('#eac46f')]));
+        // Gold tassels at lower tips
+        l.disc(cx, cy + iconR * 0.82, iconR * 0.1, rgb('#eac46f'));
+        l.disc(cx - iconR * 0.82, cy + iconR * 0.54, iconR * 0.09, rgb('#eac46f'));
+        l.disc(cx + iconR * 0.82, cy + iconR * 0.54, iconR * 0.09, rgb('#eac46f'));
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx - iconR * 0.42, cy - iconR * 0.25, 1, WHITE, rgb('#fff3c4'));
+      break;
+    }
+
+    case 'novaStarGoggles': {
+      // Supersonic Star Goggles: sleek racing flight goggles with iridescent dragonfly-teal lenses & star glints
+      c.obj((l) => {
+        // Elastic strap peeking behind sides
+        l.rect(cx - iconR * 0.96, cy - iconR * 0.16, cx + iconR * 0.96, cy + iconR * 0.16, rgb('#532896'));
+        // Twin sculpted gold-rimmed aerodynamic lenses
+        for (const dir of [-1, 1] as const) {
+          const lx = cx + dir * iconR * 0.42;
+          l.ellipse(lx, cy, iconR * 0.44, iconR * 0.38, rgb('#eac46f'));
+          l.ellipse(lx, cy, iconR * 0.34, iconR * 0.28, lgrad(lx - iconR * 0.3, cy - iconR * 0.3, lx + iconR * 0.3, cy + iconR * 0.3, [rgb('#7bffb8'), rgb('#18c9b8'), rgb('#4287f5'), rgb('#9d5cff')]));
+          l.star(lx - iconR * 0.08, cy - iconR * 0.06, iconR * 0.14, iconR * 0.06, WHITE);
+        }
+        // Gold nose bridge
+        l.rrect(cx - iconR * 0.14, cy - iconR * 0.12, cx + iconR * 0.14, cy + iconR * 0.08, 1, rgb('#fff3c4'));
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx + iconR * 0.58, cy - iconR * 0.48, 2, WHITE, rgb('#7bffb8'));
+      break;
+    }
+
+    case 'novaGalaxyBowtie': {
+      // Galaxy Bowtie Collar: plump cosmic purple bowtie with glittering stars & golden collar band
+      c.obj((l) => {
+        // Collar strap curve behind
+        l.arc(cx, cy - iconR * 0.15, iconR * 0.55, iconR * 0.72, 0.2, Math.PI - 0.2, rgb('#eac46f'));
+        // Left & right triangular-plump bowtie wings
+        l.poly([
+          [cx, cy],
+          [cx - iconR * 0.86, cy - iconR * 0.48],
+          [cx - iconR * 0.92, cy],
+          [cx - iconR * 0.86, cy + iconR * 0.48],
+        ], lgrad(cx - iconR, cy - iconR * 0.4, cx, cy + iconR * 0.4, [rgb('#a29bfe'), rgb('#6c5ce7'), rgb('#3d2380')]));
+        l.poly([
+          [cx, cy],
+          [cx + iconR * 0.86, cy - iconR * 0.48],
+          [cx + iconR * 0.92, cy],
+          [cx + iconR * 0.86, cy + iconR * 0.48],
+        ], lgrad(cx, cy - iconR * 0.4, cx + iconR, cy + iconR * 0.4, [rgb('#a29bfe'), rgb('#6c5ce7'), rgb('#3d2380')]));
+        // Galaxy sparkles on wings
+        l.dot(cx - iconR * 0.52, cy - iconR * 0.12, WHITE);
+        l.dot(cx - iconR * 0.36, cy + iconR * 0.14, rgb('#fff3c4'));
+        l.dot(cx + iconR * 0.52, cy + iconR * 0.12, WHITE);
+        l.dot(cx + iconR * 0.36, cy - iconR * 0.14, rgb('#fff3c4'));
+        // Burnished gold center knot
+        l.rrect(cx - iconR * 0.2, cy - iconR * 0.26, cx + iconR * 0.2, cy + iconR * 0.26, iconR * 0.08, vgrad(cy - iconR * 0.26, cy + iconR * 0.26, [rgb('#fff3c4'), rgb('#eac46f'), rgb('#b87c24')]));
+      }, { rim: 0.22, deep: true });
+      c.sparkle(cx, cy - iconR * 0.54, 2, WHITE, rgb('#eac46f'));
       break;
     }
   }

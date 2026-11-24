@@ -1,16 +1,27 @@
-/** ArtPort implementation: procedural pixel-art scenes, sprites, region rasterizer. */
-import type { ArtPort, CompiledPage, IllustrationKind, PixelImage, SpriteLibrary, SpriteSheet, WonderSketchDot } from '../contracts/art';
+/** ArtPort implementation: procedural pixel-art scenes, sprites, Hi-Bit UI sprite atlas, region rasterizer. */
+import type {
+  ArtPort,
+  CompiledPage,
+  IllustrationKind,
+  PixelImage,
+  SpriteLibrary,
+  SpriteSheet,
+  UiPixelSpriteAtlas,
+  WonderSketchDot,
+} from '../contracts/art';
 import type { CausalityKind } from '../contracts/causality';
 import type { SceneId } from '../contracts/roguelike';
 import type { WardrobeState } from '../contracts/progression';
 import { compile } from './compile';
 import { illustration } from './illustrations';
+import { createUiAtlas } from './illo/uiSprites';
 import { renderPreview } from './preview';
 import { buildSprites } from './sprites';
 import { buildWisp } from './sprites/wisp';
 import { wonderSketch } from './wonderSketch';
 
 export function createArt(): ArtPort {
+  const atlas = createUiAtlas();
   return {
     compilePage(id: SceneId, seed: number, wardrobe: WardrobeState): CompiledPage {
       return compile(id, seed, wardrobe);
@@ -29,6 +40,9 @@ export function createArt(): ArtPort {
     },
     illustration(kind: IllustrationKind, w: number, h: number): PixelImage {
       return illustration(kind, w, h);
+    },
+    uiAtlas(): UiPixelSpriteAtlas {
+      return atlas;
     },
   };
 }

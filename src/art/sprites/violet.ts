@@ -15,6 +15,10 @@ const LEG: Legend = {
   H: 2, // violet_sandy_hair
   U: 3, // violet_suit (pajamas)
   M: 4, // violet_helmet (cardboard-starlight helmet)
+  D: 204, // violet_cat_headphones (wardrobe)
+  O: 205, // violet_moon_hoodie (wardrobe)
+  G: 206, // violet_saturn_halo (wardrobe)
+  R: 207, // violet_prism_ribbons (wardrobe)
   E: 212, // eye_shine
   B: 213, // cheek_blush
   K: 214, // violet_star_clips
@@ -23,7 +27,7 @@ const LEG: Legend = {
 };
 
 // Priority front-most first when finishSprite inks seams between regions.
-const PRIO = [212, 213, 214, 215, 1, 2, 4, 3, 216];
+const PRIO = [212, 213, 214, 215, 204, 206, 205, 207, 1, 2, 4, 3, 216];
 
 // Head + open-face cardboard-starlight helmet + flowing sandy hair (36x30)
 const HEAD_OPEN = parseGrid(
@@ -356,6 +360,128 @@ const OVERLAY_CAPE_B = parseGrid(
   LEG,
 );
 
+// Wardrobe overlay: Starlight Cat-Ear Headphones (204) — cat ears on helmet top + plush earcups on sides
+const OVERLAY_HEADPHONES = parseGrid(
+  [
+    '....................................', // 0
+    '....................................', // 1
+    '....................................', // 2
+    '....................................', // 3
+    '.......DD..................DD.......', // 4  glowing cat-ear tips
+    '......DDDD................DDDD......', // 5
+    '.....DD#DDD..............DDD#DD.....', // 6  cat-ear inner notch
+    '......DDDD................DDDD......', // 7
+    '....................................', // 8
+    '....................................', // 9
+    '....................................', // 10
+    '....................................', // 11
+    '....................................', // 12
+    '...DD..........................DD...', // 13 plush headphone earcups
+    '..DDD..........................DDD..', // 14
+    '..D#D..........................D#D..', // 15
+    '..DDD..........................DDD..', // 16
+    '..DDD..........................DDD..', // 17
+    '...DD..........................DD...', // 18
+    '....................................', // 19
+    '....................................', // 20
+    '....................................', // 21
+    '....................................', // 22
+    '....................................', // 23
+    '....................................', // 24
+    '....................................', // 25
+    '....................................', // 26
+    '....................................', // 27
+    '....................................', // 28
+    '....................................', // 29
+  ],
+  LEG,
+);
+
+// Wardrobe overlay: Floating Mini-Saturn Orbit Halo (206) — hovers cleanly around star antenna (rows 0..3)
+const OVERLAY_SATURN_HALO = parseGrid(
+  [
+    '.........................GGG........', // 0  mini-Saturn dome
+    '.......GGG.............GGGGGGG......', // 1  orbit moonlet + ring
+    '.....GGGG..GGGG..GGGG..GG#GGGGGG....', // 2  shimmering orbit halo + Saturn belt
+    '.......GG...............GGGGGG......', // 3
+  ],
+  LEG,
+);
+
+// Wardrobe overlay: Cozy Moon-Pajama Hoodie (205) — soft cowl on shoulders + crescent belly pouch
+const OVERLAY_MOON_HOODIE = parseGrid(
+  [
+    '....................................', // 0
+    '.........OOOO..........OOOO.........', // 1  cozy hood collar peeking around chin
+    '........OOOOOO........OOOOOO........', // 2
+    '........OOOO............OOOO........', // 3
+    '....................................', // 4
+    '....................................', // 5
+    '....................................', // 6
+    '....................................', // 7
+    '..............OOOOOOOO..............', // 8  cozy crescent moon kangaroo pouch
+    '.............OOO#OOOOOO.............', // 9
+    '.............OO##OOOOOO.............', // 10
+    '..............OOOOOOOO..............', // 11
+    '....................................', // 12
+  ],
+  LEG,
+);
+
+// Wardrobe overlay: Prism Ankle Ribbons (207) — fluttering ribbons tailored to each leg pose
+const RIBBONS_STAND = parseGrid(
+  [
+    '.........RRRRR.......RRRRR..........', // 16
+    '........RR#RRRR.....RRRR#RR.........', // 17
+    '........RR...RR.....RR...RR.........', // 18
+  ],
+  LEG,
+);
+
+const RIBBONS_ARMS_UP = parseGrid(
+  [
+    '........RRRRR.........RRRRR.........', // 14
+    '.......RR#RRRR.......RRRR#RR........', // 15
+    '.......RR...RR.......RR...RR........', // 16
+  ],
+  LEG,
+);
+
+const RIBBONS_WALK_A = parseGrid(
+  [
+    '......RRRRR.............RRRRR.......', // 15
+    '.....RR#RRRR...........RRRR#RR......', // 16
+    '.....RR...RR...........RR...RR......', // 17
+  ],
+  LEG,
+);
+
+const RIBBONS_WALK_B = parseGrid(
+  [
+    '..........RRRRR......RRRRR..........', // 15
+    '.........RR#RRRR....RRRR#RR.........', // 16
+    '.........RR...RR....RR...RR.........', // 17
+  ],
+  LEG,
+);
+
+const RIBBONS_FLOAT = parseGrid(
+  [
+    '.......RRRRR..........RRRRR.........', // 13
+    '......RR#RRRR........RRRR#RR........', // 14
+    '......RR...RR........RR...RR........', // 15
+  ],
+  LEG,
+);
+
+function ribbonsFor(body: Grid | undefined): { g: Grid; yOff: number } {
+  if (body === BODY_ARMS_UP) return { g: RIBBONS_ARMS_UP, yOff: 14 };
+  if (body === BODY_WALK_A) return { g: RIBBONS_WALK_A, yOff: 15 };
+  if (body === BODY_WALK_B) return { g: RIBBONS_WALK_B, yOff: 15 };
+  if (body === BODY_FLOAT) return { g: RIBBONS_FLOAT, yOff: 13 };
+  return { g: RIBBONS_STAND, yOff: 16 };
+}
+
 function frame(
   w: WardrobeState,
   o: {
@@ -376,9 +502,18 @@ function frame(
     layers.push({ g: o.capeB ? OVERLAY_CAPE_B : OVERLAY_CAPE_A, x: dx, y: 27 + bdy });
   }
   layers.push({ g: o.body ?? BODY_STAND, x: dx, y: 27 + bdy });
+  if (w.violetMoonHoodie) {
+    layers.push({ g: OVERLAY_MOON_HOODIE, x: dx, y: 27 + bdy });
+  }
+  if (w.violetPrismRibbons) {
+    const rb = ribbonsFor(o.body);
+    layers.push({ g: rb.g, x: dx, y: 27 + bdy + rb.yOff });
+  }
   layers.push({ g: HEAD_OPEN, x: dx, y: 1 + hdy });
   if (o.hair) layers.push({ g: o.hair, x: dx, y: 23 + hdy });
   if (o.eyes) layers.push({ g: o.eyes, x: dx, y: 17 + hdy });
+  if (w.violetHeadphones) layers.push({ g: OVERLAY_HEADPHONES, x: dx, y: 1 + hdy });
+  if (w.violetSaturnHalo) layers.push({ g: OVERLAY_SATURN_HALO, x: dx, y: Math.max(1, 1 + hdy) });
   if (w.violetPins) layers.push({ g: OVERLAY_PINS, x: dx, y: 1 + hdy });
   return finishSprite(compose(W, H, layers), PRIO, W, H);
 }

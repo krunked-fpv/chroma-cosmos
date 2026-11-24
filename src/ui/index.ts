@@ -21,7 +21,7 @@ export { PointerInput } from './input';
 export { InstallController, isStandalone } from './install';
 
 const HUB_TITLE = "Violet's Stargazer Bedroom";
-const INPUT_MODES: ReadonlySet<AppMode> = new Set<AppMode>(['chapter', 'hub']);
+const INPUT_MODES: ReadonlySet<AppMode> = new Set<AppMode>(['chapter', 'hub', 'book']);
 
 class SketchbookUi implements UiPort {
   readonly canvasHost: HTMLElement;

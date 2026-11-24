@@ -36,7 +36,7 @@ export class Modals {
     this.layer.removeAttribute('hidden');
     boing(el.querySelector<HTMLElement>('.cc-modal-card') ?? el, 'appear');
     const kids = el.querySelectorAll<HTMLElement>('.cc-card, .cc-door');
-    kids.forEach((k, i) => boing(k, 'appear', 120 + i * 90));
+    kids.forEach((k, i) => boing(k, 'appear', 20 + i * 35));
     el.tabIndex = -1;
     queueMicrotask(() => el.focus({ preventScroll: true }));
   }

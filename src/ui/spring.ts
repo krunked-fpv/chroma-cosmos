@@ -34,7 +34,7 @@ type SpringKind = 'select' | 'appear' | 'press';
 
 const PRESETS: Record<SpringKind, { from: number; k: number; c: number; ms: number; lift: number }> = {
   select: { from: 0.78, k: 300, c: 11, ms: 560, lift: -6 },
-  appear: { from: 0.2, k: 220, c: 13, ms: 620, lift: 14 },
+  appear: { from: 0.78, k: 280, c: 24, ms: 300, lift: 8 },
   press: { from: 0.88, k: 420, c: 16, ms: 360, lift: 0 },
 };
 

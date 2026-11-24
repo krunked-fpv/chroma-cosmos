@@ -131,6 +131,10 @@ describe('Starlight Wisp sprite blitting', () => {
     expect(blitWisp(pFloat, mkWisp({ mode: 'prologueStroke' }), customSheet, 0)).toBe(9);
     expect(pFloat.idAt(120, 90)).toBe(212);
 
+    const pHint = new PixelPlane();
+    expect(blitWisp(pHint, mkWisp({ mode: 'hintBeam' }), customSheet, 0)).toBe(9);
+    expect(pHint.idAt(120, 90)).toBe(212);
+
     const pFull = new PixelPlane();
     const pFade = new PixelPlane();
     blitWisp(pFull, mkWisp({ alpha: 1 }), null, 0);

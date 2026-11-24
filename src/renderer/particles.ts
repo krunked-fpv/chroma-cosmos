@@ -27,7 +27,9 @@ export function particlesForEffect(e: EffectRenderState, out: PixelParticle[]): 
   const age = num(e.ageMs, 0);
   const rnd = mulberry32(e.seed | 0);
   const push = (x: number, y: number, color: number, alpha: number): void => {
-    if (out.length < MAX_PARTICLES && alpha > 0.02) out.push({ x, y, color, alpha: clamp01(alpha) });
+    if (out.length < MAX_PARTICLES && Number.isFinite(x) && Number.isFinite(y) && alpha > 0.02) {
+      out.push({ x, y, color, alpha: clamp01(alpha) });
+    }
   };
   switch (e.kind) {
     case 'starBurst': {
@@ -106,6 +108,86 @@ export function particlesForEffect(e: EffectRenderState, out: PixelParticle[]): 
         push(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r, i % 2 ? CREAM : CYAN, 1 - t * 0.8);
       }
       break;
+    case 'bubblePop': {
+      const r = 4 + 20 * easeOut(t);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + rnd() * 0.4;
+        const rr = r * (0.65 + rnd() * 0.45);
+        push(e.x + Math.cos(a) * rr, e.y + Math.sin(a) * rr - t * 6, i % 3 === 0 ? CYAN : i % 3 === 1 ? CREAM : PINK, 1 - t * 0.85);
+      }
+      break;
+    }
+    case 'meteorStreak': {
+      const x1 = num(e.x2, e.x + 70);
+      const y1 = num(e.y2, e.y + 18);
+      const f = easeOut(t);
+      for (let i = 0; i < 7; i++) {
+        const ff = Math.max(0, f - i * 0.04);
+        const mx = e.x + (x1 - e.x) * ff + (rnd() - 0.5) * 4;
+        const my = e.y + (y1 - e.y) * ff - Math.sin(ff * Math.PI) * 8 + (rnd() - 0.5) * 4;
+        push(mx, my, i % 3 === 0 ? GOLD : i % 3 === 1 ? CREAM : PINK, 1 - i / 8);
+      }
+      break;
+    }
+    case 'lightningZap': {
+      const x1 = num(e.x2, e.x + 48);
+      const y1 = num(e.y2, e.y + 14);
+      const f = easeOut(t);
+      for (let i = 0; i < 6; i++) {
+        const u = i < 3 ? (0.3 + i * 0.25) * f : f;
+        push(
+          e.x + (x1 - e.x) * u + (rnd() - 0.5) * 8,
+          e.y + (y1 - e.y) * u + (rnd() - 0.5) * 8,
+          i % 2 === 0 ? GOLD : CYAN,
+          (1 - t * 0.75) * 0.95,
+        );
+      }
+      break;
+    }
+    case 'crownFireworks': {
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + rnd() * 0.35;
+        const r = (8 + rnd() * 44) * easeOut(t);
+        push(
+          e.x + Math.cos(a) * r,
+          e.y + Math.sin(a) * r + t * t * 9,
+          i % 3 === 0 ? GOLD : i % 3 === 1 ? CREAM : CYAN,
+          1 - t * 0.85,
+        );
+      }
+      break;
+    }
+    case 'magnetArc': {
+      const x1 = num(e.x2, e.x + 56);
+      const y1 = num(e.y2, e.y - 34);
+      const f = easeOut(t);
+      for (let i = 0; i < 6; i++) {
+        const ff = clamp01(f - i * 0.06);
+        const swirl = age * 0.01 + i * 1.5;
+        push(
+          e.x + (x1 - e.x) * ff + Math.cos(swirl) * 4,
+          e.y + (y1 - e.y) * ff - Math.sin(ff * Math.PI) * 10 + Math.sin(swirl) * 4,
+          i % 2 === 0 ? GOLD : LAV,
+          1 - i / 7,
+        );
+      }
+      break;
+    }
+    case 'echoTrail': {
+      const x1 = num(e.x2, e.x + 64);
+      const y1 = num(e.y2, e.y - 20);
+      const f = easeOut(t);
+      for (let i = 0; i < 7; i++) {
+        const ff = Math.max(0, f - i * 0.055);
+        push(
+          e.x + (x1 - e.x) * ff + (rnd() - 0.5) * 5,
+          e.y + (y1 - e.y) * ff + Math.sin(ff * Math.PI * 3 + i) * 7 + (rnd() - 0.5) * 4,
+          PALETTE[i % PALETTE.length] as number,
+          (1 - i / 8) * 0.9,
+        );
+      }
+      break;
+    }
     case 'starlightFlowerRain':
     case 'discoMirage':
     case 'cheetahRacetrack':
@@ -152,7 +234,7 @@ export function particlesForWisp(
       out.push({ x: px, y: py, color, alpha });
     }
   }
-  if (wisp.mode === 'prologueStroke' && wisp.ghostPath.length >= 2 && wisp.ghostStrokeT > 0.02) {
+  if (wisp.ghostPath.length >= 2 && wisp.ghostStrokeT > 0.02) {
     const t = clamp01(wisp.ghostStrokeT);
     const maxIdx = wisp.ghostPath.length - 1;
     for (let k = 0; k < 3 && out.length < MAX_PARTICLES; k++) {

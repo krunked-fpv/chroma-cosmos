@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MATERIALS } from '../../../src/contracts/materials';
 import { REGION_FLAG, SYSTEM_REGIONS } from '../../../src/contracts/regions';
-import { MAX_STAMPS_PER_BATCH } from '../../../src/contracts/constants';
+import { MAX_STAMPS_PER_BATCH, GOLD_HEX, PAPER_HEX } from '../../../src/contracts/constants';
 import { buildCompositeFrag, buildCurlFrag, buildStampFrag, QUAD_VERT } from '../../../src/shaders';
 import { hexToRgb, vec3Hex } from '../../../src/shaders/glsl-util';
 import { buildMaterialTables, buildPaletteTexData, PAL_TEX_H, PAL_TEX_W } from '../../../src/shaders/materials';
@@ -52,29 +52,55 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
     expect(rid).toContain('decodeId(r.g)');
   });
 
-  it('branches on all ten programs and the palette tables cover all 12 materials', () => {
-    for (let p = 1; p <= 9; p++) expect(comp).toContain(`prog == ${p}`);
+  it('branches on all 15 programs, uses PAL_TEX_H = 32, and covers all 17 materials', () => {
+    expect(MATERIALS.length).toBe(17);
+    expect(PAL_TEX_H).toBe(32);
+    expect(PAL_TEX_H).toBeGreaterThan(MATERIALS.length);
+    for (let p = 1; p <= 14; p++) expect(comp).toContain(`prog == ${p}`);
     expect(comp).toContain('progBiolum');
+    expect(comp).toContain('progStrawberry');
+    expect(comp).toContain('progGlacier');
+    expect(comp).toContain('progCottonSwirl');
+    expect(comp).toContain('progDragonfly');
+    expect(comp).toContain('progRoyalGold');
     const tables = buildMaterialTables();
+    expect(tables).toContain(`const int MAT_COUNT = ${MATERIALS.length + 1};`);
     expect(tables).toContain(`const int PROG[${MATERIALS.length + 1}]`);
     const progs = /const int PROG\[\d+\] = int\[\d+\]\(([^)]*)\)/.exec(tables)![1]!.split(',').map(Number);
     expect(progs).toEqual([0, ...MATERIALS.map((m) => m.program)]);
     expect(progs[11]).toBe(4); // 24K Solar Flare reuses program 4
     expect(progs[12]).toBe(1); // Aurora Sherbet reuses program 1
+    expect(progs[13]).toBe(11); // StrawberrySupernova
+    expect(progs[14]).toBe(12); // CrystalGlacierMint
+    expect(progs[15]).toBe(13); // CosmicCottonSwirl
+    expect(progs[16]).toBe(14); // DragonflyIridescence
+    expect(progs[17]).toBe(15); // RoyalAstralGold
     const palBytes = new Uint8Array(PAL_TEX_W * PAL_TEX_H * 4);
     buildPaletteTexData(palBytes);
     for (const mat of MATERIALS) {
-      const [r, g, b] = hexToRgb(mat.palette[0]!);
-      const o = mat.id * PAL_TEX_W * 4;
-      expect(palBytes[o]).toBe(Math.round(r * 255));
-      expect(palBytes[o + 1]).toBe(Math.round(g * 255));
-      expect(palBytes[o + 2]).toBe(Math.round(b * 255));
-      expect(palBytes[o + 3]).toBe(255);
+      for (let stop = 0; stop < mat.palette.length; stop++) {
+        const [r, g, b] = hexToRgb(mat.palette[stop]!);
+        const o = (mat.id * PAL_TEX_W + stop) * 4;
+        expect(palBytes[o]).toBe(Math.round(r * 255));
+        expect(palBytes[o + 1]).toBe(Math.round(g * 255));
+        expect(palBytes[o + 2]).toBe(Math.round(b * 255));
+        expect(palBytes[o + 3]).toBe(255);
+      }
     }
   });
 
-  it('embeds the SYSTEM_REGIONS fixed materials and special tokens including 231..233', () => {
+  it('embeds all SYSTEM_REGIONS (200..233) fixed materials, bounds, and special tokens', () => {
+    expect(SYSTEM_REGIONS[0]?.id).toBe(200);
+    expect(SYSTEM_REGIONS[SYSTEM_REGIONS.length - 1]?.id).toBe(233);
     for (const r of SYSTEM_REGIONS) expect(comp).toContain(`if (id == ${r.id}) return`);
+    expect(comp).toContain('if (id == 200) return 14;'); // fx_starlight_bubble -> CrystalGlacierMint
+    expect(comp).toContain('if (id == 201) return 16;'); // fx_echo_butterfly -> DragonflyIridescence
+    expect(comp).toContain('if (id == 202) return 8;'); // fx_relic_mooncat -> OpalPearl
+    expect(comp).toContain('if (id == 203) return 11;'); // fx_constellation_crown -> SolarFlare24K
+    expect(comp).toContain('if (id == 204) return 13;'); // violet_cat_headphones -> StrawberrySupernova
+    expect(comp).toContain('if (id == 206) return 17;'); // violet_saturn_halo -> RoyalAstralGold
+    expect(comp).toContain('if (id == 207) return 15;'); // violet_prism_ribbons -> CosmicCottonSwirl
+    expect(comp).toContain('if (id == 210) return 16;'); // nova_star_goggles -> DragonflyIridescence
     expect(comp).toContain('if (id == 212) return -1;'); // eyeShine
     expect(comp).toContain('if (id == 213) return -2;'); // blush
     expect(comp).toContain('if (id == 214) return -3;'); // selected
@@ -82,6 +108,16 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
     expect(comp).toContain('if (id == 231) return -4;'); // wispCore
     expect(comp).toContain('if (id == 232) return -5;'); // wispAura
     expect(comp).toContain('if (id == 233) return -6;'); // wonderChalk
+    // System ID bounds updated from 212..233 to 200..233 everywhere
+    expect(comp).toContain('if (id >= 200 && id <= 233)');
+    expect(comp).toContain('bool paintable = (id > 0 && id < 200) || (id >= 234 && id <= 254);');
+    expect(comp).not.toContain('id < 212');
+    expect(comp).not.toContain('idq < 212');
+    expect(comp).not.toContain('nid < 212');
+    expect(comp).not.toContain('id >= 212');
+    const rendererSrc = readFileSync(resolve(process.cwd(), 'src/renderer/index.ts'), 'utf8');
+    expect(rendererSrc).toContain('if (rid >= 1 && rid <= 199) hoverId = rid;');
+    expect(rendererSrc).not.toContain('rid < 212');
     const fixedBlock = comp.slice(comp.indexOf('vec3 fixedColor('), comp.indexOf('vec3 applyPageOverlays('));
     expect(fixedBlock).toContain('if (fx == -4)');
     expect(fixedBlock).toContain('if (fx == -5)');
@@ -89,18 +125,19 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
     expect(fixedBlock).toContain('gFxVar');
   });
 
-  it('declares and uses all new interactive uniforms with exact renderer bindings (zero unused/mismatched)', () => {
+  it('declares and uses all interactive uniforms including uHintDim with exact renderer bindings', () => {
     for (const decl of [
       'uniform int uHoverRegion;',
       'uniform int uToolMode;',
       'uniform vec4 uWandGlow;',
       'uniform float uPrologueMist;',
       'uniform float uDogEarGlow;',
+      'uniform float uHintDim;',
     ]) {
       expect(comp).toContain(decl);
     }
     const uniformMatches = [...comp.matchAll(/^uniform\s+(?:sampler2D|vec[234]|float|int)\s+(\w+)(?:\[[^\]]+\])?;/gm)];
-    expect(uniformMatches.length).toBeGreaterThanOrEqual(24);
+    expect(uniformMatches.length).toBeGreaterThanOrEqual(25);
     const rendererSrc = readFileSync(resolve(process.cwd(), 'src/renderer/index.ts'), 'utf8');
     const compUniformsStart = rendererSrc.indexOf('const compUniforms = {');
     const compUniformsEnd = rendererSrc.indexOf('const stampUniforms = {', compUniformsStart);
@@ -111,18 +148,30 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
       expect(occurrences, `uniform ${name} should be used in composite shader`).toBeGreaterThan(1);
       expect(compBlock, `uniform ${name} should be bound in renderer/index.ts`).toContain(`${name}:`);
     }
+    expect(rendererSrc).toContain('f.hintDim ?? f.view.hintState?.dimAmount ?? 0');
   });
 
-  it('handles Enchanted Pencil hover shimmer and idle guideGlow breathing on ink and interior', () => {
+  it('handles Enchanted Pencil hover shimmer, idle guideGlow, and Firefly Hint Spotlight dimming/halo', () => {
     expect(comp).toContain(`const int FLAG_GUIDE_GLOW = ${REGION_FLAG.guideGlow};`);
+    expect(comp).toContain(`const int FLAG_SPOTLIGHT = ${REGION_FLAG.spotlight};`);
     expect(comp).toContain('uToolMode == 0 && uHoverRegion > 0 && id == uHoverRegion');
     expect(comp).toContain('mix(base, vec3(1.0, 0.94, 0.74), pulse)');
-    expect(comp).toContain('float edge = (hoverUncomp || guideUncomp || needWatercolorEdge) ? edgeAmount(ip, id) : 0.0;');
+    expect(comp).toContain(
+      'float edge = (hoverUncomp || guideUncomp || spotUncomp || needWatercolorEdge) ? edgeAmount(ip, id) : 0.0;',
+    );
     const inkBlock = comp.slice(comp.indexOf('if (id == 0) {'), comp.indexOf('// ---- Layer 0 base by id class'));
     expect(inkBlock).toContain('FLAG_GUIDE_GLOW');
+    expect(inkBlock).toContain('FLAG_SPOTLIGHT');
+    expect(inkBlock).toContain('uHintDim > 0.001');
+    expect(inkBlock).toContain(vec3Hex('#ffd97d'));
+    expect(inkBlock).toContain(vec3Hex('#7ce8ff'));
     expect(inkBlock).toContain('sin(uTime * 3.2');
     const postBase = comp.slice(comp.indexOf('// ---- Layers 1 + 2:'));
     expect(postBase).toContain('hasFlag(s0.a, FLAG_GUIDE_GLOW)');
+    expect(postBase).toContain('hasFlag(s0.a, FLAG_SPOTLIGHT)');
+    expect(postBase).toContain('base *= (1.0 - 0.12 * clamp(uHintDim, 0.0, 1.0));');
+    expect(postBase).toContain(vec3Hex('#ffd97d'));
+    expect(postBase).toContain(vec3Hex('#7ce8ff'));
     expect(postBase).toContain('sin(uTime * 3.2)');
   });
 
@@ -200,7 +249,9 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
     expect(fixedBlock).toContain(vec3Hex('#ffbe55'));
   });
 
-  it('renders seamless heirloom cotton sketchbook margin with ink & gold plate hairlines outside [0..480, 0..270]', () => {
+  it('renders seamless heirloom cotton sketchbook margin with ink & GOLD_HEX plate hairlines outside [0..480, 0..270]', () => {
+    expect(comp).toContain(`const vec3 PAPER = ${vec3Hex(PAPER_HEX)};`);
+    expect(comp).toContain(`const vec3 GOLD = ${vec3Hex(GOLD_HEX)};`);
     const mainBody = comp.slice(comp.indexOf('void main()'));
     const marginBlock = mainBody.slice(mainBody.indexOf('if (outOfPage)'), mainBody.indexOf('ivec2 ip = ivec2(floor(pp));'));
     expect(marginBlock).toContain('if (uClean >= 0.5)');
@@ -208,7 +259,7 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
     expect(marginBlock).toContain('distOut <= 1.0');
     expect(marginBlock).toContain('mix(col, INK,');
     expect(marginBlock).toContain('distOut >= 3.0 && distOut < 4.0');
-    expect(marginBlock).toContain(vec3Hex('#d9ae5b'));
+    expect(marginBlock).toContain('mix(col, GOLD,');
   });
 
   it('declares the stamp batch arrays with the contract limit', () => {

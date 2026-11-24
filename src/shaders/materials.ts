@@ -1,5 +1,5 @@
 /**
- * Layer 2 - GLSL pigment materials. One unified `shadeMaterial()` that branches on the program id (1..10).
+ * Layer 2 - GLSL pigment materials. One unified `shadeMaterial()` that branches on the program id (1..15).
  * Every program uses at most two noise octaves. Palettes come straight from the MATERIALS contract.
  * Expects the including shader to declare: uTime, uBeat, uSparkle[8], uSparkleN and gFxVar.
  */
@@ -8,9 +8,9 @@ import { f, hexToRgb } from './glsl-util';
 
 export const MAX_PALETTE = 8;
 export const PAL_TEX_W = MAX_PALETTE;
-export const PAL_TEX_H = 16;
+export const PAL_TEX_H = 32;
 
-/** Populates an 8x16 RGBA8 palette lookup texture from the MATERIALS contract (row m = material id, col i = stop). */
+/** Populates an 8x32 RGBA8 palette lookup texture from the MATERIALS contract (row m = material id, col i = stop). */
 export function buildPaletteTexData(out: Uint8Array): void {
   out.fill(0);
   for (let m = 1; m <= MATERIALS.length; m++) {
@@ -280,9 +280,151 @@ vec3 progBiolum(int m, vec2 p, vec2 off, float w1, float n2) {
   return c;
 }
 
+// 11 - Strawberry Supernova Glaze: glossy berry-pink glaze + warm golden supernova sugar-crystal glints
+vec3 progStrawberry(int m, vec2 p, vec2 off, float sn1) {
+  float nz = 0.5 + 0.5 * sn1;
+  float glazeWave = 0.5 + 0.5 * sin(dot(p, vec2(0.036, 0.024)) + nz * 2.4 - uTime * 0.42);
+  vec3 c = mix(palAt(m, 0), palAt(m, 1), smoothstep(0.16, 0.84, 0.55 * glazeWave + 0.45 * nz));
+  float g1 = 0.5 + 0.5 * sin(dot(p, vec2(0.55, 0.83)) * 0.068 + sn1 * 1.6 - uTime * 0.55);
+  float g2 = g1 * g1;
+  float glossBand = g2 * g2 * g1;
+  c = mix(c, palAt(m, 2), glossBand * 0.62);
+  c = mix(c, vec3(1.0, 0.96, 0.98), glossBand * glossBand * 0.34);
+  // Sparkling micro sugar granules (branchless)
+  vec2 sgCell = floor(p / 5.0);
+  float sgH = hash12(sgCell + off + 7.3);
+  vec2 sgPos = (sgCell + 0.25 + 0.5 * hash22(sgCell + 3.1)) * 5.0;
+  float sgTw = 0.5 + 0.5 * sin(uTime * 3.8 + sgH * 41.0);
+  float sgMask = step(0.72, sgH) * smoothstep(1.35, 0.2, length(p - sgPos)) * (0.45 + 0.55 * sgTw * sgTw);
+  c = mix(c, palAt(m, 3), sgMask * 0.82);
+  // Warm golden supernova 4-point sugar-crystal star glints (branchless)
+  vec2 stCell = floor((p + vec2(3.0, 4.0)) / 12.0);
+  float stH = hash12(stCell + off + 29.1);
+  vec2 stPos = (stCell + 0.25 + 0.5 * hash22(stCell + 11.7)) * 12.0 - vec2(3.0, 4.0);
+  vec2 dv = abs(p - stPos);
+  float ph = fract(uTime * (0.42 + stH * 0.58) + stH * 19.0);
+  float fl0 = max(0.0, 1.0 - abs(ph - 0.5) * 2.0);
+  float fl = fl0 * fl0;
+  float core = smoothstep(1.6 + 1.1 * fl, 0.2, dv.x + dv.y);
+  float rays = smoothstep(0.65, 0.12, min(dv.x, dv.y)) * smoothstep(2.4 + 2.2 * fl, 0.0, max(dv.x, dv.y));
+  vec3 starGold = mix(palAt(m, 3), vec3(1.0, 0.97, 0.82), 0.5 + 0.5 * fl);
+  c = mix(c, starGold, step(0.66, stH) * clamp(core + rays * 0.85, 0.0, 1.0) * (0.55 + 0.45 * fl));
+  return c;
+}
+
+// 12 - Crystal Glacier Mint: faceted translucent ice-mint crystal prisms with specular frost ridges
+vec3 progGlacier(int m, vec2 p, vec2 off, float sn1, float sn2) {
+  vec2 gp = (p + vec2(sn1, sn2) * 3.2) / 15.0 + off * 0.04;
+  float a1 = gp.x;
+  float a2 = gp.x * 0.5 + gp.y * 0.8660254;
+  float a3 = -gp.x * 0.5 + gp.y * 0.8660254;
+  float f1 = fract(a1);
+  float f2 = fract(a2);
+  float f3 = fract(a3);
+  vec2 facetId = vec2(floor(a1) + floor(a2) * 7.0, floor(a2) - floor(a3) * 11.0);
+  float fh = hash12(facetId);
+  float fh2 = hash12(facetId + 17.3);
+  float refractIdx = clamp(0.45 * fh + 0.35 * (0.5 + 0.5 * sn1) + 0.20 * (0.5 + 0.5 * sin(uTime * 0.5 + fh2 * 6.28318)), 0.0, 1.0);
+  vec3 c = mix(palAt(m, 0), palAt(m, 2), smoothstep(0.15, 0.85, refractIdx));
+  float planeTilt = 0.5 + 0.5 * sin((f1 - f2) * 3.14159 + fh * 6.28318 + uTime * 0.75);
+  c = mix(c, palAt(m, 1), 0.32 + 0.38 * planeTilt);
+  float gl1 = 0.5 + 0.5 * sin(uTime * 1.15 + fh * 14.0 + dot(p, vec2(0.02, -0.025)));
+  float gl2 = gl1 * gl1;
+  float gl4 = gl2 * gl2;
+  c = mix(c, palAt(m, 3), gl4 * gl2 * gl1 * 0.58 * step(0.35, fh2));
+  float dEdge = min(min(min(f1, 1.0 - f1), min(f2, 1.0 - f2)), min(f3, 1.0 - f3));
+  float ridge = smoothstep(0.13, 0.0, dEdge);
+  float frostSpark = 0.75 + 0.25 * sin(uTime * 2.6 + (p.x + p.y) * 0.14);
+  c = mix(c, palAt(m, 3), ridge * 0.72 * frostSpark);
+  return c;
+}
+
+// 13 - Cosmic Cotton-Candy Swirl: whipped pastel pink/sky/lavender candy vortex spirals
+vec3 progCottonSwirl(int m, vec2 p, vec2 off, float sn1, float sn2) {
+  vec2 wp = p + vec2(sn1, sn2) * 11.0;
+  vec2 gc = wp / 36.0 + off * 0.03;
+  vec2 ci = floor(gc);
+  vec2 jc = 0.34 + 0.32 * hash22(ci + 5.7);
+  vec2 dv = fract(gc) - jc;
+  float rad = length(dv);
+  float dir = hash12(ci + 13.1) > 0.5 ? 1.0 : -1.0;
+  float ang = atan(dv.y, dv.x);
+  float vortexW = smoothstep(0.56, 0.06, rad);
+  float vortexPhase = ang * 0.3183099 * dir + rad * 3.1 - uTime * 0.28 * dir + hash12(ci) * 3.0;
+  float sweepPhase = dot(wp, vec2(0.026, 0.021)) + 0.45 * sin(wp.x * 0.035 - wp.y * 0.028 + uTime * 0.42);
+  float spiral = mix(sweepPhase, vortexPhase, vortexW * 0.78);
+  vec3 c = palCyc(m, spiral, 3);
+  float w1 = 0.5 + 0.5 * sin(spiral * 18.84955 + sn2 * 1.8);
+  float w2 = w1 * w1;
+  c = mix(c, palAt(m, 3), w2 * w2 * (0.42 + 0.22 * vortexW));
+  float puff = smoothstep(0.62, 0.94, 0.5 + 0.5 * sn1);
+  c = mix(c, palAt(m, 3), puff * 0.22);
+  return c;
+}
+
+// 14 - Enchanted Dragonfly Iridescence: angle-shifting teal/sapphire/violet/emerald wing-vein iridescence
+vec3 progDragonfly(int m, vec2 p, vec2 flow, vec2 off, float sn1, float sn2) {
+  vec2 hp = p * 0.105 + vec2(sn1, sn2) * 0.78 + off * 0.04;
+  vec2 hr = vec2(1.0, 1.7320508);
+  vec2 hh = hr * 0.5;
+  vec2 ha = mod(hp, hr) - hh;
+  vec2 hb = mod(hp - hh, hr) - hh;
+  vec2 gv = (dot(ha, ha) < dot(hb, hb)) ? ha : hb;
+  vec2 cid = hp - gv;
+  float cellH = hash12(floor(cid * 2.0 + 0.5));
+  float hexD = max(abs(gv.x), dot(abs(gv), vec2(0.5, 0.8660254)));
+  float tilt = sin(uTime * 0.58) * 0.42;
+  float irid = dot(p, vec2(0.76, -0.65)) * 0.013 + flow.x * 0.38 + flow.y * 0.24 + tilt + 0.36 * sn1 + cellH * 0.18;
+  vec3 c = palCyc(m, irid, 4);
+  float angleDot = dot(gv, vec2(cos(uTime * 0.8 + cellH * 4.0), sin(uTime * 0.8 + cellH * 4.0)));
+  float sh1 = 0.5 + 0.5 * sin(dot(p, vec2(0.58, 0.81)) * 0.065 - uTime * 0.95 + sn2 * 2.1 + angleDot * 3.2);
+  float sh2 = sh1 * sh1;
+  float sheen = sh2 * sh2 * sh1;
+  c = mix(c, mix(palAt(m, 3), vec3(0.92, 1.0, 0.98), 0.45), sheen * 0.55);
+  float vein = smoothstep(0.41, 0.495, hexD);
+  vec3 veinCol = mix(palAt(m, 1) * 0.38, palAt(m, 2) * 0.55, 0.5 + 0.5 * sin(irid * 6.28318));
+  veinCol = mix(veinCol, palAt(m, 3), sheen * 0.45);
+  c = mix(c, veinCol, vein * 0.78);
+  return c;
+}
+
+// 15 - Royal Astral Velvet Gold: midnight-indigo velvet inlaid with gleaming burnished-gold astrolabe filigree
+vec3 progRoyalGold(int m, vec2 p, vec2 off, float sn1, float sn2) {
+  float nap = 0.5 + 0.5 * sn1;
+  float microPile = hash12(floor(p * 1.5) + off);
+  vec3 velvet = mix(palAt(m, 0), palAt(m, 1), smoothstep(0.18, 0.84, nap * 0.76 + microPile * 0.24));
+  velvet *= 0.90 + 0.14 * (0.5 + 0.5 * sin(dot(p, vec2(0.03, 0.045)) + sn2 * 1.4));
+  vec2 gc = p / 34.0 + off * 0.03;
+  vec2 dv = (fract(gc) - 0.5) * 34.0;
+  float r = length(dv);
+  float outerRing = 1.0 - smoothstep(0.35, 1.15, abs(r - 12.8));
+  float innerRing = 1.0 - smoothstep(0.32, 1.05, abs(length(dv - vec2(2.4, -2.0)) - 6.8));
+  float crossMask = smoothstep(14.5, 11.5, r);
+  float axisX = (1.0 - smoothstep(0.25, 0.9, abs(dv.y))) * crossMask;
+  float axisY = (1.0 - smoothstep(0.25, 0.9, abs(dv.x))) * crossMask;
+  float ang = atan(dv.y, dv.x) - uTime * 0.25;
+  float ray0 = max(0.0, cos(ang * 4.0));
+  float ray2 = ray0 * ray0;
+  float starRay = ray2 * ray2 * ray2 * smoothstep(5.8, 0.6, r);
+  float centerJewel = smoothstep(2.1, 0.4, r);
+  float diagA = 1.0 - smoothstep(0.25, 0.85, abs(abs(dv.x) - abs(dv.y)));
+  float diagThreads = diagA * smoothstep(10.0, 14.5, r) * (0.45 + 0.55 * smoothstep(0.25, 0.75, 0.5 + 0.5 * sn2));
+  float filigree = clamp(max(max(outerRing, innerRing), max(max(axisX, axisY) * 0.7, max(starRay, max(centerJewel, diagThreads * 0.65)))), 0.0, 1.0);
+  float lus1 = 0.5 + 0.5 * sin(dot(p, vec2(0.085, -0.065)) + uTime * 1.05 + sn1 * 2.2);
+  vec3 gold = mix(palAt(m, 2), palAt(m, 3), 0.25 + 0.75 * lus1 * lus1);
+  vec3 c = mix(velvet, gold, filigree * 0.92);
+  // Tiny constellation star dots twinkling in the midnight velvet (branchless)
+  vec2 stCell = floor((p + vec2(5.0, 7.0)) / 9.0);
+  float stH = hash12(stCell + off + 41.3);
+  vec2 stPos = (stCell + 0.5) * 9.0 - vec2(5.0, 7.0);
+  float tw = 0.45 + 0.55 * sin(uTime * 3.1 + stH * 47.0);
+  c = mix(c, palAt(m, 3), step(0.82, stH) * smoothstep(1.25, 0.2, length(p - stPos)) * tw * 0.85);
+  return c;
+}
+
 vec3 shadeMaterial(int m, vec2 p, ivec2 ip, vec2 flow, float edge, vec2 off) {
   int prog = PROG[m];
-  // Shared simplex noise evaluation (2 call sites instead of 13 inlined copies across programs)
+  // Shared simplex noise evaluation (2 call sites across all 15 material programs)
   vec2 q1 = p * 0.028 + off * 0.01;
   if (prog == 1) q1 = p * 0.021 + off * 0.01 + vec2(uTime * 0.11, -uTime * 0.077) + flow * 0.4;
   else if (prog == 3) q1 = p * 0.02 + off * 0.01 + vec2(uTime * 0.01, 0.0);
@@ -293,13 +435,19 @@ vec3 shadeMaterial(int m, vec2 p, ivec2 ip, vec2 flow, float edge, vec2 off) {
   else if (prog == 8) q1 = p * 0.032 + off * 0.01 + uTime * 0.035;
   else if (prog == 9) q1 = p * 0.022 + off * 0.01;
   else if (prog == 10) q1 = p * 0.03 + off * 0.01 + vec2(0.0, uTime * 0.05);
+  else if (prog == 11) q1 = p * 0.032 + off * 0.01 + vec2(uTime * 0.04, -uTime * 0.03);
+  else if (prog == 12) q1 = p * 0.034 + off * 0.01 + vec2(-uTime * 0.02, uTime * 0.015);
+  else if (prog == 13) q1 = p * 0.025 + off * 0.01 + vec2(uTime * 0.055, uTime * 0.035);
+  else if (prog == 14) q1 = p * 0.028 + off * 0.01 + vec2(uTime * 0.045, -uTime * 0.025);
+  else if (prog == 15) q1 = p * 0.024 + off * 0.01 + vec2(uTime * 0.015, -uTime * 0.01);
   float sn1 = snoise(q1);
 
   float sn2 = 0.0;
-  if (prog == 1 || prog == 3 || prog == 10) {
+  if (prog == 1 || prog == 3 || prog == 10 || prog >= 12) {
     vec2 q2 = (p + 12.0 * vec2(sn1, sn1 * 0.7)) * 0.05 + 5.0;
     if (prog == 1) q2 = (p * 0.021 + off * 0.01) * 2.3 - vec2(uTime * 0.143, 0.0) + 7.1;
     else if (prog == 3) q2 = p * 0.065 + off * 0.01 + 3.3 + sn1 * 1.6;
+    else if (prog >= 12) q2 = p * 0.052 + off * 0.01 + vec2(4.7, -3.1) + vec2(-uTime * 0.03, uTime * 0.02);
     sn2 = snoise(q2);
   }
 
@@ -313,7 +461,12 @@ vec3 shadeMaterial(int m, vec2 p, ivec2 ip, vec2 flow, float edge, vec2 off) {
   else if (prog == 7) c = progChalk(m, p, off, sn1);
   else if (prog == 8) c = progOpal(m, p, off, sn1);
   else if (prog == 9) c = progNeon(m, p, off, ip, sn1);
-  else c = progBiolum(m, p, off, sn1, sn2);
+  else if (prog == 10) c = progBiolum(m, p, off, sn1, sn2);
+  else if (prog == 11) c = progStrawberry(m, p, off, sn1);
+  else if (prog == 12) c = progGlacier(m, p, off, sn1, sn2);
+  else if (prog == 13) c = progCottonSwirl(m, p, off, sn1, sn2);
+  else if (prog == 14) c = progDragonfly(m, p, flow, off, sn1, sn2);
+  else c = progRoyalGold(m, p, off, sn1, sn2);
   return clamp(c, 0.0, 1.0);
 }
 `;

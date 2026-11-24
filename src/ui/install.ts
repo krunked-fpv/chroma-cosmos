@@ -1,5 +1,5 @@
 /**
- * PWA install star-badge controller.
+ * PWA install star-charm controller.
  * Shown only after `beforeinstallprompt` (default prevented, event stashed) and only when not running standalone.
  * Tap -> deferred.prompt(); dismiss -> hide; `appinstalled` -> hide.
  */
@@ -22,7 +22,7 @@ export class InstallController {
   private deferred: DeferredInstallPrompt | null = null;
   private dismissed = false;
   private installed = false;
-  private listener: ((visible: boolean) => void) | null = null;
+  private readonly listeners = new Set<(visible: boolean) => void>();
   private readonly win: Window;
   private readonly onBip = (e: Event): void => {
     e.preventDefault();
@@ -46,9 +46,12 @@ export class InstallController {
     return this.deferred !== null && !this.dismissed && !this.installed && !isStandalone(this.win);
   }
 
-  onChange(fn: (visible: boolean) => void): void {
-    this.listener = fn;
+  onChange(fn: (visible: boolean) => void): () => void {
+    this.listeners.add(fn);
     fn(this.visible);
+    return () => {
+      this.listeners.delete(fn);
+    };
   }
 
   async install(): Promise<void> {
@@ -73,9 +76,11 @@ export class InstallController {
   destroy(): void {
     this.win.removeEventListener('beforeinstallprompt', this.onBip);
     this.win.removeEventListener('appinstalled', this.onInstalled);
+    this.listeners.clear();
   }
 
   private notify(): void {
-    this.listener?.(this.visible);
+    const v = this.visible;
+    for (const fn of this.listeners) fn(v);
   }
 }

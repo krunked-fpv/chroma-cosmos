@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -44,7 +44,7 @@ describe('src/styles/main.css hit-target, touch-lock, and accessibility assertio
     expect(btnBlock![1]).toMatch(/min-height:\s*var\(--hit\)/);
   });
 
-  it('locks viewport touch/scroll/selection and respects prefers-reduced-motion', () => {
+  it('locks viewport touch/scroll/selection, keeps open sketchbook free of side rails, and respects prefers-reduced-motion', () => {
     expect(css).toContain('touch-action: none;');
     expect(css).toContain('user-select: none;');
     expect(css).toContain('-webkit-user-select: none;');
@@ -54,5 +54,17 @@ describe('src/styles/main.css hit-target, touch-lock, and accessibility assertio
     expect(css).toContain('100dvw');
     expect(css).toContain('image-rendering: pixelated;');
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+    // Anti-clutter guardrail: zero side rails squeezing the sketchbook spread
+    expect(css).not.toMatch(/\.cc-rail\b/);
+  });
+
+  it('contains strictly zero occurrences of speechSynthesis anywhere in src/ui/**', () => {
+    const uiDir = resolve(ROOT, 'src/ui');
+    const files = readdirSync(uiDir).filter((f) => f.endsWith('.ts'));
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const src = readFileSync(resolve(uiDir, file), 'utf8');
+      expect(src).not.toMatch(/speechSynthesis|SpeechSynthesisUtterance/i);
+    }
   });
 });

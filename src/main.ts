@@ -23,12 +23,18 @@ import type {
   HubState,
   HudState,
   MaterialId,
+  PokeInvite,
   RunCore,
   SpriteLibrary,
   StemId,
+  StoryMilestoneKind,
   StoryPageSnapshot,
+  StoryStarState,
   Storybook,
+  ToolMode,
   VaultState,
+  WispRenderState,
+  WonderWhisperHint,
 } from './contracts';
 import { createArt } from './art';
 import { createAudio } from './audio';
@@ -66,6 +72,13 @@ interface ChromaQaApi {
   startRun(seed?: number): void;
   completePage(): Promise<void>;
   mode(): AppMode;
+  setToolMode(mode: ToolMode): void;
+  hoverRegion(id: number): boolean;
+  storyStars(): StoryStarState[];
+  wisp(): WispRenderState | null;
+  wonderWhisper(): WonderWhisperHint | null;
+  pokeInvites(): PokeInvite[];
+  nudgeMilestone(id: StoryMilestoneKind): void;
 }
 
 interface ChromaDebugGlobal {
@@ -152,9 +165,11 @@ async function boot(): Promise<void> {
   let currentMode: AppMode = 'boot';
   let currentPage: CompiledPage | null = null;
   let currentSprites: SpriteLibrary = art.sprites(vault.get().wardrobe);
+  const wispSprite = art.wispSprite?.();
   let selectedMaterial: MaterialId = 1;
   let selectedBrush: BrushId = 'standard';
   let doodle = false;
+  let latestHover: { x: number; y: number } | null = null;
   let donePages: StoryPageSnapshot[] = [];
   let activeBook: Storybook | null = null;
   let activeBookPage = 0;
@@ -169,6 +184,12 @@ async function boot(): Promise<void> {
   let lastCoreTotal = 0;
   let lastPageComplete = false;
   let latestActors: ActorRenderState[] = [];
+  let lastStoryStars: StoryStarState[] = [];
+  let lastWisp: WispRenderState | null = null;
+  let lastWonderWhisper: WonderWhisperHint | null = null;
+  let lastPokeInvites: PokeInvite[] = [];
+  let lastWispPencilCue = false;
+  let lastPrologueActive = false;
 
   const usedMaterialsThisSession = new Set<MaterialId>();
   const seenEffectsLog: string[] = [];
@@ -239,7 +260,8 @@ async function boot(): Promise<void> {
     const c = run.core();
     const ownedBrushes = c?.brushes ?? ['standard'];
     if (!ownedBrushes.includes(selectedBrush)) selectedBrush = 'standard';
-    sim.setTool({ materialId: selectedMaterial, brush: selectedBrush, doodle });
+    const toolMode: ToolMode = doodle ? 'wand' : 'pencil';
+    sim.setTool({ materialId: selectedMaterial, brush: selectedBrush, doodle, toolMode });
   };
 
   const pushHud = (force = false): void => {
@@ -247,6 +269,8 @@ async function boot(): Promise<void> {
     const c = run.core();
     const brushes = c?.brushes ?? ['standard'];
     const relics = c?.relics ?? [];
+    const toolMode: ToolMode = doodle ? 'wand' : 'pencil';
+    const starsSig = lastStoryStars.map((s) => `${s.id}:${s.lit ? 1 : 0}:${Math.round(s.progress * 100)}`).join(',');
     const nextSig = [
       currentMode,
       currentTitle(),
@@ -256,10 +280,13 @@ async function boot(): Promise<void> {
       selectedMaterial,
       brushes.join(','),
       selectedBrush,
-      doodle ? 1 : 0,
+      toolMode,
       relics.join(','),
       lastCoreAwake,
       lastCoreTotal,
+      starsSig,
+      lastWispPencilCue ? 1 : 0,
+      lastPrologueActive ? 1 : 0,
       lastPageComplete ? 1 : 0,
       audio.level(),
     ].join('|');
@@ -275,9 +302,13 @@ async function boot(): Promise<void> {
       brushes,
       selectedBrush,
       doodle,
+      toolMode,
       relics,
       coreAwake: lastCoreAwake,
       coreTotal: lastCoreTotal,
+      storyStars: lastStoryStars,
+      wispPencilCue: lastWispPencilCue,
+      prologueActive: lastPrologueActive,
       pageComplete: lastPageComplete,
       audioLevel: audio.level(),
     };
@@ -295,6 +326,7 @@ async function boot(): Promise<void> {
       wardrobe: { ...v.wardrobe },
       storybooks: storybooksCache,
       hasRunInProgress: v.run !== null,
+      audioLevel: audio.level(),
     };
     ui.updateHub(hub);
   };
@@ -331,11 +363,39 @@ async function boot(): Promise<void> {
 
   const consumeViewAndRender = (dtMs: number, timeMs: number): boolean => {
     const view = sim.view();
-    const changed = view.coreAwake !== lastCoreAwake || view.pageComplete !== lastPageComplete;
+    const nextStars = view.storyStars ?? [];
+    const nextWisp = view.wisp ?? null;
+    const nextPencilCue = Boolean(nextWisp?.active && nextWisp.mode === 'prologueTapPencil');
+    const nextPrologueActive = Boolean(
+      nextWisp?.active &&
+        (nextWisp.mode === 'prologueMist' ||
+          nextWisp.mode === 'prologueTapPencil' ||
+          nextWisp.mode === 'prologueStroke'),
+    );
+    const starsChanged =
+      nextStars.length !== lastStoryStars.length ||
+      nextStars.some(
+        (s, i) =>
+          s.id !== lastStoryStars[i]?.id ||
+          s.lit !== lastStoryStars[i]?.lit ||
+          Math.abs(s.progress - (lastStoryStars[i]?.progress ?? -1)) > 0.01,
+      );
+    const changed =
+      view.coreAwake !== lastCoreAwake ||
+      view.pageComplete !== lastPageComplete ||
+      starsChanged ||
+      nextPencilCue !== lastWispPencilCue ||
+      nextPrologueActive !== lastPrologueActive;
     lastCoreAwake = view.coreAwake;
     lastCoreTotal = view.coreTotal;
     lastPageComplete = view.pageComplete;
     latestActors = view.actors;
+    lastStoryStars = nextStars;
+    lastWisp = nextWisp;
+    lastWonderWhisper = view.wonderWhisper ?? null;
+    lastPokeInvites = view.pokeInvites ?? [];
+    lastWispPencilCue = nextPencilCue;
+    lastPrologueActive = nextPrologueActive;
 
     for (const fx of view.effects) {
       if (!seenEffectsLog.includes(fx.kind)) {
@@ -353,6 +413,10 @@ async function boot(): Promise<void> {
       selectedMaterial,
       beatPhase: audio.beatPhase(),
       mode: currentMode,
+      toolMode: doodle ? 'wand' : 'pencil',
+      hoverPos: latestHover,
+      dogEarGlow: currentMode === 'chapter' && lastPageComplete ? 1 : 0,
+      wonderSketch: art.wonderSketch,
     });
     return changed;
   };
@@ -368,19 +432,22 @@ async function boot(): Promise<void> {
     pageCompleteNotified = false;
     awakeRegionsKinds.clear();
     awakeActors.clear();
+    const playPrologue = chapter === 'rooftop' && c.chapterIndex === 0 && !snapshot;
     sim.loadPage(page, {
       seed,
       chapterIndex: c.chapterIndex,
       brushes: c.brushes,
       relics: c.relics,
+      playPrologue,
     });
     if (snapshot && snapshot.sceneId === chapter) {
       sim.restorePage(snapshot);
     }
     syncTool();
-    renderer.loadPage(page, currentSprites);
+    renderer.loadPage(page, currentSprites, wispSprite);
     consumeViewAndRender(0, performance.now());
     syncStems();
+    if (playPrologue) audio.uiFoley?.('paperRustle');
     pushHud(true);
   };
 
@@ -400,7 +467,7 @@ async function boot(): Promise<void> {
       viewOnly: true,
     });
     syncTool();
-    renderer.loadPage(page, currentSprites);
+    renderer.loadPage(page, currentSprites, wispSprite);
     consumeViewAndRender(0, performance.now());
     syncStems();
     pushHud(true);
@@ -422,7 +489,7 @@ async function boot(): Promise<void> {
       viewOnly: true,
     });
     sim.restorePage(snap);
-    renderer.loadPage(page, currentSprites);
+    renderer.loadPage(page, currentSprites, wispSprite);
     setAppMode('book');
     ui.showBook(
       {
@@ -625,6 +692,21 @@ async function boot(): Promise<void> {
         syncTool();
         pushHud(true);
       },
+      onSelectToolMode(mode) {
+        doodle = mode === 'wand';
+        syncTool();
+        pushHud(true);
+      },
+      onHighlightMilestone(id) {
+        sim.nudgeMilestone?.(id);
+        pushHud(true);
+      },
+      onUiFoley(kind) {
+        audio.uiFoley?.(kind);
+      },
+      onDismissPrologue() {
+        sim.dismissPrologue?.();
+      },
       onTurnPage(early) {
         void handleTurnPage(early);
       },
@@ -636,6 +718,7 @@ async function boot(): Promise<void> {
         });
         vault.healCheck();
         pushHud(true);
+        if (currentMode === 'hub') void pushHub();
       },
       onUnlockMaterial(id) {
         const def = MATERIALS.find((m) => m.id === id);
@@ -718,8 +801,52 @@ async function boot(): Promise<void> {
         });
         void keepsake
           .savePng(postcard, `${slugify(activeBook.galaxyName)}-page-${activeBookPage + 1}.png`)
-          .then(() => ui.toast('Keepsake postcard saved!'))
+          .then(() => {
+            audio.uiFoley?.('paperRustle');
+            ui.toast('Keepsake postcard saved!');
+          })
           .catch(() => ui.toast('Could not export keepsake PNG.'));
+      },
+      onSaveBookKeepsake(bookId) {
+        void (async () => {
+          const book = await vault.getStorybook(bookId);
+          if (!book || book.pages.length === 0) {
+            ui.toast('No saved pages yet.');
+            return;
+          }
+          const pageIdx = book.pages.length - 1;
+          const snap = book.pages[pageIdx]!;
+          const chapterTitle = CHAPTERS.find((c) => c.id === snap.sceneId)?.title ?? snap.sceneId;
+          const prevMode = currentMode;
+          const wardrobe = vault.get().wardrobe;
+          const sprites = art.sprites(wardrobe);
+          const page = art.compilePage(snap.sceneId, snap.seed, wardrobe);
+          sim.loadPage(page, {
+            seed: snap.seed,
+            chapterIndex: pageIdx,
+            brushes: ['standard'],
+            relics: [],
+            viewOnly: true,
+          });
+          sim.restorePage(snap);
+          renderer.loadPage(page, sprites, wispSprite);
+          consumeViewAndRender(0, performance.now());
+          const pageCanvas = renderer.capturePage(4);
+          if (prevMode === 'hub') loadHubScene();
+          const postcard = keepsake.renderPostcard(pageCanvas, {
+            title: book.title,
+            galaxyName: book.galaxyName,
+            chapterTitle,
+            dateIso: new Date(book.createdAt).toISOString(),
+          });
+          await keepsake
+            .savePng(postcard, `${slugify(book.galaxyName)}-keepsake.png`)
+            .then(() => {
+              audio.uiFoley?.('paperRustle');
+              ui.toast('Keepsake postcard saved!');
+            })
+            .catch(() => ui.toast('Could not export keepsake PNG.'));
+        })();
       },
       onExportVault() {
         void vault.exportJson().then((json) => {
@@ -755,6 +882,7 @@ async function boot(): Promise<void> {
         sim.gesture(e);
       },
       onHover(p) {
+        latestHover = p;
         sim.hover(p);
       },
       onFinaleDone() {
@@ -853,12 +981,12 @@ async function boot(): Promise<void> {
           stemsChanged = true;
           if (ev.actor === 'lumi') {
             if (!vault.get().badges.includes('lumiFriend')) newBadges.push('lumiFriend');
-            ui.toast('Lumi the Space Unicorn woke up!');
+            ui.toast('Lumi woke up!');
           } else if (ev.actor === 'nova') {
             if (!vault.get().badges.includes('novaFriend')) newBadges.push('novaFriend');
-            ui.toast('Nova the Starlight Cheetah woke up!');
+            ui.toast('Nova woke up!');
           } else if (ev.actor === 'violet') {
-            ui.toast('Violet is ready to explore!');
+            ui.toast('Violet is ready!');
           }
           break;
         }
@@ -869,10 +997,29 @@ async function boot(): Promise<void> {
         case 'gems':
           gemsEarned += ev.amount;
           break;
+        case 'storyStarLit': {
+          audio.uiFoley?.('wispChime');
+          const clientPt = renderer.internalToClient(ev.x, ev.y);
+          ui.animateStarThread?.(ev.milestoneId, clientPt.x, clientPt.y);
+          break;
+        }
+        case 'wispGuide':
+          audio.uiFoley?.('wispChime');
+          break;
+        case 'prologueEnd':
+          audio.uiFoley?.('paperRustle');
+          if (!vault.get().prologueSeen) {
+            vault.update((d) => {
+              d.prologueSeen = true;
+            });
+            vault.healCheck();
+          }
+          break;
         case 'pageComplete':
           if (!pageCompleteNotified) {
             pageCompleteNotified = true;
-            ui.toast('Page awakened! Tap Next Page to continue!');
+            audio.uiFoley?.('paperRustle');
+            ui.toast('Turn the golden corner!');
           }
           break;
         case 'relic':
@@ -882,6 +1029,11 @@ async function boot(): Promise<void> {
     }
 
     if (stemsChanged) syncStems();
+
+    if (gemsEarned > 0) {
+      audio.uiFoley?.('jarClink');
+      ui.animateCrystalDrop?.(gemsEarned);
+    }
 
     if (gemsEarned > 0 || awakenedDelta > 0 || pokesDelta > 0 || newBadges.length > 0) {
       const unlockedMats: MaterialId[] = [];
@@ -992,11 +1144,12 @@ async function boot(): Promise<void> {
       },
       async paintRegion(id, materialId) {
         if (!currentPage) return false;
+        doodle = false;
         if (materialId !== undefined && Number.isInteger(materialId) && materialId >= 1 && materialId <= 12) {
           selectedMaterial = materialId;
-          sim.setTool({ materialId: selectedMaterial, brush: selectedBrush, doodle });
-          pushHud(true);
         }
+        sim.setTool({ materialId: selectedMaterial, brush: selectedBrush, doodle: false, toolMode: 'pencil' });
+        pushHud(true);
         if (sim.regionPercent(id) >= 1) return true;
         const pts = sim.qaStrokePath(id);
         if (pts.length === 0) return false;
@@ -1049,6 +1202,35 @@ async function boot(): Promise<void> {
       },
       mode() {
         return currentMode;
+      },
+      setToolMode(mode) {
+        doodle = mode === 'wand';
+        syncTool();
+        pushHud(true);
+      },
+      hoverRegion(id) {
+        if (!currentPage) return false;
+        const r = currentPage.regions[id];
+        if (!r) return false;
+        latestHover = { x: r.centroid.x, y: r.centroid.y };
+        sim.hover(latestHover);
+        return true;
+      },
+      storyStars() {
+        return lastStoryStars.map((s) => ({ ...s, regionIds: [...s.regionIds] }));
+      },
+      wisp() {
+        return lastWisp ? { ...lastWisp, ghostPath: lastWisp.ghostPath.map((p) => ({ ...p })) } : null;
+      },
+      wonderWhisper() {
+        return lastWonderWhisper ? { ...lastWonderWhisper } : null;
+      },
+      pokeInvites() {
+        return lastPokeInvites.map((p) => ({ ...p }));
+      },
+      nudgeMilestone(id) {
+        sim.nudgeMilestone?.(id);
+        pushHud(true);
       },
     };
   }

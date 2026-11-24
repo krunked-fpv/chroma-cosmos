@@ -3,8 +3,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import vm from 'node:vm';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
-import { CACHE_VERSION } from '../../../src/contracts/constants';
+import { BG_HEX, CACHE_VERSION, GOLD_HEX } from '../../../src/contracts/constants';
+
+function hexToRgba(hex: string): [number, number, number, number] {
+  const clean = hex.replace('#', '');
+  return [
+    parseInt(clean.slice(0, 2), 16),
+    parseInt(clean.slice(2, 4), 16),
+    parseInt(clean.slice(4, 6), 16),
+    0xff,
+  ];
+}
 
 function computeCrc32(buf: Uint8Array): number {
   const crcTable = new Uint32Array(256);
@@ -38,6 +49,7 @@ function parseAndValidatePng(filePath: string, expectedWidth: number, expectedHe
   let offset = 8;
   let ihdrValidated = false;
   let iendFound = false;
+  const idatChunks: Buffer[] = [];
 
   while (offset < buf.length) {
     const length = buf.readUInt32BE(offset);
@@ -60,6 +72,8 @@ function parseAndValidatePng(filePath: string, expectedWidth: number, expectedHe
       expect(height).toBe(expectedHeight);
       expect(bitDepth).toBe(8);
       expect(colourType).toBe(6);
+    } else if (typeStr === 'IDAT') {
+      idatChunks.push(Buffer.from(chunkData));
     }
 
     offset += 12 + length;
@@ -71,6 +85,40 @@ function parseAndValidatePng(filePath: string, expectedWidth: number, expectedHe
 
   expect(ihdrValidated).toBe(true);
   expect(iendFound).toBe(true);
+  expect(idatChunks.length).toBeGreaterThan(0);
+
+  const rawScanlines = zlib.inflateSync(Buffer.concat(idatChunks));
+  const rowBytes = expectedWidth * 4;
+  expect(rawScanlines.length).toBe(expectedHeight * (1 + rowBytes));
+
+  // Verify corner background pixel matches Midnight Cloisonne BG_HEX (#0d1026)
+  const expectedBg = hexToRgba(BG_HEX);
+  const expectedGold = hexToRgba(GOLD_HEX);
+  expect([
+    rawScanlines[1],
+    rawScanlines[2],
+    rawScanlines[3],
+    rawScanlines[4],
+  ]).toEqual(expectedBg);
+
+  // Verify Burnished Celestial Gold (#eac46f) star pixels are present in the icon
+  let foundGold = false;
+  for (let y = 0; y < expectedHeight && !foundGold; y++) {
+    const rowStart = y * (1 + rowBytes) + 1;
+    for (let x = 0; x < expectedWidth; x++) {
+      const p = rowStart + x * 4;
+      if (
+        rawScanlines[p] === expectedGold[0] &&
+        rawScanlines[p + 1] === expectedGold[1] &&
+        rawScanlines[p + 2] === expectedGold[2] &&
+        rawScanlines[p + 3] === expectedGold[3]
+      ) {
+        foundGold = true;
+        break;
+      }
+    }
+  }
+  expect(foundGold).toBe(true);
 }
 
 function getDirectorySize(dirPath: string): number {
@@ -92,17 +140,17 @@ describe('PWA & Pages CI Verification', () => {
   const publicDir = path.join(rootDir, 'public');
 
   describe('Raster PNG Icons', () => {
-    it('validates icon-192.png magic bytes, IHDR 192x192, colour type 6, bit depth 8, and valid chunk CRCs', () => {
+    it('validates icon-192.png magic bytes, IHDR 192x192, RGBA8, chunk CRCs, and #0d1026/#eac46f palette', () => {
       const iconPath = path.join(publicDir, 'icon-192.png');
       parseAndValidatePng(iconPath, 192, 192);
     });
 
-    it('validates icon-512.png magic bytes, IHDR 512x512, colour type 6, bit depth 8, and valid chunk CRCs', () => {
+    it('validates icon-512.png magic bytes, IHDR 512x512, RGBA8, chunk CRCs, and #0d1026/#eac46f palette', () => {
       const iconPath = path.join(publicDir, 'icon-512.png');
       parseAndValidatePng(iconPath, 512, 512);
     });
 
-    it('validates apple-touch-icon.png magic bytes, IHDR 180x180, colour type 6, bit depth 8, and valid chunk CRCs', () => {
+    it('validates apple-touch-icon.png magic bytes, IHDR 180x180, RGBA8, chunk CRCs, and #0d1026/#eac46f palette', () => {
       const iconPath = path.join(publicDir, 'apple-touch-icon.png');
       parseAndValidatePng(iconPath, 180, 180);
     });
@@ -126,10 +174,13 @@ describe('PWA & Pages CI Verification', () => {
   });
 
   describe('Web App Manifest', () => {
-    it('parses manifest.json and matches all required contract fields exactly', () => {
+    it('parses manifest.json and matches all required Midnight Cloisonne contract fields exactly', () => {
       const manifestPath = path.join(publicDir, 'manifest.json');
       const manifestRaw = fs.readFileSync(manifestPath, 'utf-8');
       const manifest = JSON.parse(manifestRaw);
+
+      expect(BG_HEX).toBe('#0d1026');
+      expect(GOLD_HEX).toBe('#eac46f');
 
       expect(manifest.name).toBe("Chroma Cosmos: Violet's Living Sketchbook");
       expect(manifest.short_name).toBe('Chroma Cosmos');
@@ -138,8 +189,10 @@ describe('PWA & Pages CI Verification', () => {
       );
       expect(manifest.display).toBe('standalone');
       expect(manifest.orientation).toBe('landscape');
-      expect(manifest.background_color).toBe('#120d2b');
-      expect(manifest.theme_color).toBe('#120d2b');
+      expect(manifest.background_color).toBe('#0d1026');
+      expect(manifest.theme_color).toBe('#0d1026');
+      expect(manifest.background_color).toBe(BG_HEX);
+      expect(manifest.theme_color).toBe(BG_HEX);
       expect(manifest.start_url).toBe('./');
       expect(manifest.scope).toBe('./');
 
@@ -163,17 +216,22 @@ describe('PWA & Pages CI Verification', () => {
           purpose: 'any maskable',
         },
       ]);
+
+      for (const icon of manifest.icons) {
+        expect(icon.src.startsWith('./')).toBe(true);
+      }
     });
   });
 
   describe('Service Worker (public/sw.js)', () => {
-    it('verifies sw.js contains required lifecycle handlers, network-first pattern, and contract constants', () => {
+    it('verifies sw.js contains required lifecycle handlers, network-first pattern, relative paths, and chroma-cosmos-v3', () => {
       const swPath = path.join(publicDir, 'sw.js');
       const swContent = fs.readFileSync(swPath, 'utf-8');
 
       // Exact CACHE_VERSION equality with contracts constant
+      expect(CACHE_VERSION).toBe('chroma-cosmos-v3');
       expect(swContent).toContain(`const CACHE_VERSION = '${CACHE_VERSION}';`);
-      expect(CACHE_VERSION).toBe('chroma-cosmos-v2');
+      expect(swContent).toContain("const CACHE_VERSION = 'chroma-cosmos-v3';");
 
       // Relative subpath-safe precache assets
       for (const asset of [
@@ -208,7 +266,7 @@ describe('PWA & Pages CI Verification', () => {
       expect(swContent).toContain('caches.delete');
     });
 
-    it('evicts older chroma-cosmos-* caches (including chroma-cosmos-v1) on activate while preserving CACHE_VERSION', async () => {
+    it('evicts older chroma-cosmos-* caches (including Sprint 1 chroma-cosmos-v2) on activate while preserving v3', async () => {
       const swPath = path.join(publicDir, 'sw.js');
       const swContent = fs.readFileSync(swPath, 'utf-8');
 
@@ -245,7 +303,13 @@ describe('PWA & Pages CI Verification', () => {
             put: async () => undefined,
           };
         },
-        keys: async () => ['chroma-cosmos-v1', 'chroma-cosmos-v0', CACHE_VERSION, 'unrelated-cache-v1'],
+        keys: async () => [
+          'chroma-cosmos-v2',
+          'chroma-cosmos-v1',
+          'chroma-cosmos-v0',
+          CACHE_VERSION,
+          'unrelated-cache-v1',
+        ],
         delete: async (name: string) => {
           deletedCaches.push(name);
           return true;
@@ -288,7 +352,7 @@ describe('PWA & Pages CI Verification', () => {
       });
       await activatePromise;
 
-      expect(deletedCaches).toEqual(['chroma-cosmos-v1', 'chroma-cosmos-v0']);
+      expect(deletedCaches).toEqual(['chroma-cosmos-v2', 'chroma-cosmos-v1', 'chroma-cosmos-v0']);
       expect(deletedCaches).not.toContain(CACHE_VERSION);
       expect(deletedCaches).not.toContain('unrelated-cache-v1');
       expect(claimCalled).toBe(true);
@@ -296,11 +360,14 @@ describe('PWA & Pages CI Verification', () => {
   });
 
   describe('GitHub Pages Deployment Workflow', () => {
-    it('contains node-version 22, upload-pages-artifact, deploy-pages, and pages: write permission', () => {
+    it('contains node-version 22, typecheck/test/build, upload-pages-artifact, deploy-pages, and pages: write', () => {
       const workflowPath = path.join(rootDir, '.github/workflows/deploy-pages.yml');
       const workflowContent = fs.readFileSync(workflowPath, 'utf-8');
 
       expect(workflowContent).toContain('node-version: 22');
+      expect(workflowContent).toContain('npm run typecheck');
+      expect(workflowContent).toContain('npm test');
+      expect(workflowContent).toContain('npm run build');
       expect(workflowContent).toContain('upload-pages-artifact');
       expect(workflowContent).toContain('deploy-pages');
       expect(workflowContent).toMatch(/pages:\s*write/);
@@ -311,7 +378,6 @@ describe('PWA & Pages CI Verification', () => {
     it('ensures total size of public/ is strictly under 1 MB', () => {
       const totalSize = getDirectorySize(publicDir);
       expect(totalSize).toBeLessThan(1024 * 1024);
-      // Log actual size for acceptance report
       console.log(`Verified total public/ directory size: ${(totalSize / 1024).toFixed(2)} KB (${totalSize} bytes)`);
     });
   });

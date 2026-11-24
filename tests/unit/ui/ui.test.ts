@@ -618,7 +618,7 @@ describe('Wanderlings Cozy Tabletop Sketchbook UI (UiPort)', () => {
     expect(wrap3.hidden).toBe(true);
   });
 
-  it('updates mode data attribute cleanly (boot, turning, chapter, hub) and renders calm whisper toasts', () => {
+  it('updates mode data attribute cleanly (boot, turning, chapter, hub) and caps calm whisper toasts to max 1', () => {
     const ui = createUi(root);
     ui.mount(mockCallbacks(), mockDeps().deps);
     const shell = root.querySelector<HTMLElement>('.cc-root')!;
@@ -627,8 +627,48 @@ describe('Wanderlings Cozy Tabletop Sketchbook UI (UiPort)', () => {
     ui.setMode('turning');
     expect(shell.dataset.mode).toBe('turning');
 
+    ui.toast('First whisper');
     ui.toast('Sparkle unlocked!');
-    expect(root.querySelector('.cc-toast')?.textContent).toContain('Sparkle unlocked!');
+    const toasts = root.querySelectorAll('.cc-toast');
+    expect(toasts.length).toBe(1);
+    expect(toasts[0]?.textContent).toContain('Sparkle unlocked!');
+  });
+
+  it('scales hero pixel-art assets in Paintbox, Wardrobe, Bookshelf, Tin, and Star-Doors and renders craft accents', () => {
+    const ui = createUi(root);
+    ui.mount(mockCallbacks(), mockDeps().deps);
+    ui.updateHub(sampleHub({ gems: 100 }));
+    ui.setMode('hub');
+
+    // Washi tape on Sticker Sheet station & drawer + twine eyelet on Apothecary Jar
+    expect(root.querySelector('.cc-station-wardrobe .cc-washi-strip')).not.toBeNull();
+    expect(root.querySelector('.cc-drawer-wardrobe .cc-drawer-washi.tl')).not.toBeNull();
+    expect(root.querySelector('.cc-crystal-jar .cc-jar-eyelet')).not.toBeNull();
+
+    // Hero pixel canvas dimensions (>= 64px in Paintbox, Wardrobe stickers, Cameo portraits & Bookshelf covers)
+    const panCanvas = root.querySelector<HTMLCanvasElement>('.cc-drawer-paintbox .cc-shop-item canvas.cc-pix')!;
+    expect(panCanvas.width).toBeGreaterThanOrEqual(64);
+    expect(panCanvas.height).toBeGreaterThanOrEqual(64);
+
+    const stickerCanvas = root.querySelector<HTMLCanvasElement>('.cc-drawer-wardrobe .cc-ward-item canvas.cc-pix')!;
+    expect(stickerCanvas.width).toBeGreaterThanOrEqual(64);
+    expect(stickerCanvas.height).toBeGreaterThanOrEqual(64);
+
+    const portraitCanvas = root.querySelector<HTMLCanvasElement>('.cc-drawer-wardrobe .cc-doll-portrait canvas.cc-pix')!;
+    expect(portraitCanvas.width).toBeGreaterThanOrEqual(72);
+    expect(portraitCanvas.height).toBeGreaterThanOrEqual(80);
+
+    const coverCanvas = root.querySelector<HTMLCanvasElement>('.cc-drawer-bookshelf .cc-cover-pix')!;
+    expect(coverCanvas.width).toBeGreaterThanOrEqual(72);
+    expect(coverCanvas.height).toBeGreaterThanOrEqual(84);
+
+    // Star-Door keystone & vellum plaque
+    void ui.showDoors(['cheetahSavannah', 'saturnRings']);
+    expect(root.querySelector('.cc-door .cc-door-keystone')).not.toBeNull();
+    expect(root.querySelector('.cc-door .cc-door-plaque')).not.toBeNull();
+    const doorCanvas = root.querySelector<HTMLCanvasElement>('.cc-door-art canvas.cc-pix')!;
+    expect(doorCanvas.width).toBeGreaterThanOrEqual(80);
+    expect(doorCanvas.height).toBeGreaterThanOrEqual(120);
   });
 
   it('populates empty Hub bookshelf and unlit wax-seal badges on fresh save', () => {

@@ -32,8 +32,8 @@ import {
 import type { IllustrationCache } from './illustrations';
 import { boing } from './spring';
 
-export const SWATCH_PX = 32;
-export const STICKER_PX = 32;
+export const SWATCH_PX = 48;
+export const STICKER_PX = 36;
 
 const FALLBACK_MILESTONES: ReadonlyArray<{ id: StoryMilestoneKind; label: string }> = [
   { id: 'violet', label: 'Violet' },
@@ -118,7 +118,7 @@ export class Hud {
     this.jarArt.append(frag(crystalJarSvg(0)));
     this.jarDropHost = h('span', { class: 'cc-jar-drops', 'aria-hidden': 'true' });
     this.gemsText = h('span', { class: 'cc-gems-n', 'aria-live': 'polite' }, '0');
-    const jarTag = h('span', { class: 'cc-jar-tag' }, this.gemsText);
+    const jarTag = h('span', { class: 'cc-jar-tag' }, h('span', { class: 'cc-jar-eyelet', 'aria-hidden': 'true' }), this.gemsText);
     this.crystalJar = button(
       'cc-crystal-jar',
       'Prism Stardust Crystals',

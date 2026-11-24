@@ -2,6 +2,12 @@
  * UiPort implementation: Wanderlings Heirloom Living Sketchbook resting on a lamp-lit cedar desk.
  * DOM only; imports nothing outside src/contracts and src/ui. Strictly zero spoken voices / zero CDN assets.
  */
+import '@fontsource/fraunces/latin-600.css';
+import '@fontsource/fraunces/latin-700.css';
+import '@fontsource/fraunces/latin-700-italic.css';
+import '@fontsource/quicksand/latin-600.css';
+import '@fontsource/quicksand/latin-700.css';
+import '@fontsource/patrick-hand/latin-400.css';
 import '../styles/main.css';
 import type { StoryMilestoneKind } from '../contracts/art';
 import { APP_NAME } from '../contracts/constants';
@@ -325,16 +331,31 @@ class SketchbookUi implements UiPort {
     this.hud.animateCrystalDrop(amount);
   }
 
+  private toastLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private toastRemoveTimer: ReturnType<typeof setTimeout> | null = null;
+
   toast(msg: string): void {
-    const existing = Array.from(this.toastBox.children).find((el) => el.textContent === msg);
-    if (existing) existing.remove();
-    const t = h('div', { class: 'cc-toast' }, iconSpan(ICON_STAR, 'cc-ico cc-toast-star'), h('span', {}, msg));
+    if (this.toastLeaveTimer) {
+      clearTimeout(this.toastLeaveTimer);
+      this.toastLeaveTimer = null;
+    }
+    if (this.toastRemoveTimer) {
+      clearTimeout(this.toastRemoveTimer);
+      this.toastRemoveTimer = null;
+    }
+    while (this.toastBox.firstElementChild) {
+      this.toastBox.firstElementChild.remove();
+    }
+    const t = h('div', { class: 'cc-toast' }, iconSpan(ICON_STAR, 'cc-ico cc-toast-star'), h('span', { class: 'cc-toast-msg' }, msg));
     this.toastBox.append(t);
-    while (this.toastBox.children.length > 2) this.toastBox.firstElementChild?.remove();
     boing(t, 'appear');
-    setTimeout(() => {
+    this.toastLeaveTimer = setTimeout(() => {
       t.classList.add('is-leaving');
-      setTimeout(() => t.remove(), 380);
+      this.toastLeaveTimer = null;
+      this.toastRemoveTimer = setTimeout(() => {
+        t.remove();
+        this.toastRemoveTimer = null;
+      }, 360);
     }, 2600);
   }
 
@@ -344,6 +365,8 @@ class SketchbookUi implements UiPort {
   }
 
   destroy(): void {
+    if (this.toastLeaveTimer) clearTimeout(this.toastLeaveTimer);
+    if (this.toastRemoveTimer) clearTimeout(this.toastRemoveTimer);
     this.hud.destroy();
     this.hub.destroy();
     this.input?.destroy();

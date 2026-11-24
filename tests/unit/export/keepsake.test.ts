@@ -83,6 +83,42 @@ describe('keepsake postcard', () => {
     expect(rec.calls.some((c) => c[0] === 'fillText' && c[1] === 'x'.repeat(400))).toBe(true);
   });
 
+  it('renders Wanderlings cream-linen matte, gilded corner flourishes, and non-clipped header/footer bounds', () => {
+    const page = document.createElement('canvas');
+    page.width = 480;
+    page.height = 270;
+    renderPostcard(page, meta);
+
+    // Gilded corner flourishes use smooth bezier & quadratic scroll curves
+    expect(rec.calls.some((c) => c[0] === 'bezierCurveTo')).toBe(true);
+    expect(rec.calls.some((c) => c[0] === 'quadraticCurveTo')).toBe(true);
+
+    // Verify drawImage sits centered at 3x scale inside the matte margins
+    const drawCall = rec.calls.find((c) => c[0] === 'drawImage')!;
+    const pageX = drawCall[2] as number;
+    const pageY = drawCall[3] as number;
+    const pageW = drawCall[4] as number;
+    const pageH = drawCall[5] as number;
+    expect(pageX).toBe((POSTCARD_W - pageW) / 2);
+    expect(pageY).toBeGreaterThanOrEqual(140);
+    expect(pageY + pageH).toBeLessThanOrEqual(POSTCARD_H - 110);
+
+    // Every fillText call stays strictly clear of outer gilt frame and artwork opening, with clamped maxWidth
+    const textCalls = rec.calls.filter((c) => c[0] === 'fillText');
+    expect(textCalls.length).toBeGreaterThanOrEqual(4);
+    for (const [, text, x, y, maxW] of textCalls) {
+      expect(typeof text).toBe('string');
+      expect(x).toBe(POSTCARD_W / 2);
+      expect(typeof maxW).toBe('number');
+      expect(maxW as number).toBeGreaterThan(0);
+      expect(maxW as number).toBeLessThanOrEqual(pageW);
+      const yNum = y as number;
+      const inHeader = yNum >= 60 && yNum <= pageY - 16;
+      const inFooter = yNum >= pageY + pageH + 30 && yNum <= POSTCARD_H - 36;
+      expect(inHeader || inFooter).toBe(true);
+    }
+  });
+
   it('is exposed through createKeepsake()', () => {
     const k = createKeepsake();
     expect(typeof k.renderPostcard).toBe('function');

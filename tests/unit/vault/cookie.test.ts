@@ -112,5 +112,29 @@ describe('shadow cookie codec', () => {
     expect(s).toEqual({ ...defaultVaultState(0), gems: 7 });
     expect(s.audioLevel).toBe(2);
     expect(s.unlockedMaterials).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(s.prologueSeen).toBe(false);
+  });
+
+  it('persists optional prologueSeen via p flag while keeping legacy cookies backward compatible', () => {
+    const unseen = midState(1000);
+    expect(unseen.prologueSeen).toBe(false);
+    expect('p' in toCompactCookie(unseen)).toBe(false);
+
+    const seen = { ...maxState(1_800_000_000_000), prologueSeen: true };
+    expect(toCompactCookie(seen).p).toBe(1);
+    const encoded = encodeCookieValue(seen);
+    expect(encoded.length).toBeLessThan(1500);
+    expect(buildCookieString(seen).length).toBeLessThan(1500);
+    expect(decodeCookieValue(encoded)).toEqual(seen);
+
+    const signed = (obj: unknown): string => {
+      const body = textToBase64Url(JSON.stringify(obj));
+      return `${body}.${fnv1a32Hex(body)}`;
+    };
+    expect(decodeCookieValue(signed({ v: 1, g: 5, p: 0 }))?.prologueSeen).toBe(false);
+    expect(decodeCookieValue(signed({ v: 1, g: 5, p: 1 }))?.prologueSeen).toBe(true);
+    expect(decodeCookieValue(signed({ v: 1, g: 5, p: 2 }))).toBeNull();
+    expect(decodeCookieValue(signed({ v: 1, g: 5, p: true }))).toBeNull();
+    expect(decodeCookieValue(signed({ v: 1, g: 5, p: '1' }))).toBeNull();
   });
 });

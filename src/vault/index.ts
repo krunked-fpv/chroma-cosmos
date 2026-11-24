@@ -7,8 +7,8 @@ import { IdbStore } from './idb';
 import { buildVaultExport, normalizeStoredBook, parseStoredPage, parseVaultExport } from './portable';
 import { cloneVault, deepFreeze, defaultVaultState, isFiniteNum, isRecord, parseVaultState } from './schema';
 
-export { BRUSH_ORDER, RELIC_ORDER, PHASE_ORDER, defaultVaultState, parseVaultState } from './schema';
-export { buildCookieString, decodeCookieValue, encodeCookieValue, extractCookieValue, toCompactCookie, COOKIE_MAX_CHARS } from './cookie';
+export { BRUSH_ORDER, RELIC_ORDER, DRAFT_CARD_ORDER, PHASE_ORDER, defaultVaultState, parseVaultState } from './schema';
+export { buildCookieString, decodeCookieValue, encodeCookieValue, expandCompactCookie, extractCookieValue, toCompactCookie, COOKIE_MAX_CHARS } from './cookie';
 export { fnv1a32Hex } from './codec';
 
 type Tier = 'localStorage' | 'indexedDB' | 'cookie';

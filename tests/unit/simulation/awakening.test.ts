@@ -233,6 +233,22 @@ describe('Pigment-Driven Causality', () => {
     expect(comet.anim).toBe('float');
     expect(sim.view().regionState[16 * 4 + 3]! & REGION_FLAG.wiggle).toBe(REGION_FLAG.wiggle);
   });
+
+  it('cheetahRacetrack and starlightFlowerRain spawn dynamic actors with system FX region remaps', () => {
+    const carSim = mkSim();
+    paintRegion(carSim, 12, 4, 2);
+    run(carSim, 1000);
+    const cars = carSim.view().actors.filter((a) => a.kind === 'cometCar');
+    expect(cars).toHaveLength(3);
+    for (const c of cars) expect(c.remap).toEqual({ 24: 225, 25: 222 });
+
+    const flowerSim = mkSim();
+    paintRegion(flowerSim, 14, 3, 2);
+    run(flowerSim, 5000);
+    const flowers = flowerSim.view().actors.filter((a) => a.kind === 'flower');
+    expect(flowers).toHaveLength(6);
+    for (const f of flowers) expect(f.remap).toEqual({ 26: 224, 27: 227, 28: 224 });
+  });
 });
 
 describe('actors', () => {

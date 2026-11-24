@@ -172,6 +172,7 @@ export class ActorSystem {
         y: at.y,
         facing: 1,
         regionIds: [],
+        remap: { 24: 225, 25: 222 },
       };
       const a = new ActorRT(spawn);
       a.path = ring;
@@ -197,6 +198,7 @@ export class ActorSystem {
         y: p.y,
         facing: i % 2 === 0 ? 1 : -1,
         regionIds: [],
+        remap: { 26: 224, 27: 227, 28: 224 },
       };
       const a = new ActorRT(spawn);
       a.shown = false;

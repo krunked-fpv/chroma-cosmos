@@ -61,8 +61,8 @@ NEAREST + `texelFetch`.
   Actors become multi-frame sprites carrying their painted GLSL coat. Particles: `ParticleContainer` of a 3×3 pixel star,
   positions snapped to internal pixels × scale.
 
-Id resolution per pixel: if `uActorTex.a>0` use its id; else if B>0 and bit B of `uLiveSlots` is set use G (base map);
-else R. Id decode `int(floor(texelFetch(t,p,0).r*255.0+0.5))`.
+Id resolution per pixel: if `uActorTex.a>0` use its id; else if B>0 and bit B of `uLiveSlots` is set use G (base map) and suppress stale actor stroke pixels in `uStrokeTex` (`vacatedSlot`);
+else R. Ink (`id == 0`) adjacent only to unrevealed ghosts (`234..254`, outside `uFlashlight`) falls back to sky. Id decode `int(floor(texelFetch(t,p,0).r*255.0+0.5))`.
 
 Id classes: 0 ink; 1..211 colourable (canonical 1..31, dynamic 32..211); 212..233 system (fixed material);
 234..254 ghosts (hidden until revealed or inside the UV flashlight); 255 sky.
@@ -139,5 +139,5 @@ flowchart LR
 | Devon Brooks | tests/redteam/**, tests/e2e/** |
 
 ## 9. QA hook (`window.__chroma`)
-Always: `telemetry()`, `resetTelemetry()`, `stats()`. With `?qa=1`: `qa.regions()`, `qa.clientPointOf(id)`,
+Always: `telemetry()`, `resetTelemetry()`, `stats()` (`{renderer, audio, mode, gems, vaultReport, effects, events}`). With `?qa=1`: `qa.regions()`, `qa.clientPointOf(id)`,
 `qa.paintRegion(id, materialId)`, `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`.

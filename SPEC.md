@@ -57,7 +57,7 @@ System regions (fixed material):
 215 violet_galaxy_pins (5), 216 violet_cape (2), 217 lumi_wings (8), 218 lumi_crown (11), 219 nova_boosters (9),
 220 nova_scarf (6), 221 fx_rainbow (6), 222 fx_prism_beam (2), 223 fx_droplet (3), 224 fx_flower (10),
 225 fx_comet_car (4), 226 fx_gem (5), 227 fx_gold_doodle (11), 228 fx_trampoline (7), 229 fx_constellation (1),
-230 fx_slide_cloud (12). 231–233 reserved.
+230 fx_slide_cloud (12). 231–233 reserved. Dynamic `cometCar` FX actors remap `24->225, 25->222`; dynamic `flower` FX actors remap `26->224, 27->227, 28->224`.
 
 ### REGION_STATE layout (`SimView.regionState`, 256×2 RGBA8 = 2048 bytes)
 - Row 0, offset `id*4`: R materialId (0 none), G coverage 0–255, B bloom progress 0–255, A flags.
@@ -118,7 +118,7 @@ Storybook: `{id, title, galaxyName, createdAt, seed, pages: StoryPageSnapshot[]}
 
 ## 8. Component boundaries
 See ARCHITECTURE.md §1 and §8. Port interfaces: `ArtPort`, `RendererPort`, `SimulationPort`, `RunManagerPort`, `AudioPort`,
-`VaultPort`, `KeepsakePort`, `UiPort` (all in `src/contracts/`), with `GestureEvent` as the single input event type.
+`VaultPort` (`createVault(b?, { idbTimeoutMs })`), `KeepsakePort`, `UiPort` (all in `src/contracts/`), with `GestureEvent` as the single input event type (`chapter`, `hub`, and `book` modes forward canvas pointer input).
 Sprites use region ids as pixel values; 255 = transparent. Page generators guarantee ≥1 cloud and ≥1 ringed planet per chapter.
 
 ## 9. PWA constants
@@ -129,7 +129,7 @@ orientation landscape, background/theme `#120d2b`, start_url `./`, scope `./`,
 icons `icon-192.png` (192²), `icon-512.png` (512²), `apple-touch-icon.png` (180²) with purpose `any maskable`.
 
 ## 10. QA hook API (`window.__chroma`)
-- Always: `telemetry() → {frameMsMedian, frameMsP95, fps, samples, longFrames}`, `resetTelemetry()`, `stats() → {renderer, audio, mode, gems, vaultReport}`.
+- Always: `telemetry() → {frameMsMedian, frameMsP95, fps, samples, longFrames}`, `resetTelemetry()`, `stats() → {renderer, audio, mode, gems, vaultReport, effects, events}`.
 - `?qa=1` only: `qa.regions()`, `qa.clientPointOf(id)`, `qa.paintRegion(id, materialId)` (real PointerEvents), `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`.
 
 ## 11. Acceptance gates

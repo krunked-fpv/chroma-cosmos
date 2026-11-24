@@ -1,29 +1,19 @@
 /**
- * Heirloom Modal Overlays:
- * - Hinged Vintage Metal Astral Pencil Tin (draft cards as deckle-edged holographic brush/sticker cards)
- * - Illuminated Parchment Star-Door Archways parting starry curtains
- * - Stitched Storybook Title-Plate Finale Celebration
+ * Midnight Cloisonne Modal Overlays (zero inline SVG doodles; Hi-Bit pixel canvases everywhere):
+ * - Astral Pencil Tin: Midnight-enamel & burnished-gold astrolabe tin with 3 holographic Hi-Bit cards (all 20 items)
+ * - Star-Doors: Midnight-velvet observatory archway portals parting pleated indigo curtains
+ * - Galaxy Finale: Illuminated Midnight-Cloisonne astrolabe title-plate celebration
  */
 import type { UiFoleyKind } from '../contracts/audio';
-import { CHAPTERS, DRAFT_CARDS } from '../contracts/roguelike';
-import type { ChapterId, DraftCardId } from '../contracts/roguelike';
-import { button, clear, frag, h, iconSpan } from './dom';
-import { CORNER_FILIGREE_SVG, DOOR_KEYSTONE_SVG, ICON_STAR, ICON_TIN_CLASP } from './icons';
-import type { IllustrationCache } from './illustrations';
+import { CHAPTERS, DRAFT_CARDS, type ChapterId, type DraftCardId } from '../contracts/roguelike';
+import { button, clear, h, spriteBox } from './dom';
+import { placeholderCanvas, type IllustrationCache } from './illustrations';
 import { boing, prefersReducedMotion } from './spring';
 
 export const CARD_ART: [number, number] = [120, 90];
 export const DOOR_ART: [number, number] = [80, 120];
 
-const KID_TYPE: Record<'brush' | 'relic', string> = { brush: 'Magic Brush', relic: 'Lucky Relic' };
-
-const TIN_CONSTELLATION_SVG =
-  `<svg viewBox="0 0 240 34" xmlns="http://www.w3.org/2000/svg" fill="none" stroke-linecap="round">` +
-  `<path d="M18 22L54 11L94 23L146 10L188 22L222 12" stroke="#e5bd6f" stroke-width="1.2" stroke-dasharray="3 4" opacity=".6"/>` +
-  `<circle cx="18" cy="22" r="2.2" fill="#ffe794"/><circle cx="54" cy="11" r="2.6" fill="#fff6d6"/>` +
-  `<circle cx="94" cy="23" r="2" fill="#7fe7f0"/><circle cx="146" cy="10" r="2.5" fill="#ffd43b"/>` +
-  `<circle cx="188" cy="22" r="2" fill="#ff9ecf"/><circle cx="222" cy="12" r="2.2" fill="#fff6d6"/>` +
-  `</svg>`;
+const KID_TYPE: Record<'brush' | 'relic', string> = { brush: 'Magic Brush', relic: 'Sticker Relic' };
 
 export class Modals {
   readonly layer: HTMLElement;
@@ -82,23 +72,35 @@ export class Modals {
     else setTimeout(end, delay);
   }
 
+  private sprite(id: 'tool_star' | 'tool_crown', size: number, cls = 'cc-ico'): HTMLElement {
+    const canvas = this.cache ? this.cache.sprite(id, size) : placeholderCanvas(size, size);
+    return spriteBox(cls, canvas);
+  }
+
   showDraft(cards: DraftCardId[]): Promise<DraftCardId> {
     this.onFoley?.('tinSnap');
     return new Promise<DraftCardId>((resolve) => {
       const row = h('div', { class: 'cc-cards', style: `--n:${cards.length}` });
-      const embossing = h('span', { class: 'cc-tin-emboss', 'aria-hidden': 'true' });
-      embossing.append(frag(TIN_CONSTELLATION_SVG));
+      const constellationBar = h(
+        'div',
+        { class: 'cc-tin-constellation', 'aria-hidden': 'true' },
+        h('span', { class: 'cc-tin-star s1' }),
+        h('span', { class: 'cc-tin-star s2' }),
+        h('span', { class: 'cc-tin-star s3' }),
+        h('span', { class: 'cc-tin-star s4' }),
+        h('span', { class: 'cc-tin-star s5' }),
+      );
 
       const lidTop = h(
         'div',
         { class: 'cc-tin-lid-top' },
-        embossing,
+        constellationBar,
         h(
           'div',
           { class: 'cc-modal-head' },
-          iconSpan(ICON_STAR, 'cc-ico cc-head-star'),
+          this.sprite('tool_star', 24, 'cc-ico cc-head-star'),
           h('h2', { class: 'cc-modal-title' }, 'Astral Pencil Tin'),
-          iconSpan(ICON_STAR, 'cc-ico cc-head-star'),
+          this.sprite('tool_star', 24, 'cc-ico cc-head-star'),
         ),
         h('p', { class: 'cc-modal-sub' }, 'Pick one treasure to keep for this voyage!'),
       );
@@ -107,7 +109,7 @@ export class Modals {
         'div',
         { class: 'cc-tin-hinges', 'aria-hidden': 'true' },
         h('span', { class: 'cc-tin-hinge' }),
-        iconSpan(ICON_TIN_CLASP, 'cc-ico cc-tin-clasp-ico'),
+        this.sprite('tool_crown', 28, 'cc-ico cc-tin-clasp-ico'),
         h('span', { class: 'cc-tin-hinge' }),
       );
 
@@ -148,7 +150,7 @@ export class Modals {
           ),
         );
         card.dataset.card = id;
-        card.style.setProperty('--fan', `${((idx - mid) * 1.5).toFixed(2)}deg`);
+        card.style.setProperty('--fan', `${((idx - mid) * 1.4).toFixed(2)}deg`);
         row.append(card);
       });
       this.open(el, () => undefined);
@@ -170,14 +172,14 @@ export class Modals {
           h(
             'div',
             { class: 'cc-modal-head' },
-            iconSpan(ICON_STAR, 'cc-ico cc-head-star'),
+            this.sprite('tool_star', 24, 'cc-ico cc-head-star'),
             h('h2', { class: 'cc-modal-title' }, finale ? 'The Last Star-Door' : 'Choose a Star-Door'),
-            iconSpan(ICON_STAR, 'cc-ico cc-head-star'),
+            this.sprite('tool_star', 24, 'cc-ico cc-head-star'),
           ),
           h(
             'p',
             { class: 'cc-modal-sub' },
-            finale ? 'Everything you gathered glows brighter...' : 'Part the starry curtains for your next page...',
+            finale ? 'Everything you gathered glows brighter...' : 'Part the starry curtains for your next chapter...',
           ),
           row,
         ),
@@ -197,7 +199,7 @@ export class Modals {
           h(
             'span',
             { class: 'cc-door-inner' },
-            iconSpan(DOOR_KEYSTONE_SVG, 'cc-door-keystone'),
+            this.sprite('tool_star', 24, 'cc-ico cc-door-keystone'),
             h('span', { class: 'cc-door-art' }, this.art({ type: 'door', chapter: id }, DOOR_ART)),
             h(
               'span',
@@ -235,10 +237,11 @@ export class Modals {
         h(
           'div',
           { class: 'cc-modal-card cc-finale-plate cc-finale-card' },
-          iconSpan(CORNER_FILIGREE_SVG, 'cc-plate-filigree tl'),
-          iconSpan(CORNER_FILIGREE_SVG, 'cc-plate-filigree tr'),
-          iconSpan(CORNER_FILIGREE_SVG, 'cc-plate-filigree bl'),
-          iconSpan(CORNER_FILIGREE_SVG, 'cc-plate-filigree br'),
+          h('span', { class: 'cc-plate-filigree tl', 'aria-hidden': 'true' }),
+          h('span', { class: 'cc-plate-filigree tr', 'aria-hidden': 'true' }),
+          h('span', { class: 'cc-plate-filigree bl', 'aria-hidden': 'true' }),
+          h('span', { class: 'cc-plate-filigree br', 'aria-hidden': 'true' }),
+          this.sprite('tool_crown', 36, 'cc-ico cc-finale-crest'),
           h('p', { class: 'cc-finale-kicker' }, 'You lit up a whole new galaxy!'),
           nameEl,
           h('p', { class: 'cc-finale-hint' }, 'Tap anywhere to bind it onto your bookshelf'),
@@ -265,10 +268,6 @@ export class Modals {
 
   private art(k: Parameters<IllustrationCache['canvas']>[0], [w, hh]: [number, number]): HTMLCanvasElement {
     if (this.cache) return this.cache.canvas(k, w, hh);
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = hh;
-    c.className = 'cc-pix';
-    return c;
+    return placeholderCanvas(w, hh);
   }
 }

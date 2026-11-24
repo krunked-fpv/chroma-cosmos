@@ -1,6 +1,7 @@
 /**
- * UiPort implementation: Wanderlings Heirloom Living Sketchbook resting on a lamp-lit cedar desk.
- * DOM only; imports nothing outside src/contracts and src/ui. Strictly zero spoken voices / zero CDN assets.
+ * UiPort implementation: Midnight Cloisonne Storybook Frame & Hi-Bit HUD.
+ * DOM only; imports nothing outside src/contracts and src/ui.
+ * Strictly zero spoken voices, zero inline SVG icon doodles, zero brown trays, zero CDN assets.
  */
 import '@fontsource/fraunces/latin-600.css';
 import '@fontsource/fraunces/latin-700.css';
@@ -9,24 +10,15 @@ import '@fontsource/quicksand/latin-600.css';
 import '@fontsource/quicksand/latin-700.css';
 import '@fontsource/patrick-hand/latin-400.css';
 import '../styles/main.css';
-import type { StoryMilestoneKind } from '../contracts/art';
+import type { HeroQuestId, StoryMilestoneKind } from '../contracts/art';
 import { APP_NAME } from '../contracts/constants';
-import type { ChapterId, DraftCardId } from '../contracts/roguelike';
+import type { ChapterId, DraftCardId, RelicId } from '../contracts/roguelike';
 import type { AppMode, HubState, HudState, UiCallbacks, UiDeps, UiPort } from '../contracts/ui';
 import type { StorybookSummary } from '../contracts/vault';
-import { button, frag, h, iconSpan, setShown } from './dom';
-import { HubPanel } from './hub';
+import { button, h, setShown, spriteBox } from './dom';
+import { HubPanel, computeHubAffordable } from './hub';
 import { Hud } from './hud';
-import {
-  BRASS_CLASP_SVG,
-  CORNER_FILIGREE_SVG,
-  ICON_BACK,
-  ICON_NEXT,
-  ICON_POSTCARD,
-  ICON_PREV,
-  ICON_STAR,
-} from './icons';
-import { IllustrationCache } from './illustrations';
+import { IllustrationCache, placeholderCanvas } from './illustrations';
 import { PointerInput } from './input';
 import { InstallController } from './install';
 import { Modals } from './modals';
@@ -54,6 +46,14 @@ class SketchbookUi implements UiPort {
   private readonly bookTitle: HTMLElement;
   private readonly bookPage: HTMLElement;
   private readonly boot: HTMLElement;
+
+  // Sprite slots hydrated on mount()
+  private readonly bootStarSlots: HTMLElement[] = [];
+  private readonly bookPrevIconSlot: HTMLElement;
+  private readonly bookNextIconSlot: HTMLElement;
+  private readonly bookBackIconSlot: HTMLElement;
+  private readonly bookKeepsakeIconSlot: HTMLElement;
+
   private input: PointerInput | null = null;
   private cb: UiCallbacks | null = null;
   private deps: UiDeps | null = null;
@@ -61,6 +61,7 @@ class SketchbookUi implements UiPort {
   private mode: AppMode = 'boot';
   private hudTitle = APP_NAME;
   private mounted = false;
+  private readonly fxTimers = new Set<ReturnType<typeof setTimeout>>();
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -71,18 +72,28 @@ class SketchbookUi implements UiPort {
     this.modals = new Modals();
 
     this.canvasHost = h('div', { class: 'cc-canvas-host', 'aria-label': 'Sketchbook page', role: 'application' });
+
+    const s1 = spriteBox('cc-ico', placeholderCanvas(36, 36));
+    const s2 = spriteBox('cc-ico', placeholderCanvas(24, 24));
+    const s3 = spriteBox('cc-ico', placeholderCanvas(24, 24));
+    this.bootStarSlots.push(s1, s2, s3);
     this.boot = h(
       'div',
       { class: 'cc-boot', role: 'status', 'aria-label': 'Opening the sketchbook' },
-      h('span', { class: 'cc-boot-spark' }, iconSpan(ICON_STAR)),
-      h('span', { class: 'cc-boot-spark s2' }, iconSpan(ICON_STAR)),
-      h('span', { class: 'cc-boot-spark s3' }, iconSpan(ICON_STAR)),
+      h('span', { class: 'cc-boot-spark' }, s1),
+      h('span', { class: 'cc-boot-spark s2' }, s2),
+      h('span', { class: 'cc-boot-spark s3' }, s3),
       h('span', { class: 'cc-boot-text' }, 'Opening the sketchbook...'),
     );
 
-    // Living Bookshelf viewer controls
+    // Celestial Bookshelf viewer controls (Hi-Bit pixel sprites)
     this.bookTitle = h('span', { class: 'cc-bookbar-title' });
     this.bookPage = h('span', { class: 'cc-bookbar-page' });
+    this.bookPrevIconSlot = spriteBox('cc-ico', placeholderCanvas(26, 26));
+    this.bookNextIconSlot = spriteBox('cc-ico', placeholderCanvas(26, 26));
+    this.bookBackIconSlot = spriteBox('cc-ico', placeholderCanvas(24, 24));
+    this.bookKeepsakeIconSlot = spriteBox('cc-ico', placeholderCanvas(24, 24));
+
     this.bookPrev = button(
       'cc-round cc-book-nav cc-book-prev',
       'Previous page',
@@ -90,7 +101,7 @@ class SketchbookUi implements UiPort {
         this.cb?.onUiFoley?.('paperRustle');
         this.cb?.onBookPage(-1);
       },
-      iconSpan(ICON_PREV),
+      this.bookPrevIconSlot,
     );
     this.bookNext = button(
       'cc-round cc-book-nav cc-book-next',
@@ -99,7 +110,7 @@ class SketchbookUi implements UiPort {
         this.cb?.onUiFoley?.('paperRustle');
         this.cb?.onBookPage(1);
       },
-      iconSpan(ICON_NEXT),
+      this.bookNextIconSlot,
     );
     this.bookBar = h(
       'div',
@@ -111,36 +122,38 @@ class SketchbookUi implements UiPort {
           this.cb?.onUiFoley?.('paperRustle');
           this.cb?.onCloseBook();
         },
-        h('span', { class: 'cc-chip-inner' }, iconSpan(ICON_BACK), h('span', {}, 'Shelf')),
+        h('span', { class: 'cc-chip-inner' }, this.bookBackIconSlot, h('span', {}, 'Shelf')),
       ),
       h('div', { class: 'cc-bookbar-info' }, this.bookTitle, this.bookPage),
       button(
         'cc-chip cc-keepsake',
         'Save Keepsake PNG',
         () => {
-          this.cb?.onUiFoley?.('woodTap');
+          this.cb?.onUiFoley?.('crystalChime');
           this.cb?.onSaveKeepsake();
         },
-        h('span', { class: 'cc-chip-inner' }, iconSpan(ICON_POSTCARD), h('span', {}, 'Save Keepsake')),
+        h('span', { class: 'cc-chip-inner' }, this.bookKeepsakeIconSlot, h('span', {}, 'Save Keepsake')),
       ),
     );
 
     this.fxOverlay = h('div', { class: 'cc-fx-overlay', 'aria-hidden': 'true' });
     this.toastBox = h('div', { class: 'cc-toasts', 'aria-live': 'polite', role: 'status' });
 
-    // Warm twilight lamp-lit cedar desk surface & drifting ambient golden dust motes
+    // Midnight-Velvet Stargazer Backdrop with subtle drifting starlight motes & celestial astrolabe ring glow
     const deskDeco = h(
       'div',
       { class: 'cc-desk', 'aria-hidden': 'true' },
-      h('span', { class: 'cc-lamp' }),
-      h('span', { class: 'cc-lamp-halo' }),
-      h('span', { class: 'cc-dust-mote m1' }),
-      h('span', { class: 'cc-dust-mote m2' }),
-      h('span', { class: 'cc-dust-mote m3' }),
-      h('span', { class: 'cc-dust-mote m4' }),
-      h('span', { class: 'cc-dust-mote m5' }),
-      h('span', { class: 'cc-dust-mote m6' }),
-      h('span', { class: 'cc-dust-mote m7' }),
+      h('span', { class: 'cc-astrolabe-ring' }),
+      h('span', { class: 'cc-nebula-glow g1' }),
+      h('span', { class: 'cc-nebula-glow g2' }),
+      h('span', { class: 'cc-star-mote m1' }),
+      h('span', { class: 'cc-star-mote m2' }),
+      h('span', { class: 'cc-star-mote m3' }),
+      h('span', { class: 'cc-star-mote m4' }),
+      h('span', { class: 'cc-star-mote m5' }),
+      h('span', { class: 'cc-star-mote m6' }),
+      h('span', { class: 'cc-star-mote m7' }),
+      h('span', { class: 'cc-star-mote m8' }),
     );
 
     const stage = h(
@@ -149,20 +162,18 @@ class SketchbookUi implements UiPort {
       h('div', { class: 'cc-frame' }, this.canvasHost, this.boot),
     );
 
-    // Open cotton sketchbook spread with stitched linen spine, tarnished brass corner clasps & botanical/celestial filigree
+    // Crisp Warm-Ivory Cotton Sketchbook Sheet (#faf6ec) with 1px burnished celestial gold (#eac46f) astrolabe corner filigree
     const book = h(
       'div',
       { class: 'cc-book cc-spread' },
       h('div', { class: 'cc-spine', 'aria-hidden': 'true' }),
-      iconSpan(BRASS_CLASP_SVG, 'cc-clasp tl'),
-      iconSpan(BRASS_CLASP_SVG, 'cc-clasp bl'),
-      iconSpan(CORNER_FILIGREE_SVG, 'cc-filigree tl'),
-      iconSpan(CORNER_FILIGREE_SVG, 'cc-filigree bl'),
-      this.hud.bookmark,
+      h('span', { class: 'cc-corner-filigree tl', 'aria-hidden': 'true' }),
+      h('span', { class: 'cc-corner-filigree tr', 'aria-hidden': 'true' }),
+      h('span', { class: 'cc-corner-filigree bl', 'aria-hidden': 'true' }),
+      h('span', { class: 'cc-corner-filigree br', 'aria-hidden': 'true' }),
+      this.hud.voyageSpine,
       this.hud.cornerRight,
       stage,
-      this.hud.dogEarEarly,
-      this.hud.dogEarNext,
       this.hub.voyageEl,
       this.bookPrev,
       this.bookNext,
@@ -175,6 +186,9 @@ class SketchbookUi implements UiPort {
       deskDeco,
       book,
       this.hud.crystalJar,
+      this.hud.relicStrip,
+      this.hud.questRail,
+      this.hud.autoTurnRibbon,
       this.hud.dock,
       this.hub.stationsEl,
       this.hub.drawerLayer,
@@ -198,6 +212,7 @@ class SketchbookUi implements UiPort {
     this.cb = cb;
     this.deps = deps;
     this.cache = new IllustrationCache((k, w, hh) => deps.illustration(k, w, hh));
+    this.hydrateShellSprites(this.cache);
     this.hud.bind(cb, this.cache);
     this.hub.bind(cb, this.cache, (m) => this.toast(m));
     this.modals.bind(this.cache, (kind) => cb.onUiFoley?.(kind));
@@ -215,6 +230,17 @@ class SketchbookUi implements UiPort {
     });
     this.mounted = true;
     this.applyMode(this.mode, true);
+  }
+
+  private hydrateShellSprites(cache: IllustrationCache): void {
+    this.bootStarSlots.forEach((slot, i) => {
+      const sz = i === 0 ? 36 : 24;
+      cache.mountInto(slot, { type: 'uiSprite', id: 'tool_star' }, sz, sz);
+    });
+    cache.mountInto(this.bookPrevIconSlot, { type: 'uiSprite', id: 'tool_prev' }, 26, 26);
+    cache.mountInto(this.bookNextIconSlot, { type: 'uiSprite', id: 'tool_next' }, 26, 26);
+    cache.mountInto(this.bookBackIconSlot, { type: 'uiSprite', id: 'tool_back' }, 24, 24);
+    cache.mountInto(this.bookKeepsakeIconSlot, { type: 'uiSprite', id: 'tool_postcard' }, 24, 24);
   }
 
   get currentMode(): AppMode {
@@ -258,6 +284,7 @@ class SketchbookUi implements UiPort {
   updateHub(s: HubState): void {
     this.hub.update(s);
     this.hud.setGems(s.gems);
+    this.hud.setAffordable(computeHubAffordable(s).any);
     if (s.audioLevel !== undefined) this.hud.setAudio(s.audioLevel);
   }
 
@@ -289,46 +316,89 @@ class SketchbookUi implements UiPort {
     this.bookBar.dataset.book = b.id;
   }
 
-  /** Fires a luminous golden starlight thread SVG Bézier arc up into the matching Bookmark Story Star Socket. */
+  /** Fires a golden starlight particle arc from an awakened page coordinate into its Right-Margin Story Medallion. */
   animateStarThread(milestoneId: StoryMilestoneKind, fromClientX: number, fromClientY: number): void {
-    const dest = this.hud.getSocketCenter(milestoneId);
-    const vw = Math.max(320, typeof window !== 'undefined' ? window.innerWidth || 1280 : 1280);
-    const vh = Math.max(200, typeof window !== 'undefined' ? window.innerHeight || 720 : 720);
+    const dest = this.hud.getMedallionCenter(milestoneId);
+    const vw = Math.max(320, typeof window !== 'undefined' ? window.innerWidth || 1366 : 1366);
+    const vh = Math.max(200, typeof window !== 'undefined' ? window.innerHeight || 768 : 768);
     const x1 = Number.isFinite(fromClientX) ? fromClientX : vw / 2;
     const y1 = Number.isFinite(fromClientY) ? fromClientY : vh / 2;
     const x2 = dest.x;
     const y2 = dest.y;
-    const ctrlX = (x1 + x2) / 2 + (x1 < x2 ? -56 : 56);
-    const ctrlY = Math.min(y1, y2) - Math.max(48, Math.abs(y1 - y2) * 0.28);
-    const d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${ctrlX.toFixed(1)} ${ctrlY.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
-    const approxLen = Math.max(120, Math.hypot(x2 - x1, y2 - y1) * 1.25);
 
-    const wrap = h('div', { class: 'cc-star-thread', 'data-milestone': milestoneId });
-    wrap.style.setProperty('--thread-len', approxLen.toFixed(1));
-    wrap.append(
-      frag(
-        `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" fill="none">` +
-          `<path class="cc-thread-glow" d="${d}" stroke="#ffd43b" stroke-width="7" stroke-linecap="round" opacity=".4"/>` +
-          `<path class="cc-thread-core" d="${d}" stroke="#fff7cf" stroke-width="2.6" stroke-linecap="round"/>` +
-          `<circle class="cc-thread-burst" cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="10" fill="#ffd43b" opacity=".85"/>` +
-          `<circle class="cc-thread-spark s1" cx="${(x2 - 14).toFixed(1)}" cy="${(y2 + 6).toFixed(1)}" r="2.5" fill="#fff4c4"/>` +
-          `<circle class="cc-thread-spark s2" cx="${(x2 + 15).toFixed(1)}" cy="${(y2 + 4).toFixed(1)}" r="2.2" fill="#ffe08a"/>` +
-          `<circle class="cc-thread-spark s3" cx="${(x2 + 2).toFixed(1)}" cy="${(y2 + 14).toFixed(1)}" r="2.6" fill="#ff9ecf"/>` +
-          `</svg>`,
-      ),
-    );
+    this.spawnBezierParticleArc('cc-star-thread', { 'data-milestone': milestoneId, 'data-quest': milestoneId }, x1, y1, x2, y2);
 
-    this.fxOverlay.append(wrap);
-    const arriveMs = prefersReducedMotion() ? 0 : 480;
-    const removeMs = prefersReducedMotion() ? 320 : 980;
-    if (arriveMs === 0) this.hud.pulseSocket(milestoneId);
-    else setTimeout(() => this.hud.pulseSocket(milestoneId), arriveMs);
-    setTimeout(() => wrap.remove(), removeMs);
+    const arriveMs = prefersReducedMotion() ? 0 : 440;
+    if (arriveMs === 0) this.hud.pulseMedallion(milestoneId);
+    else this.scheduleFx(() => this.hud.pulseMedallion(milestoneId), arriveMs);
   }
 
-  /** Drops glowing faceted Prism Stardust Crystal shards into the corked glass apothecary jar. */
+  /** Fires a sparkling Firefly Hint Wisp arc from the Right-Margin Story Medallion / Lantern onto the target canvas coordinate. */
+  animateHintBeam(questId: HeroQuestId, toClientX: number, toClientY: number): void {
+    const origin = this.hud.getMedallionCenter(questId);
+    const vw = Math.max(320, typeof window !== 'undefined' ? window.innerWidth || 1366 : 1366);
+    const vh = Math.max(200, typeof window !== 'undefined' ? window.innerHeight || 768 : 768);
+    const x1 = origin.x;
+    const y1 = origin.y;
+    const x2 = Number.isFinite(toClientX) ? toClientX : vw / 2;
+    const y2 = Number.isFinite(toClientY) ? toClientY : vh / 2;
+
+    this.hud.flashHintOrigin(questId);
+    this.spawnBezierParticleArc('cc-hint-beam', { 'data-quest': questId }, x1, y1, x2, y2);
+  }
+
+  /** Pulses a Left-Margin Relic Charm with gold sparkles and a <=2-word whisper tag when it triggers. */
+  animateRelicPulse(relic: RelicId, tag?: string): void {
+    this.hud.pulseRelic(relic, tag);
+  }
+
+  /** Drops glowing faceted Prism Stardust Crystal sparks into the Top-Left Crystal Pill. */
   animateCrystalDrop(amount: number): void {
     this.hud.animateCrystalDrop(amount);
+  }
+
+  private spawnBezierParticleArc(
+    cls: string,
+    attrs: Record<string, string>,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+  ): void {
+    const ctrlX = (x1 + x2) / 2;
+    const ctrlY = Math.min(y1, y2) - Math.max(46, Math.abs(x2 - x1) * 0.18);
+    const steps = 12;
+    const wrap = h('div', { class: cls, ...attrs });
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const omt = 1 - t;
+      const px = omt * omt * x1 + 2 * omt * t * ctrlX + t * t * x2;
+      const py = omt * omt * y1 + 2 * omt * t * ctrlY + t * t * y2;
+      const mote = h('span', { class: 'cc-arc-mote' });
+      mote.style.left = `${px.toFixed(1)}px`;
+      mote.style.top = `${py.toFixed(1)}px`;
+      mote.style.setProperty('--delay', `${Math.round(t * 360)}ms`);
+      mote.style.setProperty('--scale', (0.65 + Math.sin(t * Math.PI) * 0.65).toFixed(2));
+      wrap.append(mote);
+    }
+
+    const burst = h('span', { class: 'cc-arc-burst' });
+    burst.style.left = `${x2.toFixed(1)}px`;
+    burst.style.top = `${y2.toFixed(1)}px`;
+    wrap.append(burst);
+
+    this.fxOverlay.append(wrap);
+    const removeMs = prefersReducedMotion() ? 320 : 940;
+    this.scheduleFx(() => wrap.remove(), removeMs);
+  }
+
+  private scheduleFx(fn: () => void, ms: number): void {
+    const id = setTimeout(() => {
+      this.fxTimers.delete(id);
+      fn();
+    }, ms);
+    this.fxTimers.add(id);
   }
 
   private toastLeaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -346,7 +416,13 @@ class SketchbookUi implements UiPort {
     while (this.toastBox.firstElementChild) {
       this.toastBox.firstElementChild.remove();
     }
-    const t = h('div', { class: 'cc-toast' }, iconSpan(ICON_STAR, 'cc-ico cc-toast-star'), h('span', { class: 'cc-toast-msg' }, msg));
+    const starCanvas = this.cache ? this.cache.sprite('tool_star', 18) : placeholderCanvas(18, 18);
+    const t = h(
+      'div',
+      { class: 'cc-toast' },
+      spriteBox('cc-ico cc-toast-star', starCanvas),
+      h('span', { class: 'cc-toast-msg' }, msg),
+    );
     this.toastBox.append(t);
     boing(t, 'appear');
     this.toastLeaveTimer = setTimeout(() => {
@@ -367,6 +443,8 @@ class SketchbookUi implements UiPort {
   destroy(): void {
     if (this.toastLeaveTimer) clearTimeout(this.toastLeaveTimer);
     if (this.toastRemoveTimer) clearTimeout(this.toastRemoveTimer);
+    for (const id of this.fxTimers) clearTimeout(id);
+    this.fxTimers.clear();
     this.hud.destroy();
     this.hub.destroy();
     this.input?.destroy();

@@ -1,12 +1,14 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActorKind } from '../../../src/contracts/art';
-import type { AudioLevel, AudioPort, StemId } from '../../../src/contracts/audio';
+import type { AudioLevel, AudioPort, StemId, UiFoleyKind } from '../../../src/contracts/audio';
 import type { CausalityKind } from '../../../src/contracts/causality';
 import { AUDIO_LEVEL_GAIN, BPM, F_LYDIAN_HZ } from '../../../src/contracts/constants';
 import { MATERIALS, type MaterialId } from '../../../src/contracts/materials';
 import type { RegionKind } from '../../../src/contracts/regions';
 import { createAudio, quantizeToLydian } from '../../../src/audio';
-import { MockAudioContext, MockCompressor, MockGain, MockNode } from './mockAudio';
+import { MockAudioContext, MockCompressor, MockFilter, MockGain, MockNode } from './mockAudio';
 
 const ACTORS: ActorKind[] = ['violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem'];
 const CAUSALITY: CausalityKind[] = ['rainbowSlide', 'starlightFlowerRain', 'zeroGTrampoline', 'cheetahRacetrack', 'discoMirage', 'gentleSparkle'];
@@ -14,6 +16,7 @@ const KINDS: RegionKind[] = [
   'violet', 'lumi', 'nova', 'planet', 'rings', 'cloud', 'comet', 'moonCat', 'milkshake', 'whale', 'asteroid', 'star', 'rocket', 'flora', 'prop', 'ghost', 'system',
 ];
 const ALL_STEMS: StemId[] = ['pad', 'marimba', 'harp', 'celesta'];
+const UI_FOLEYS: UiFoleyKind[] = ['paperRustle', 'woodTap', 'jarClink', 'stickerPeel', 'wispChime', 'tinSnap'];
 const BEAT = 60 / BPM;
 
 function isScaleMember(hz: number): boolean {
@@ -42,6 +45,8 @@ function hammer(a: AudioPort): void {
   for (const c of CAUSALITY) a.causality(c);
   a.causality('nope' as CausalityKind);
   a.pageTurn();
+  for (const f of UI_FOLEYS) a.uiFoley?.(f);
+  a.uiFoley?.('nope' as UiFoleyKind);
   a.setStems(ALL_STEMS);
   a.setStems([]);
   a.setStems(undefined as unknown as StemId[]);
@@ -222,6 +227,7 @@ describe('master chain and level', () => {
     }
     for (const c of CAUSALITY) audio.causality(c);
     audio.pageTurn();
+    for (const f of UI_FOLEYS) audio.uiFoley?.(f);
     audio.poke('nova');
     audio.autoBloom();
     audio.stroke(true, 1, 4);
@@ -281,6 +287,7 @@ describe('node lifetime', () => {
     };
     measure('autoBloom', () => audio.autoBloom());
     measure('pageTurn', () => audio.pageTurn());
+    for (const f of UI_FOLEYS) measure(`uiFoley ${f}`, () => audio.uiFoley?.(f));
     for (const a of ACTORS) {
       measure(`poke ${a}`, () => audio.poke(a));
       measure(`awake ${a}`, () => audio.actorAwake(a));
@@ -449,5 +456,149 @@ describe('96-BPM scheduler', () => {
     }
     expect(ctx.startLog.length).toBeGreaterThan(10);
     audio.dispose();
+  });
+});
+
+describe('tabletop UI ASMR foley (uiFoley)', () => {
+  it('spawns bounded low-pass F-Lydian nodes for all 6 variants and disconnects every node on onended', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    expect(typeof audio.uiFoley).toBe('function');
+    const baseline = audio.stats().liveNodes;
+
+    for (const kind of UI_FOLEYS) {
+      const createdBefore = audio.stats().totalCreated;
+      const nodesBefore = ctx.nodes.length;
+      const sourcesBefore = ctx.sources.length;
+
+      audio.uiFoley!(kind);
+
+      const spawned = audio.stats().totalCreated - createdBefore;
+      expect(spawned, `${kind} spawns nodes`).toBeGreaterThan(0);
+      expect(spawned, `${kind} stays bounded`).toBeLessThan(20);
+      expect(audio.stats().liveNodes, `${kind} live nodes rise`).toBe(baseline + spawned);
+
+      const freshNodes = ctx.nodes.slice(nodesBefore);
+      const freshSources = ctx.sources.slice(sourcesBefore);
+      expect(freshSources.length, `${kind} starts scheduled sources`).toBeGreaterThan(0);
+
+      // Warm low-pass acoustics: every foley includes a lowpass filter and never uses square/sawtooth bleeps.
+      const filters = freshNodes.filter((n): n is MockFilter => n instanceof MockFilter);
+      expect(filters.some((f) => f.type === 'lowpass'), `${kind} uses lowpass smoothing`).toBe(true);
+      for (const s of freshSources) {
+        if (s.kind === 'oscillator') {
+          expect(['sine', 'triangle'], `${kind} warm waveform`).toContain(s.type);
+          expect(isScaleMember(s.frequency.value), `${kind} F-Lydian freq ${s.frequency.value}`).toBe(true);
+        }
+        expect(s.stopTime, `${kind} schedules finite stop`).not.toBeNull();
+      }
+
+      // Advance clock so all sources fire onended; every transient node must disconnect with zero leak.
+      ctx.advance(2);
+      expect(audio.stats().liveNodes, `${kind} returns to baseline`).toBe(baseline);
+      expect(freshNodes.every((n) => n.disconnected), `${kind} disconnects all transient nodes`).toBe(true);
+    }
+
+    expect(ctx.nodes.filter((n) => n.kind !== 'destination' && !n.disconnected).length).toBe(baseline);
+  });
+
+  it('rotates jarClink gently through F-Lydian fifth pairs and drains cleanly under rapid burst', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    const baseline = audio.stats().liveNodes;
+    const pairs: Array<readonly [number, number]> = [];
+
+    for (let i = 0; i < 3; i++) {
+      const before = ctx.sources.length;
+      audio.uiFoley!('jarClink');
+      const oscs = ctx.sources.slice(before).filter((s) => s.kind === 'oscillator');
+      expect(oscs.length).toBeGreaterThanOrEqual(2);
+      const lo = oscs[0]!.frequency.value;
+      const hi = oscs[1]!.frequency.value;
+      expect(hi / lo).toBeCloseTo(1.4983, 2); // F-Lydian perfect fifth
+      pairs.push([Math.round(lo), Math.round(hi)]);
+      // Interleave other foleys to confirm jarClink maintains its own rotation.
+      audio.uiFoley!('woodTap');
+      ctx.advance(0.03);
+    }
+
+    // Rotates cleanly through F5/C6, G5/D6, A5/E6
+    expect(pairs).toEqual([
+      [698, 1047],
+      [784, 1175],
+      [880, 1319],
+    ]);
+
+    // Rapid burst of all 6 foley kinds stays within node cap and drains strictly to baseline.
+    for (let i = 0; i < 120; i++) {
+      audio.uiFoley!(UI_FOLEYS[i % UI_FOLEYS.length]!);
+    }
+    expect(audio.stats().liveNodes).toBeLessThan(400);
+    ctx.advance(5);
+    expect(audio.stats().liveNodes).toBe(baseline);
+  });
+
+  it('stays completely silent before unlock, when muted (level 0), after dispose, or for unknown kinds', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const a = createAudio();
+
+    // Before unlock: creates nothing and never instantiates AudioContext
+    for (const kind of UI_FOLEYS) a.uiFoley!(kind);
+    expect(MockAudioContext.instances).toHaveLength(0);
+    expect(a.stats()).toEqual({ liveNodes: 0, totalCreated: 0 });
+
+    await a.unlock();
+    const ctx = MockAudioContext.last();
+
+    // Unknown kind: no-op
+    const beforeUnknown = a.stats();
+    a.uiFoley!('unknownFoley' as UiFoleyKind);
+    expect(a.stats()).toEqual(beforeUnknown);
+
+    // Muted (level 0): zero nodes created
+    a.setLevel(0);
+    const beforeMute = a.stats();
+    for (const kind of UI_FOLEYS) a.uiFoley!(kind);
+    expect(a.stats()).toEqual(beforeMute);
+
+    // Unmuted works, then dispose silences all future calls
+    a.setLevel(2);
+    a.uiFoley!('tinSnap');
+    expect(a.stats().totalCreated).toBeGreaterThan(beforeMute.totalCreated);
+    ctx.advance(2);
+
+    a.dispose();
+    const afterDispose = a.stats();
+    expect(afterDispose.liveNodes).toBe(0);
+    for (const kind of UI_FOLEYS) a.uiFoley!(kind);
+    expect(a.stats()).toEqual(afterDispose);
+  });
+
+  it('never references or invokes speechSynthesis anywhere in src/audio', async () => {
+    const speak = vi.fn(() => {
+      throw new Error('speechSynthesis is strictly prohibited');
+    });
+    vi.stubGlobal('speechSynthesis', { speak, cancel: speak, getVoices: speak });
+    vi.stubGlobal('SpeechSynthesisUtterance', class {
+      constructor() {
+        throw new Error('SpeechSynthesisUtterance is strictly prohibited');
+      }
+    });
+    vi.stubGlobal('AudioContext', MockAudioContext);
+
+    const { audio, ctx } = await unlocked();
+    for (const kind of UI_FOLEYS) audio.uiFoley!(kind);
+    ctx.advance(2);
+    audio.dispose();
+    expect(speak).not.toHaveBeenCalled();
+
+    // Static check over all source files in src/audio/**
+    const audioDir = join(process.cwd(), 'src', 'audio');
+    const files = readdirSync(audioDir).filter((f) => f.endsWith('.ts'));
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const src = readFileSync(join(audioDir, file), 'utf8');
+      expect(src, `${file} must not reference speechSynthesis`).not.toMatch(/speechsynthesis/i);
+    }
   });
 });

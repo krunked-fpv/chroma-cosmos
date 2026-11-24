@@ -48,7 +48,7 @@ Source of truth for data contracts. TypeScript sources live in `src/contracts/` 
   - `whaleSea`: `whale` (Star Whale), `planet` (Ringed Planet), `cloud` (Sea Clouds).
   - `heartOfUniverse`: `heart` (Star Heart), `violet` (Violet), `lumi` (Lumi), `nova` (Nova).
   - Weighted pixel coverage across `quest.regionIds` triggers **Composite Auto-Bloom** at **82%** (`74%` with `constellationCrown`), rippling 100% fill across all attached sub-regions, awarding **+4 Stardust Gems**, and firing `heroQuestComplete` + ascending F-Lydian Story Medallion chord.
-- **`PageFinaleController` (2.8s Automatic Page-Turn Finale)**:
+- **`PageFinaleController` / `PageFinaleState` (2.8s Automatic Page-Turn Finale)**:
   - Triggered immediately when all 3–4 `HeroStoryQuest` medallions complete (`pageComplete === true`).
   - Plays Page Awakened Ensemble Fanfare, showers **+8 Page Finale Bonus Gems**, and counts down `PAGE_FINALE_MS` (2800 ms) on a celebratory bottom-right Auto-Turning Page Ribbon before emitting `autoPageTurnReady` to automatically curl/turn into Astral Pencil Tin Draft -> Illustrated Star-Door Route Choice -> Next Chapter.
   - Tapping `Stay & Doodle` sets `stayAndDoodle = true` to pause auto-turn and reveals a luminous 1-tap `Turn Page ->` button. `Skip Page` is tucked inside a quiet top-right settings popover.
@@ -56,7 +56,7 @@ Source of truth for data contracts. TypeScript sources live in `src/contracts/` 
   - Zero-cooldown `requestHint(questId?, source)` flies the Starlight Wisp onto the target quest's uncolored pixels, sets `REGION_FLAG.spotlight` on all uncompleted `regionIds` of that quest, dims non-target uncolored paper by 12% (`uHintDim`) for `HINT_SPOTLIGHT_MS` (2500 ms), and traces a looping rainbow ghost-stroke inside it.
   - After 4.5s idle, gently pulses the next unlit right-side Story Medallion in lockstep with its canvas shape; after 3s paused with a quest >=65% covered, twinkles the remaining uncolored patch.
 
-## 4. Shader materials (`materials.ts`) — 7 Core + 10 Unlockable Exotic = 17 Total
+## 4. ExpandedItemCatalog — Shader Materials (`materials.ts`) — 7 Core + 10 Unlockable Exotic = 17 Total
 | id | key | name | tier / cost | program | asmr | palette |
 |---|---|---|---|---|---|---|
 | 1..7 | Core mediums | (unchanged) | core / 0 | 1..7 | varied | (unchanged) |

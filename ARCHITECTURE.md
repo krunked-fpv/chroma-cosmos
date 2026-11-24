@@ -82,7 +82,11 @@ Id classes: `0` ink; `1..199` colourable (canonical `1..31`, dynamic `32..199`);
 - Tri-tier `krunked-cookie-vault-v1` (`localStorage` + IndexedDB + <1500-char signed shadow cookie) with lossless Sprint 1 -> 2 migration.
 - Standalone PWA with `CACHE_VERSION = 'chroma-cosmos-v3'`, `#0d1026` theme/bg, relative `./` paths, and offline `@fontsource` typography.
 
-## 6. File ownership
+## 6. QA / Telemetry Hook
+- `window.__chroma` exposes `telemetry()`, `resetTelemetry()`, and `stats()`.
+- With `?qa=1`, `window.__chroma.qa` additionally exposes deterministic browser-verification controls: `regions()`, `clientPointOf(id)`, `paintRegion(id, materialId?)`, `poke(kind)`, `startRun(seed?)`, `completePage()`, `mode()`, `setToolMode(mode)`, `hoverRegion(id)`, `storyStars()`, `heroQuests()`, `hintState()`, `pageFinale()`, `requestHint(questId?)`, `setStayAndDoodle(stay)`, `addGems(amount)`, `wisp()`, `wonderWhisper()`, `pokeInvites()`, and `nudgeMilestone(id)`.
+
+## 7. File ownership
 | Owner | Files |
 |---|---|
 | Clara Vance | ARCHITECTURE.md, SPEC.md, HANDOFF.md, package.json, tsconfig.json, vite.config.ts, .gitignore, src/contracts/**, src/main.ts |

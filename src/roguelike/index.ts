@@ -37,10 +37,22 @@ const CARD_WORD: Record<DraftCardId, string> = {
   twinTail: 'Unicorn',
   supernovaSponge: 'Supernova',
   zeroGGel: 'Floaty',
+  cometMeteor: 'Meteor',
+  prismRoller: 'Prism',
+  starlightBubble: 'Bubble',
+  nebulaCloudPuff: 'Cloud-Puff',
+  lightningWhisker: 'Spark',
+  moonbeamQuill: 'Moonbeam',
   zoomiePaw: 'Paw-Print',
   prismRibbon: 'Rainbow',
   uvFlashlight: 'Glow',
   kaleidoSharpener: 'Kaleido',
+  sleepyMoonCat: 'Moon-Cat',
+  gravityFlipFlop: 'Flip-Flop',
+  doubleMilkshake: 'Milkshake',
+  starlightMagnet: 'Star-Magnet',
+  chromaticButterfly: 'Butterfly',
+  constellationCrown: 'Crown',
 };
 
 function clone(c: RunCore): RunCore {

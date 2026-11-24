@@ -3,7 +3,7 @@
  * (slide, pounce, dash, trampoline bounce, race laps). Time advances only through update(dt).
  */
 import { PAGE_H, PAGE_W, POKE_CHASE_MS } from '../contracts';
-import type { ActorKind, ActorRenderState, ActorSpawn, AnimName, BrushId, PagePath, SimEvent } from '../contracts';
+import type { ActorKind, ActorRenderState, ActorSpawn, AnimName, BrushId, PagePath, RelicId, SimEvent } from '../contracts';
 import type { EffectPool, EffectRT } from './effects';
 import { clamp, mulberry32 } from './util';
 
@@ -15,7 +15,10 @@ export interface ActorHost {
   pointer(): { x: number; y: number } | null;
   hoverPoint(): { x: number; y: number } | null;
   brush(): BrushId;
+  hasRelic(r: RelicId): boolean;
   collect(e: EffectRT): void;
+  onBubblePop?(a: ActorRT): void;
+  onActorPoked?(a: ActorRT): void;
 }
 
 type Task =
@@ -74,6 +77,16 @@ export class ActorRT {
   firstAwakeInviteMs = 0;
   firstAwakePoked = false;
   perkUntil = 0;
+  relicHelper: 'moonCat' | 'butterfly' | 'bubble' | null = null;
+  bubbleLifeMs = 0;
+  bubbleMat = 0;
+  gravityBounceMs = 0;
+  gravityBounceDur = 0;
+  gravityBaseY = 0;
+  gravityAmp = 0;
+  flutterTarget: { tx: number; ty: number; onArrive: () => void } | null = null;
+  flutterQueue: { tx: number; ty: number; onArrive: () => void }[] = [];
+  helperTarget: { x: number; y: number } | null = null;
   readonly seed: number;
 
   constructor(spawn: ActorSpawn) {
@@ -108,6 +121,7 @@ export class ActorSystem {
   private ambientAt: number;
   private rand: () => number;
   private viewCache: ActorRenderState[] = [];
+  private bubbleSeq = 0;
 
   constructor(private host: ActorHost, spawns: readonly ActorSpawn[], seed: number) {
     this.rand = mulberry32(seed ^ 0x9e3779b9);
@@ -263,6 +277,122 @@ export class ActorSystem {
     return out;
   }
 
+  addRelicMoonCat(x: number, y: number): ActorRT {
+    const existing = this.list.find((a) => a.relicHelper === 'moonCat');
+    if (existing) return existing;
+    const spawn: ActorSpawn = {
+      instanceId: 'relic-mooncat',
+      kind: 'moonCat',
+      slot: 0,
+      x: clamp(x, 18, PAGE_W - 18),
+      y: clamp(y, 18, PAGE_H - 18),
+      facing: 1,
+      regionIds: [],
+      remap: { 17: 202 },
+    };
+    const a = new ActorRT(spawn);
+    a.relicHelper = 'moonCat';
+    a.awake = true;
+    a.stage = 4;
+    a.view.live = true;
+    a.view.anim = 'float';
+    a.animStart = this.simT;
+    this.list.push(a);
+    this.rebuildView();
+    return a;
+  }
+
+  setMoonCatTarget(x: number, y: number): void {
+    const cat = this.list.find((a) => a.relicHelper === 'moonCat');
+    if (!cat) return;
+    cat.helperTarget = { x: clamp(x, 18, PAGE_W - 18), y: clamp(y, 18, PAGE_H - 18) };
+    this.lock(cat, 'peek', 800);
+  }
+
+  addRelicButterfly(x: number, y: number): ActorRT {
+    const existing = this.list.find((a) => a.relicHelper === 'butterfly');
+    if (existing) return existing;
+    const spawn: ActorSpawn = {
+      instanceId: 'relic-butterfly',
+      kind: 'butterfly',
+      slot: 0,
+      x: clamp(x, 18, PAGE_W - 18),
+      y: clamp(y, 18, PAGE_H - 18),
+      facing: 1,
+      regionIds: [],
+    };
+    const a = new ActorRT(spawn);
+    a.relicHelper = 'butterfly';
+    a.awake = true;
+    a.stage = 4;
+    a.view.live = true;
+    a.view.anim = 'float';
+    a.animStart = this.simT;
+    this.list.push(a);
+    this.rebuildView();
+    return a;
+  }
+
+  butterflyBusy(): boolean {
+    const b = this.list.find((a) => a.relicHelper === 'butterfly');
+    if (!b) return false;
+    return b.flutterTarget !== null || b.flutterQueue.length > 0;
+  }
+
+  flutterButterfly(fx: number, fy: number, tx: number, ty: number, onArrive: () => void): boolean {
+    const b = this.list.find((a) => a.relicHelper === 'butterfly');
+    if (!b) return false;
+    if (!b.flutterTarget && b.flutterQueue.length === 0) {
+      b.view.x = clamp(fx, 12, PAGE_W - 12);
+      b.view.y = clamp(fy, 12, PAGE_H - 12);
+    }
+    b.homeX = clamp(tx, 16, PAGE_W - 16);
+    b.homeY = clamp(ty, 16, PAGE_H - 16);
+    b.flutterQueue.push({ tx: b.homeX, ty: b.homeY, onArrive });
+    return true;
+  }
+
+  activeBubbles(): ActorRT[] {
+    return this.list.filter((a) => a.relicHelper === 'bubble');
+  }
+
+  addBubble(x: number, y: number, mat: number, lifeMs = 2600): ActorRT | null {
+    if (this.activeBubbles().length >= 3) return null;
+    const seq = ++this.bubbleSeq;
+    const spawn: ActorSpawn = {
+      instanceId: `bubble:${seq}`,
+      kind: 'bubble',
+      slot: 0,
+      x: clamp(x, 16, PAGE_W - 16),
+      y: clamp(y, 16, PAGE_H - 16),
+      facing: seq % 2 === 0 ? 1 : -1,
+      regionIds: [],
+    };
+    const a = new ActorRT(spawn);
+    a.relicHelper = 'bubble';
+    a.bubbleLifeMs = lifeMs;
+    a.bubbleMat = mat;
+    const ang = ((seq * 137) % 360) * (Math.PI / 180);
+    a.driftVx = Math.cos(ang) * 14;
+    a.driftVy = -14 - (seq % 3) * 4;
+    a.awake = true;
+    a.stage = 4;
+    a.view.live = true;
+    a.view.anim = 'float';
+    a.animStart = this.simT;
+    this.list.push(a);
+    this.rebuildView();
+    return a;
+  }
+
+  removeActor(a: ActorRT): void {
+    const i = this.list.indexOf(a);
+    if (i >= 0) {
+      this.list.splice(i, 1);
+      this.rebuildView();
+    }
+  }
+
   // ---------------------------------------------------------------- interaction
 
   hit(x: number, y: number, regionAt: number, allowLive = false): ActorRT | null {
@@ -271,8 +401,9 @@ export class ActorSystem {
     for (const a of this.list) {
       if ((!a.awake && !(allowLive && a.view.live)) || !a.shown) continue;
       if (a.kind === 'flower' || a.kind === 'gem') continue;
+      if (a.relicHelper === 'butterfly' || a.relicHelper === 'moonCat') continue;
       const d = Math.hypot(a.view.x - x, a.view.y - y);
-      const r = a.kind === 'lumi' ? 22 : 16;
+      const r = a.kind === 'lumi' ? 22 : a.kind === 'bubble' ? 18 : 16;
       const byRegion =
         regionAt > 0 && a.regionIds.includes(regionAt) && Math.hypot(a.view.x - a.homeX, a.view.y - a.homeY) < 30;
       if ((d <= r || byRegion) && d < bd) {
@@ -284,6 +415,10 @@ export class ActorSystem {
   }
 
   poke(a: ActorRT): void {
+    if (a.relicHelper === 'bubble') {
+      this.host.onBubblePop?.(a);
+      return;
+    }
     const turbo = this.host.brush() === 'turboCheetah';
     a.firstAwakeInvite = false;
     a.firstAwakeInviteMs = 0;
@@ -314,6 +449,14 @@ export class ActorSystem {
         this.lock(a, 'wiggle', 700);
     }
     if (turbo) fx.spawn('starBurst', a.view.x, a.view.y - 6, { durMs: 800 });
+    if (this.host.hasRelic('gravityFlipFlop')) {
+      a.gravityBounceDur = 1200;
+      a.gravityBounceMs = 1200;
+      a.gravityBaseY = a.view.y;
+      a.gravityAmp = 24;
+      fx.spawn('starBurst', a.view.x, a.view.y - 8, { durMs: 700 });
+    }
+    this.host.onActorPoked?.(a);
   }
 
   private lock(a: ActorRT, anim: AnimName, ms: number): void {
@@ -327,6 +470,7 @@ export class ActorSystem {
     this.simT += dtMs;
     const turbo = this.host.brush() === 'turboCheetah';
     const gel = this.host.brush() === 'zeroGGel';
+    const poppedBubbles: ActorRT[] = [];
     for (const a of this.list) {
       if (!a.shown) {
         if (this.simT >= a.showAt) {
@@ -338,12 +482,82 @@ export class ActorSystem {
         a.firstAwakeInviteMs = Math.max(0, a.firstAwakeInviteMs - dtMs);
         if (a.firstAwakeInviteMs <= 0) a.firstAwakeInvite = false;
       }
-      this.updateActor(a, dtMs, turbo ? 2 : 1, gel);
+      if (a.relicHelper === 'bubble') {
+        if (this.updateBubble(a, dtMs)) poppedBubbles.push(a);
+      } else if (a.relicHelper === 'butterfly') {
+        this.updateButterfly(a, dtMs);
+      } else if (a.relicHelper === 'moonCat') {
+        this.updateRelicMoonCat(a, dtMs);
+      } else {
+        this.updateActor(a, dtMs, turbo ? 2 : 1, gel);
+        if (a.gravityBounceMs > 0) {
+          a.gravityBounceMs = Math.max(0, a.gravityBounceMs - dtMs);
+          const p = a.gravityBounceDur > 0 ? 1 - a.gravityBounceMs / a.gravityBounceDur : 1;
+          a.view.y = clamp(a.gravityBaseY - Math.sin(Math.PI * p) * a.gravityAmp, 10, PAGE_H - 10);
+        }
+      }
       const v = a.view;
       v.frame = Math.floor((this.simT - a.animStart) / FRAME_MS);
     }
+    for (const b of poppedBubbles) this.host.onBubblePop?.(b);
     this.ambient(dtMs);
     this.rebuildView();
+  }
+
+  private updateBubble(a: ActorRT, dt: number): boolean {
+    const v = a.view;
+    a.bubbleLifeMs -= dt;
+    const sway = Math.sin(this.simT / 280 + a.seed) * 10;
+    v.x = clamp(v.x + ((a.driftVx + sway) * dt) / 1000, 12, PAGE_W - 12);
+    v.y = clamp(v.y + (a.driftVy * dt) / 1000, 12, PAGE_H - 12);
+    if (v.x <= 12 || v.x >= PAGE_W - 12) a.driftVx = -a.driftVx;
+    if (v.y <= 12) a.driftVy = Math.abs(a.driftVy) * 0.5;
+    this.setAnim(a, 'float');
+    return a.bubbleLifeMs <= 0;
+  }
+
+  private updateButterfly(a: ActorRT, dt: number): void {
+    if (!a.flutterTarget && a.flutterQueue.length > 0) {
+      a.flutterTarget = a.flutterQueue.shift() ?? null;
+    }
+    if (a.flutterTarget) {
+      const ft = a.flutterTarget;
+      const d = this.steer(a, ft.tx, ft.ty, 190, 0, dt);
+      a.view.y = clamp(a.view.y + Math.sin(this.simT / 90 + a.seed) * 0.6, 10, PAGE_H - 10);
+      this.setAnim(a, 'float');
+      if (d <= 8) {
+        a.flutterTarget = null;
+        this.lock(a, 'bounce', 450);
+        ft.onArrive();
+      }
+      return;
+    }
+    if (a.lockAnim !== null && this.simT < a.lockUntil) {
+      this.setAnim(a, a.lockAnim);
+      return;
+    }
+    a.lockAnim = null;
+    const t = this.simT / 700 + a.seed;
+    const tx = clamp(a.homeX + Math.cos(t) * 14, 14, PAGE_W - 14);
+    const ty = clamp(a.homeY + Math.sin(t * 2) * 7, 14, PAGE_H - 14);
+    this.steer(a, tx, ty, 36, 0, dt);
+    this.setAnim(a, 'float');
+  }
+
+  private updateRelicMoonCat(a: ActorRT, dt: number): void {
+    if (a.lockAnim !== null && this.simT < a.lockUntil) {
+      this.setAnim(a, a.lockAnim);
+    } else {
+      a.lockAnim = null;
+      this.setAnim(a, 'float');
+    }
+    const target = a.helperTarget ?? { x: a.homeX, y: a.homeY };
+    const bob = Math.sin(this.simT / 550 + a.seed) * 4;
+    const d = this.steer(a, target.x, clamp(target.y + bob, 14, PAGE_H - 14), 44, 16, dt);
+    if (d <= 8) {
+      a.homeX = target.x;
+      a.homeY = target.y;
+    }
   }
 
   private ambient(_dt: number): void {

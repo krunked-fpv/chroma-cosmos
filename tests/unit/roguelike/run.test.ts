@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BRANCHES, CHAPTERS, DRAFT_CARDS } from '../../../src/contracts';
-import type { ChapterId, DraftCardId, RunCore } from '../../../src/contracts';
+import type { BrushId, ChapterId, DraftCardId, RelicId, RunCore } from '../../../src/contracts';
 import { createRunManager } from '../../../src/roguelike';
 
 function playSlot(rm: ReturnType<typeof createRunManager>, pickIndex = 0, doorIndex = 0): void {
@@ -138,5 +138,51 @@ describe('run manager', () => {
     const { join } = await import('node:path');
     const text = readFileSync(join(__dirname, '../../../src/roguelike/index.ts'), 'utf8');
     expect(text).not.toMatch(/setTimeout|setInterval/);
+  });
+
+  it('draws from the full 20-card Astral Pencil Tin pool and produces valid galaxyName for every card', () => {
+    expect(DRAFT_CARDS).toHaveLength(20);
+    const seen = new Set<DraftCardId>();
+    for (let seed = 1; seed <= 120; seed++) {
+      const rm = createRunManager();
+      rm.start(seed * 3571);
+      rm.completeChapter();
+      const opts = rm.draftOptions();
+      expect(opts).toHaveLength(3);
+      expect(new Set(opts).size).toBe(3);
+      for (const id of opts) seen.add(id);
+    }
+    expect(seen.size).toBe(20);
+
+    // Every single one of the 20 cards generates a clean non-undefined galaxyName
+    for (const card of DRAFT_CARDS) {
+      const rm = createRunManager();
+      rm.resume({
+        seed: 77,
+        chapterIndex: 2,
+        path: ['rooftop', 'milkshakeNebula', 'cheetahSavannah'],
+        brushes: card.type === 'brush' ? ['standard', card.id as BrushId] : ['standard'],
+        relics: card.type === 'relic' ? [card.id as RelicId] : [],
+        phase: 'chapter',
+      });
+      const name = rm.galaxyName();
+      expect(name).toMatch(/^The \S+ \S+ \S+$/);
+      expect(name).not.toContain('undefined');
+    }
+
+    // Pairing two distinct Sprint 2 cards uses both flavor words cleanly
+    const pairRm = createRunManager();
+    pairRm.resume({
+      seed: 123,
+      chapterIndex: 3,
+      path: ['rooftop', 'milkshakeNebula', 'cheetahSavannah', 'bubbleTea'],
+      brushes: ['standard', 'cometMeteor', 'moonbeamQuill'],
+      relics: ['sleepyMoonCat', 'constellationCrown'],
+      phase: 'chapter',
+    });
+    const pairName = pairRm.galaxyName();
+    expect(pairName).toMatch(/^The \S+ \S+ \S+$/);
+    expect(pairName).toContain('Meteor');
+    expect(pairName).toContain('Crown');
   });
 });

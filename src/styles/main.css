@@ -1,38 +1,50 @@
 /* ==========================================================================
-   Chroma Cosmos — Violet's Living Sketchbook
-   An enchanted, spiral-bound sketchbook resting on a cosy twilight desk.
-   No external fonts / CDNs. All interactive targets >= 56px (--hit).
+   Chroma Cosmos — Violet's Living Sketchbook (Wanderlings Heirloom Tabletop)
+   Warm lamp-lit cedar desk, open deckle-edged cotton sketchbook (>=78% viewport),
+   carved cedar wooden tool groove, stitched linen bookmark, corked crystal jar,
+   and 4 handcrafted tabletop craft stations.
+   Zero external CDN fonts or images. All interactive targets >= 56px (--hit).
    ========================================================================== */
 
 :root {
   --hit: 56px;
   --ink: #231942;
-  --ink-soft: rgba(35, 25, 66, 0.55);
+  --ink-warm: #362547;
+  --ink-soft: rgba(35, 25, 66, 0.58);
   --paper: #fbf3e0;
-  --paper-2: #f4e7c8;
-  --paper-3: #e9d7ad;
+  --paper-2: #f4e6c7;
+  --paper-3: #e6d2a4;
+  --linen: #2d2654;
+  --linen-2: #1f1a3e;
+  --cedar-hi: #8a5434;
+  --cedar: #633922;
+  --cedar-deep: #3d2115;
+  --brass-hi: #f1d48a;
+  --brass: #c99848;
+  --brass-deep: #7f5920;
+  --wax: #a93748;
+  --wax-deep: #73202e;
   --night: #120d2b;
   --violet: #7b3fa0;
-  --plum: #5b2a86;
   --pink: #ff9ecf;
   --gold: #ffd43b;
-  --amber: #ffb547;
+  --amber: #f5aa42;
   --aurora: #7fe7f0;
   --lilac: #b69cff;
   --mint: #b5f2d0;
   --font: ui-rounded, "Segoe UI Rounded", "SF Pro Rounded", "Trebuchet MS", system-ui, sans-serif;
-  --rim: clamp(7px, 1.7vmin, 18px);
-  --gap: clamp(6px, 1.1vmin, 12px);
-  --spiral-w: clamp(20px, 3.2vmin, 34px);
-  --rail-w: 92px;
-  --hub-w: clamp(300px, 33vw, 440px);
-  --radius: 18px;
-  --chunk: 0 4px 0 var(--ink);
+  --font-serif: "Palatino Linotype", "Book Antiqua", Georgia, "Iowan Old Style", serif;
+  --rim-x: clamp(8px, 1vw, 14px);
+  --rim-top: clamp(6px, 0.85dvh, 10px);
+  --tray-h: clamp(62px, 8.4dvh, 72px);
+  --gap: clamp(5px, 0.9vmin, 10px);
+  --radius: 16px;
+  --chunk: 0 3px 0 var(--ink);
   --chunk-pressed: 0 1px 0 var(--ink);
   color-scheme: light;
 }
 
-/* ---------- full-viewport, no scroll, no rubber band, no selection ---------- */
+/* ---------- full-viewport kid-proof touch lock (no scroll, no rubber band, no selection) ---------- */
 html,
 body,
 #app {
@@ -82,287 +94,112 @@ button,
   display: none !important;
 }
 
+/* ---------- warm lamp-lit cedar desk surface ---------- */
 .cc-root {
   position: fixed;
   inset: 0;
   overflow: hidden;
   font-family: var(--font);
   color: var(--ink);
-  /* the cosy twilight desk: warm lamp glow, walnut grain, twilight vignette */
   background:
-    radial-gradient(ellipse 55% 75% at 8% -8%, rgba(255, 196, 110, 0.55), rgba(255, 170, 90, 0.12) 45%, transparent 70%),
-    radial-gradient(ellipse 90% 60% at 100% 110%, rgba(18, 13, 43, 0.85), transparent 70%),
-    repeating-linear-gradient(178deg, rgba(0, 0, 0, 0.07) 0 2px, transparent 2px 7px, rgba(255, 230, 200, 0.035) 7px 9px, transparent 9px 19px),
-    repeating-radial-gradient(ellipse 160% 22% at 35% 42%, rgba(70, 35, 15, 0.22) 0 2px, transparent 2px 13px),
-    linear-gradient(180deg, #6e4429 0%, #533120 45%, #3a2219 80%, #2a1830 100%);
+    radial-gradient(ellipse 52% 68% at 6% -6%, rgba(255, 206, 128, 0.48), rgba(255, 174, 92, 0.14) 44%, transparent 72%),
+    radial-gradient(ellipse 68% 58% at 96% 104%, rgba(16, 11, 40, 0.88), transparent 72%),
+    radial-gradient(ellipse 90% 90% at 50% 45%, transparent 56%, rgba(14, 9, 32, 0.62) 100%),
+    repeating-linear-gradient(179deg, rgba(16, 8, 4, 0.08) 0 2px, transparent 2px 8px, rgba(255, 224, 180, 0.032) 8px 10px, transparent 10px 21px),
+    repeating-radial-gradient(ellipse 170% 20% at 32% 48%, rgba(56, 26, 12, 0.24) 0 2px, transparent 2px 15px),
+    linear-gradient(180deg, #684028 0%, #4e2d1d 42%, #351f18 78%, #22142b 100%);
 }
 
-/* ---------- desk decorations (crayons + twinkly stars) ---------- */
+/* ---------- ambient lamp glow & drifting golden dust motes ---------- */
 .cc-desk {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
 }
 
 .cc-lamp {
   position: absolute;
-  left: -6vmin;
-  top: -10vmin;
-  width: 46vmin;
-  height: 46vmin;
+  left: -8vmin;
+  top: -12vmin;
+  width: 52vmin;
+  height: 52vmin;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 214, 140, 0.35), transparent 65%);
-  animation: cc-lamp 7s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(255, 222, 152, 0.36), rgba(255, 186, 98, 0.08) 52%, transparent 70%);
+  animation: cc-lamp 7.5s ease-in-out infinite alternate;
 }
 
-.cc-crayon {
+.cc-lamp-halo {
   position: absolute;
-  height: 9px;
-  width: 64px;
-  border-radius: 2px 5px 5px 2px;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.35);
+  right: -10vmin;
+  bottom: -14vmin;
+  width: 44vmin;
+  height: 44vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(123, 63, 160, 0.24), transparent 68%);
 }
 
-.cc-crayon::after {
-  content: "";
+.cc-dust-mote {
   position: absolute;
-  right: -10px;
-  top: 0;
-  border-left: 10px solid currentColor;
-  border-top: 4.5px solid transparent;
-  border-bottom: 4.5px solid transparent;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8d6 0%, rgba(255, 212, 110, 0.55) 55%, transparent 100%);
+  filter: drop-shadow(0 0 4px rgba(255, 214, 120, 0.8));
+  opacity: 0.45;
+  animation: cc-dust-drift 13s ease-in-out infinite;
 }
 
-.cc-crayon.k1 { color: #ff6b6b; background: linear-gradient(#ff8f8f, #e04f4f); left: 18%; bottom: 0; transform: translateY(35%) rotate(-4deg); }
-.cc-crayon.k2 { color: #4dabf7; background: linear-gradient(#7cc4ff, #2f8fdc); left: 26%; bottom: 0; width: 48px; transform: translateY(50%) rotate(7deg); }
-.cc-crayon.k3 { color: #ffd43b; background: linear-gradient(#ffe27a, #e9b800); right: 3%; top: 0; transform: translateY(-30%) rotate(176deg); }
+.cc-dust-mote.m1 { left: 11%; top: 18%; animation-delay: 0s; width: 4px; height: 4px; }
+.cc-dust-mote.m2 { left: 26%; top: 4%; animation-delay: -2.4s; animation-duration: 15s; }
+.cc-dust-mote.m3 { right: 18%; top: 6%; animation-delay: -5.1s; width: 4px; height: 4px; }
+.cc-dust-mote.m4 { right: 4%; top: 44%; animation-delay: -8.2s; animation-duration: 16s; }
+.cc-dust-mote.m5 { left: 3%; bottom: 26%; animation-delay: -3.7s; width: 6px; height: 6px; }
+.cc-dust-mote.m6 { right: 14%; bottom: 14%; animation-delay: -6.5s; width: 4px; height: 4px; }
+.cc-dust-mote.m7 { left: 54%; bottom: 6%; animation-delay: -10.2s; }
 
-.cc-desk-star {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  background: #fff4c4;
-  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  filter: drop-shadow(0 0 3px #ffe08a);
-  animation: cc-twinkle 3.2s ease-in-out infinite;
-}
-
-.cc-desk-star.d1 { left: 46%; top: 2px; animation-delay: 0.4s; }
-.cc-desk-star.d2 { right: 2px; top: 38%; animation-delay: 1.2s; width: 6px; height: 6px; }
-.cc-desk-star.d3 { left: 64%; bottom: 1px; animation-delay: 2s; }
-.cc-desk-star.d4 { left: 3px; bottom: 22%; animation-delay: 0.9s; width: 5px; height: 5px; }
-.cc-desk-star.d5 { right: 30%; top: 1px; animation-delay: 2.6s; width: 5px; height: 5px; }
-
-/* ---------- the sketchbook ---------- */
-.cc-book {
-  position: absolute;
-  inset: var(--rim);
-  display: grid;
-  gap: var(--gap);
-  padding: var(--gap) calc(var(--gap) + 2px) var(--gap) calc(var(--gap) + var(--spiral-w) * 0.75);
-  border-radius: 10px 20px 18px 10px;
-  /* paper tooth + warm lamp light + subtle cotton fibres */
-  background:
-    radial-gradient(ellipse 70% 90% at 0% 0%, rgba(255, 205, 130, 0.22), transparent 60%),
-    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.055) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    repeating-linear-gradient(33deg, rgba(160, 120, 60, 0.025) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #fdf7e8 0%, var(--paper) 40%, #f6ead0 100%);
-  box-shadow:
-    1px 2px 0 #eadcb9,
-    2px 4px 0 #dccaa2,
-    3px 6px 0 #cdb88c,
-    4px 8px 0 #bba57a,
-    0 18px 34px rgba(10, 4, 20, 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
-    inset 18px 0 22px -16px rgba(91, 42, 134, 0.18);
-  grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--rail-w);
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "top top top"
-    "railL stage railR"
-    "dock dock dock";
-}
-
-/* spiral binding: wire coils punched through the left edge of the page */
-.cc-spiral {
-  position: absolute;
-  left: calc(var(--spiral-w) * -0.5);
-  top: 14px;
-  bottom: 14px;
-  width: var(--spiral-w);
-  pointer-events: none;
-  z-index: 2;
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 24'%3E%3Cellipse cx='25' cy='12' rx='3.4' ry='3' fill='%233a2a3f'/%3E%3Cpath d='M25 12 C 18 2, 4 4, 4 12' fill='none' stroke='%23231942' stroke-width='4.6' stroke-linecap='round'/%3E%3Cpath d='M25 12 C 18 2, 4 4, 4 12' fill='none' stroke='%23d9d4e8' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M20 7 C 15 5, 9 6, 7 9' fill='none' stroke='%23ffffff' stroke-width='1' stroke-linecap='round' opacity='.85'/%3E%3C/svg%3E")
-    center top / 100% calc(var(--spiral-w) * 0.72) repeat-y;
-  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.35));
-}
-
-/* dog-eared page curl at the bottom-right corner */
-.cc-curl {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: clamp(26px, 4.2vmin, 46px);
-  height: clamp(26px, 4.2vmin, 46px);
-  pointer-events: none;
-  border-radius: 0 0 18px 0;
-  background: linear-gradient(to top left, #3a2219 0 47%, rgba(35, 25, 66, 0.45) 48%, #d8c291 50%, #f1e2bd 62%, #fff8e6 100%);
-  box-shadow: -3px -3px 6px -2px rgba(35, 25, 66, 0.25);
-  z-index: 0;
-}
-
-/* ---------- top bar ---------- */
-.cc-top {
-  grid-area: top;
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-  min-height: var(--hit);
-  min-width: 0;
-  position: relative;
-  z-index: 3;
-}
-
-.cc-top-spacer {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.cc-ribbon {
-  position: relative;
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: min(52vw, 640px);
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 4px 30px 6px 22px;
-  color: #fff;
-  background: linear-gradient(180deg, #9b5ccc 0%, var(--violet) 55%, #5e2c82 100%);
-  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 50%, 100% 100%, 0 100%, 10px 50%);
-  filter: drop-shadow(0 3px 0 rgba(35, 25, 66, 0.9));
-}
-
-.cc-ribbon::before {
-  content: "";
-  position: absolute;
-  inset: 4px 18px 5px 14px;
-  border-top: 2px dashed rgba(255, 255, 255, 0.35);
-  border-bottom: 2px dashed rgba(255, 255, 255, 0.35);
-  pointer-events: none;
-}
-
-.cc-ribbon-text {
-  position: relative;
-  font-weight: 800;
-  font-size: clamp(13px, 2.3vmin, 21px);
-  line-height: 1.15;
-  letter-spacing: 0.01em;
-  text-shadow: 0 2px 0 rgba(35, 25, 66, 0.6);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.cc-gems {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 44px;
-  padding: 0 14px 0 6px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff 0%, #eef7ff 100%);
-  border: 3px solid var(--ink);
-  box-shadow: 0 3px 0 var(--ink);
-  font-weight: 900;
-  font-size: clamp(16px, 2.6vmin, 22px);
-  font-variant-numeric: tabular-nums;
-  transform: rotate(-1.5deg);
-}
-
-.cc-gem-ico {
-  width: 32px;
-  height: 32px;
-  filter: drop-shadow(0 0 4px rgba(127, 231, 240, 0.9));
-  animation: cc-gem-glint 4s ease-in-out infinite;
-}
-
-.cc-relics {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.cc-relics:empty {
-  display: none;
-}
-
-.cc-sticker {
-  display: inline-grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  padding: 3px;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 0 0 2px rgba(35, 25, 66, 0.85), 0 3px 4px rgba(35, 25, 66, 0.35);
-  transform: rotate(var(--tilt, 0deg));
-}
-
-.cc-sticker canvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-}
-
-/* ---------- generic chunky button ---------- */
+/* ---------- generic accessible interactive base (>= 56px hit target) ---------- */
 .cc-btn {
   position: relative;
   min-width: var(--hit);
   min-height: var(--hit);
   margin: 0;
   padding: 6px 12px;
-  border: 3px solid var(--ink);
+  border: 2.5px solid var(--ink);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, #fffdf6 0%, var(--paper-2) 100%);
+  background: linear-gradient(180deg, #fffdf7 0%, var(--paper-2) 100%);
   color: var(--ink);
   font: inherit;
   font-weight: 800;
   line-height: 1.1;
   cursor: pointer;
   box-shadow: var(--chunk);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease, filter 0.2s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.18s ease, opacity 0.2s ease;
   outline: none;
   -webkit-appearance: none;
   appearance: none;
 }
 
 .cc-btn:active:not(:disabled) {
-  transform: translateY(3px);
+  transform: translateY(2px);
   box-shadow: var(--chunk-pressed);
 }
 
 .cc-btn:focus-visible {
-  box-shadow: var(--chunk), 0 0 0 4px var(--paper), 0 0 0 7px var(--violet);
+  box-shadow: var(--chunk), 0 0 0 3px var(--paper), 0 0 0 6px var(--brass);
 }
 
 .cc-btn:disabled {
   cursor: default;
-  opacity: 0.4;
-  filter: saturate(0.4);
+  opacity: 0.42;
+  filter: saturate(0.45);
 }
 
 .cc-ico {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   flex: none;
   pointer-events: none;
 }
@@ -391,112 +228,125 @@ button,
 }
 
 .cc-round .cc-ico {
-  width: 34px;
-  height: 34px;
-}
-
-/* parent audio cycle: 4 distinct visual states */
-.cc-audio[data-level="3"] { background: radial-gradient(circle at 35% 30%, #fff7cf, var(--gold) 70%); }
-.cc-audio[data-level="2"] { background: radial-gradient(circle at 35% 30%, #ffe6f3, var(--pink) 75%); }
-.cc-audio[data-level="1"] { background: radial-gradient(circle at 35% 30%, #efe8ff, var(--lilac) 80%); }
-.cc-audio[data-level="0"] {
-  background: radial-gradient(circle at 35% 30%, #4b3d7a, #241a4d 75%);
-  box-shadow: var(--chunk), inset 0 0 0 2px rgba(182, 156, 255, 0.45);
-}
-
-.cc-home { background: radial-gradient(circle at 35% 30%, #fff, #ffe1ef 80%); }
-
-/* install sketchbook star badge */
-.cc-install-wrap {
-  flex: none;
-  display: flex;
-  align-items: center;
-}
-
-.cc-install {
-  min-height: var(--hit);
-  padding: 4px 16px 4px 8px;
-  border-radius: 999px;
-  border-style: dashed;
-  background: linear-gradient(180deg, #fff9df 0%, #ffe9a6 100%);
-  font-size: clamp(12px, 1.9vmin, 15px);
-}
-
-.cc-install-inner {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.cc-install-star {
   width: 30px;
   height: 30px;
-  animation: cc-spin-slow 9s linear infinite;
 }
 
-.cc-install-x {
-  min-width: var(--hit);
-  min-height: var(--hit);
-  width: var(--hit);
-  height: var(--hit);
-  margin-left: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  display: grid;
-  place-items: center;
-  color: var(--ink);
+/* ---------- open cotton sketchbook spread (>= 78% viewport in chapter mode!) ---------- */
+.cc-book.cc-spread {
+  position: absolute;
+  top: var(--rim-top);
+  left: var(--rim-x);
+  right: var(--rim-x);
+  bottom: calc(var(--tray-h) + 4px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(34px, 4.8dvh, 44px) clamp(14px, 1.5vw, 22px) clamp(10px, 1.5dvh, 16px) clamp(26px, 2.6vw, 36px);
+  border-radius: 10px 18px 16px 10px;
+  /* organic cotton paper tooth + warm candlelight wash + hand-deckled inner border */
+  background:
+    radial-gradient(ellipse 68% 82% at 2% 2%, rgba(255, 212, 142, 0.24), transparent 58%),
+    radial-gradient(circle at 1px 1px, rgba(45, 34, 70, 0.045) 1px, transparent 1.6px) 0 0 / 5px 5px,
+    repeating-linear-gradient(28deg, rgba(164, 124, 68, 0.025) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #fef9ee 0%, var(--paper) 42%, #f4e6c9 100%);
+  box-shadow:
+    0 0 0 1px rgba(102, 72, 42, 0.35),
+    1px 2px 0 #eadab8,
+    2px 4px 0 #dac69d,
+    3px 6px 0 #c9b286,
+    4px 8px 0 #b39b70,
+    0 18px 38px rgba(8, 4, 20, 0.62),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.65),
+    inset 22px 0 26px -16px rgba(58, 36, 84, 0.24);
+  transition: bottom 0.24s ease, padding 0.24s ease;
 }
 
-.cc-install-x .cc-ico {
-  width: 24px;
-  height: 24px;
-  padding: 5px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 2px var(--ink);
+/* subtle stitched linen spine binding on the left margin */
+.cc-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: clamp(18px, 2vw, 26px);
+  border-radius: 10px 0 0 10px;
+  pointer-events: none;
+  z-index: 3;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 246, 224, 0.07) 0 2px, transparent 2px 4px),
+    linear-gradient(90deg, #251e49 0%, #372d64 55%, #231b44 88%, rgba(35, 25, 66, 0.4) 100%);
+  box-shadow: inset -2px 0 3px rgba(0, 0, 0, 0.35), 2px 0 6px rgba(35, 25, 66, 0.25);
 }
 
-.cc-install-x:active:not(:disabled),
-.cc-install-x:focus-visible {
-  transform: none;
-  box-shadow: none;
+/* linen saddle stitching running along the spine seam */
+.cc-spine::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  right: 4px;
+  width: 2px;
+  border-right: 2px dashed rgba(247, 232, 198, 0.65);
 }
 
-/* ---------- stage: the page that holds the 16:9 canvas ---------- */
+/* tarnished brass corner clasps */
+.cc-clasp {
+  position: absolute;
+  width: clamp(22px, 2.8vmin, 30px);
+  height: clamp(22px, 2.8vmin, 30px);
+  pointer-events: none;
+  z-index: 5;
+  filter: drop-shadow(0 1px 2px rgba(18, 12, 34, 0.45));
+}
+
+.cc-clasp.tl { top: -2px; left: -2px; }
+.cc-clasp.bl { bottom: -2px; left: -2px; transform: scaleY(-1); }
+
+/* delicate hand-drawn botanical/celestial ink corner filigree */
+.cc-filigree {
+  position: absolute;
+  width: clamp(32px, 4.4vmin, 44px);
+  height: clamp(32px, 4.4vmin, 44px);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.72;
+}
+
+.cc-filigree.tl { top: 8px; left: clamp(22px, 2.4vw, 32px); }
+.cc-filigree.bl { bottom: 8px; left: clamp(22px, 2.4vw, 32px); transform: scaleY(-1); }
+
+/* ---------- stage: 16:9 Hi-Bit sketchbook canvas ---------- */
 .cc-stage {
-  grid-area: stage;
   position: relative;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   display: grid;
   place-items: center;
   container-type: size;
+  z-index: 2;
 }
 
 .cc-frame {
   position: relative;
   width: 100%;
-  width: min(calc(100cqw - 12px), calc((100cqh - 12px) * 16 / 9));
+  width: min(calc(100cqw - 6px), calc((100cqh - 6px) * 16 / 9));
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
-  /* hand-inked double frame, like a page drawn in the sketchbook */
+  border-radius: 7px;
   box-shadow:
-    0 0 0 3px var(--ink),
-    0 0 0 6px #fffaf0,
-    0 0 0 7.5px rgba(35, 25, 66, 0.28),
-    0 10px 22px rgba(35, 25, 66, 0.28);
+    0 0 0 2.5px var(--ink),
+    0 0 0 5.5px #fffbf2,
+    0 0 0 7px rgba(58, 40, 84, 0.22),
+    0 8px 20px rgba(35, 25, 66, 0.22);
 }
 
 .cc-canvas-host {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 5px;
   background:
-    radial-gradient(ellipse at 50% 120%, rgba(123, 63, 160, 0.45), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(123, 63, 160, 0.4), transparent 60%),
     #120d2b;
   touch-action: none;
   cursor: crosshair;
@@ -509,7 +359,7 @@ button,
   image-rendering: pixelated;
 }
 
-/* gentle loading sparkle */
+/* gentle boot shimmer */
 .cc-boot {
   position: absolute;
   inset: 0;
@@ -517,223 +367,550 @@ button,
   place-items: center;
   align-content: center;
   gap: 10px;
-  border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 45%, rgba(42, 31, 85, 0.72), rgba(18, 13, 43, 0.9));
+  border-radius: 5px;
+  background: radial-gradient(ellipse at 50% 45%, rgba(42, 31, 85, 0.72), rgba(18, 13, 43, 0.92));
   color: #fff3d0;
   pointer-events: none;
 }
 
-.cc-root[data-mode="boot"] .cc-boot {
-  display: grid;
-}
+.cc-root[data-mode="boot"] .cc-boot { display: grid; }
 
 .cc-boot-spark {
   grid-area: 1 / 1;
-  width: clamp(40px, 9vmin, 84px);
-  height: clamp(40px, 9vmin, 84px);
+  width: clamp(38px, 8vmin, 76px);
+  height: clamp(38px, 8vmin, 76px);
   animation: cc-boot 2.4s ease-in-out infinite;
   filter: drop-shadow(0 0 12px rgba(255, 212, 59, 0.85));
 }
 
-.cc-boot-spark .cc-ico {
-  width: 100%;
-  height: 100%;
-}
-
-.cc-boot-spark.s2 { transform: translate(-150%, 40%) scale(0.45); animation-delay: 0.5s; width: clamp(20px, 4vmin, 40px); height: clamp(20px, 4vmin, 40px); }
-.cc-boot-spark.s3 { transform: translate(170%, -50%) scale(0.35); animation-delay: 1s; width: clamp(20px, 4vmin, 40px); height: clamp(20px, 4vmin, 40px); }
+.cc-boot-spark .cc-ico { width: 100%; height: 100%; }
+.cc-boot-spark.s2 { transform: translate(-150%, 40%) scale(0.45); animation-delay: 0.5s; width: clamp(20px, 4vmin, 36px); height: clamp(20px, 4vmin, 36px); }
+.cc-boot-spark.s3 { transform: translate(170%, -50%) scale(0.35); animation-delay: 1s; width: clamp(20px, 4vmin, 36px); height: clamp(20px, 4vmin, 36px); }
 
 .cc-boot-text {
   grid-area: 2 / 1;
-  margin-top: 18px;
-  font-weight: 800;
-  font-size: clamp(14px, 2.4vmin, 20px);
-  letter-spacing: 0.04em;
+  margin-top: 16px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(14px, 2.3vmin, 20px);
+  letter-spacing: 0.03em;
   text-shadow: 0 2px 6px rgba(18, 13, 43, 0.95);
-  opacity: 0.95;
   animation: cc-breathe 2.4s ease-in-out infinite;
 }
 
-/* ---------- side rails (brushes / progress) ---------- */
-.cc-rail {
-  display: flex;
-  flex-direction: column;
+/* ---------- Stitched Linen Ribbon Bookmark (top center margin of sketchbook) ---------- */
+.cc-bookmark {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  max-width: min(62vw, 620px);
+  pointer-events: none;
+}
+
+.cc-bookmark-ribbon {
+  pointer-events: auto;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--gap);
-  min-width: 0;
-  min-height: 0;
-  transition: opacity 0.25s ease, visibility 0.25s;
-}
-
-.cc-book > :not(.cc-spiral):not(.cc-curl) {
-  position: relative;
-  z-index: 1;
-}
-
-.cc-rail-l { grid-area: railL; }
-.cc-rail-r { grid-area: railR; }
-
-.cc-brushes {
-  display: grid;
-  grid-template-columns: var(--hit);
-  gap: 8px;
-  padding: 8px 6px;
-  border-radius: 22px;
+  gap: clamp(6px, 1vw, 12px);
+  padding: 0 clamp(14px, 1.8vw, 22px) 2px;
+  height: clamp(36px, 4.8dvh, 44px);
+  border-radius: 0 0 14px 14px;
+  color: #fdf6e3;
+  /* woven twilight-indigo linen texture + cream embroidery stitch border */
   background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 12px),
-    linear-gradient(180deg, #c9b3ff 0%, #a487e8 100%);
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.5), inset 0 -4px 0 rgba(35, 25, 66, 0.25), 0 0 0 3px var(--ink);
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #27204d 0%, #372d68 58%, #2a2252 100%);
+  border: 2px solid var(--ink);
+  border-top: 0;
+  box-shadow:
+    0 4px 10px rgba(18, 12, 36, 0.36),
+    inset 0 -2px 0 rgba(255, 225, 160, 0.22);
+  position: relative;
 }
 
-.cc-brushes:empty {
-  display: none;
+.cc-bookmark-ribbon::before {
+  content: "";
+  position: absolute;
+  inset: 2px 6px 4px;
+  border-bottom: 1.5px dashed rgba(244, 228, 192, 0.48);
+  border-left: 1.5px dashed rgba(244, 228, 192, 0.35);
+  border-right: 1.5px dashed rgba(244, 228, 192, 0.35);
+  border-radius: 0 0 10px 10px;
+  pointer-events: none;
 }
 
-.cc-tool {
+.cc-story-sockets {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: -10px 0 -10px -8px;
+}
+
+/* Accessible 56px hit target while keeping the embroidered star sleek & dainty on the ribbon */
+.cc-story-socket {
   width: var(--hit);
   height: var(--hit);
+  margin: 0 -8px;
   padding: 0;
-  border-radius: 16px;
-  display: grid;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  display: inline-grid;
   place-items: center;
 }
 
-.cc-tool .cc-ico {
-  width: 38px;
-  height: 38px;
+.cc-story-socket:active:not(:disabled) {
+  transform: scale(0.92);
+  box-shadow: none;
 }
 
-.cc-tool.is-on {
-  background: linear-gradient(180deg, #fff6c2 0%, var(--gold) 100%);
-  box-shadow: var(--chunk), 0 0 0 3px #fff, 0 0 14px 4px rgba(255, 212, 59, 0.75);
+.cc-story-socket .cc-socket-ico {
+  width: clamp(24px, 3.2vmin, 30px);
+  height: clamp(24px, 3.2vmin, 30px);
+  transition: transform 0.24s cubic-bezier(0.3, 1.8, 0.5, 1), filter 0.25s ease;
 }
 
-.cc-doodle {
-  background: linear-gradient(180deg, #4b3d7a 0%, #2a1f55 100%);
-  border-style: dashed;
-  border-color: #b69cff;
-  box-shadow: 0 4px 0 #120d2b;
+.cc-story-socket:hover .cc-socket-ico {
+  transform: scale(1.12);
 }
 
-.cc-doodle.is-on {
-  background: radial-gradient(circle at 50% 40%, #6c5ce7 0%, #2a1f55 75%);
-  border-style: solid;
-  border-color: var(--gold);
-  box-shadow: 0 4px 0 #120d2b, 0 0 16px 5px rgba(182, 156, 255, 0.85);
-  animation: cc-doodle-glow 1.8s ease-in-out infinite;
+.cc-story-socket.is-lit .cc-socket-ico {
+  filter: drop-shadow(0 0 7px rgba(255, 212, 59, 0.9));
 }
 
-/* progress pips: little stars that light up as friends wake */
-.cc-pips {
-  display: grid;
-  grid-template-columns: repeat(3, 18px);
-  gap: 5px;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 14px;
-  background: rgba(35, 25, 66, 0.07);
-  box-shadow: inset 0 0 0 2px rgba(35, 25, 66, 0.12);
+.cc-story-socket.is-star-burst .cc-socket-ico {
+  animation: cc-socket-pop 0.8s cubic-bezier(0.25, 1.8, 0.45, 1);
 }
 
-.cc-pips:empty {
-  display: none;
+.cc-bookmark-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(12px, 1.85vmin, 16px);
+  letter-spacing: 0.015em;
+  color: #f9eed4;
+  text-shadow: 0 1px 2px rgba(14, 9, 32, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(30vw, 280px);
+  padding-left: 6px;
+  border-left: 1px solid rgba(244, 228, 192, 0.32);
 }
 
-.cc-pip {
-  width: 18px;
-  height: 18px;
-  background: rgba(35, 25, 66, 0.22);
-  clip-path: polygon(50% 0, 63% 35%, 100% 38%, 71% 61%, 81% 100%, 50% 78%, 19% 100%, 29% 61%, 0 38%, 37% 35%);
-  transition: background-color 0.3s ease, transform 0.3s cubic-bezier(0.3, 1.8, 0.5, 1);
-}
-
-.cc-pip.is-on {
-  background: linear-gradient(180deg, #fff3a8, var(--gold) 60%, #f59f00);
-  transform: scale(1.15);
-  filter: drop-shadow(0 0 3px rgba(255, 212, 59, 0.9));
-}
-
-.cc-next {
+/* ---------- Corked Glass Apothecary Jar (top-left desk corner) ---------- */
+.cc-crystal-jar {
+  position: fixed;
+  top: clamp(2px, 0.45dvh, 6px);
+  left: clamp(32px, 3vw, 44px);
+  z-index: 15;
   min-width: var(--hit);
-  width: 100%;
-  max-width: 140px;
-  padding: 8px 6px;
+  min-height: var(--hit);
+  padding: 2px 6px 2px 2px;
+  border: 0;
   border-radius: 20px;
-  background: linear-gradient(180deg, #fff6c2 0%, var(--gold) 60%, var(--amber) 100%);
-  animation: cc-door-pulse 1.6s ease-in-out infinite;
+  background: transparent;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
 }
 
-.cc-next-inner,
-.cc-early-inner {
-  display: flex;
-  flex-direction: column;
+.cc-crystal-jar:hover {
+  filter: drop-shadow(0 0 8px rgba(155, 232, 255, 0.55));
+}
+
+.cc-crystal-jar:active:not(:disabled) {
+  transform: translateY(2px) scale(0.96);
+  box-shadow: none;
+}
+
+.cc-jar-inner {
+  position: relative;
+  display: inline-flex;
   align-items: center;
   gap: 2px;
 }
 
-.cc-next .cc-ico {
-  width: 36px;
-  height: 36px;
+.cc-jar-art {
+  display: inline-grid;
+  place-items: center;
+  width: clamp(46px, 6.2vmin, 56px);
+  height: clamp(46px, 6.2vmin, 56px);
+  filter: drop-shadow(0 4px 6px rgba(12, 8, 28, 0.55));
+  transition: transform 0.2s ease;
 }
 
-.cc-next-label {
-  font-size: clamp(13px, 1.9vmin, 16px);
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-/* tucked "Turn Page Early" tab: present but quiet */
-.cc-early {
-  min-width: var(--hit);
+.cc-jar-art svg {
   width: 100%;
-  max-width: 120px;
-  padding: 6px 4px;
-  border-width: 2px;
-  border-style: dashed;
-  border-radius: 14px 14px 14px 4px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(244, 231, 200, 0.85));
-  box-shadow: 0 2px 0 rgba(35, 25, 66, 0.45);
-  color: var(--ink-soft);
-  opacity: 0.85;
+  height: 100%;
+  overflow: visible;
 }
 
-.cc-early .cc-ico {
+.cc-crystal-jar.is-clinking .cc-jar-art {
+  animation: cc-jar-tumble 0.65s ease;
+}
+
+.cc-crystal-jar.is-clinking .cc-jar-shard {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cc-shard-shimmer 0.6s ease both;
+  animation-delay: calc(var(--si, 0) * 28ms);
+}
+
+.cc-jar-tag {
+  margin-left: -8px;
+  margin-top: 10px;
+  padding: 2px 8px 2px 7px;
+  border-radius: 5px 10px 10px 5px;
+  background: linear-gradient(180deg, #fffaf0 0%, #eddcb8 100%);
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 rgba(35, 25, 66, 0.78), 0 4px 8px rgba(12, 8, 28, 0.35);
+  font-weight: 900;
+  font-size: clamp(13px, 1.9vmin, 16px);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transform: rotate(-4deg);
+}
+
+.cc-jar-drops {
+  position: absolute;
+  top: -8px;
+  left: 20px;
+  width: 16px;
+  height: 40px;
+  pointer-events: none;
+}
+
+.cc-crystal-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  filter: drop-shadow(0 0 5px var(--c, #7fe7f0));
+  animation: cc-crystal-fall 0.68s cubic-bezier(0.35, 0, 0.7, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* ---------- Top-Right Corner Cluster (Relic wax-charms + Quiet Brass Bell) ---------- */
+.cc-corner-right {
+  position: absolute;
+  top: 2px;
+  right: clamp(58px, 6.2vw, 72px);
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.cc-corner-right > * {
+  pointer-events: auto;
+}
+
+.cc-relics {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cc-relics:empty {
+  display: none;
+}
+
+.cc-wax-charm {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f5da96, var(--brass) 65%, var(--brass-deep) 100%);
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 4px rgba(18, 12, 34, 0.42), inset 0 1px 0 rgba(255, 250, 224, 0.7);
+  transform: rotate(var(--tilt, 0deg));
+}
+
+.cc-wax-charm canvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* Quiet corner tarnished-brass audio bell (4 unmistakable states 3 -> 2 -> 1 -> 0) */
+.cc-audio {
+  width: var(--hit);
+  height: var(--hit);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cc-audio::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 rgba(35, 25, 66, 0.75), inset 0 1.5px 0 rgba(255, 250, 220, 0.7);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cc-audio .cc-ico {
+  position: relative;
+  z-index: 1;
   width: 26px;
   height: 26px;
 }
 
-.cc-early-label {
-  font-size: 12px;
-  font-weight: 800;
+.cc-audio[data-level="3"]::before { background: radial-gradient(circle at 35% 28%, #fff6cc, #e8be63 72%, #b07c29 100%); }
+.cc-audio[data-level="2"]::before { background: radial-gradient(circle at 35% 28%, #ffe5f0, #f09fc2 75%, #b55c87 100%); }
+.cc-audio[data-level="1"]::before { background: radial-gradient(circle at 35% 28%, #eee6ff, #b39cf2 78%, #765cb8 100%); }
+.cc-audio[data-level="0"]::before { background: radial-gradient(circle at 35% 28%, #473a74, #251c48 78%); }
+
+/* ---------- Diegetic Parchment Dog-Ear Page-Curl Navigation ---------- */
+.cc-dogear {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  display: inline-grid;
+  place-items: center;
+  z-index: 10;
+}
+
+.cc-dogear:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.cc-dogear-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.cc-dogear-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+/* Glowing curled bottom-right parchment dog-ear (pageComplete === true) */
+.cc-dogear-next {
+  right: 0;
+  bottom: 0;
+  width: clamp(68px, 9.2vmin, 88px);
+  height: clamp(68px, 9.2vmin, 88px);
+  border-radius: 0 0 16px 0;
+  transform-origin: 100% 100%;
+  transform: scale(calc(1 + var(--curl-pull, 0) * 0.18));
+  filter: drop-shadow(-4px -4px 12px rgba(255, 212, 82, 0.72));
+  animation: cc-dogear-glow 2.2s ease-in-out infinite;
+}
+
+.cc-dogear-next:hover,
+.cc-dogear-next.is-pulling {
+  transform: scale(calc(1.08 + var(--curl-pull, 0) * 0.2));
+  filter: drop-shadow(-6px -6px 18px rgba(255, 224, 112, 0.92));
+}
+
+/* Subtle unlit top-right folded parchment corner (optional early page turn) */
+.cc-dogear-early {
+  top: 0;
+  right: 0;
+  width: var(--hit);
+  height: var(--hit);
+  border-radius: 0 18px 0 0;
+  opacity: 0.74;
+  transform-origin: 100% 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cc-dogear-early .cc-dogear-svg {
+  width: 44px;
+  height: 44px;
+  margin: 0 0 auto auto;
+}
+
+.cc-dogear-early:hover {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+/* ---------- Bottom Carved Cedar Wooden Pencil & Paintbox Groove ---------- */
+.cc-dock.cc-wood-dock {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(4px, 0.7dvh, 8px);
+  transform: translateX(-50%);
+  z-index: 16;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transition: opacity 0.24s ease, visibility 0.24s ease;
+}
+
+/* Whisper parchment micro-tag (<= 4 words, auto-fades cleanly after 2500ms) */
+.cc-tool-tag {
+  pointer-events: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 9px;
+  border-radius: 10px 14px 12px 10px;
+  background: linear-gradient(180deg, #fffbf0 0%, #f1e3c2 100%);
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 rgba(35, 25, 66, 0.75), 0 6px 14px rgba(12, 8, 28, 0.35);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(12px, 1.8vmin, 15px);
+  color: var(--ink);
   white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.28s ease, transform 0.28s ease;
 }
 
-/* ---------- Pencil Dock (bottom) ---------- */
-.cc-dock {
-  grid-area: dock;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  min-width: 0;
-  transition: opacity 0.25s ease, visibility 0.25s;
+.cc-tool-tag.is-fading {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-4px);
 }
 
-.cc-tin {
-  max-width: 100%;
-  padding: 6px 10px 6px;
-  border-radius: 20px 20px 16px 16px;
+.cc-tool-tag-glyph {
+  width: 16px;
+  height: 16px;
+}
+
+/* Hand-carved cedar wood trough */
+.cc-wood-groove {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(3px, 0.6vw, 8px);
+  padding: 3px clamp(8px, 1.2vw, 14px);
+  border-radius: 18px 18px 14px 14px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0 3px, transparent 3px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 14px),
-    linear-gradient(180deg, #8f74d6 0%, #6c52b8 55%, #533c96 100%);
-  box-shadow: 0 0 0 3px var(--ink), 0 5px 0 3px var(--ink), inset 0 -6px 10px rgba(18, 13, 43, 0.35);
+    linear-gradient(180deg, rgba(255, 224, 178, 0.24) 0 2px, transparent 2px),
+    repeating-linear-gradient(90deg, rgba(28, 12, 4, 0.08) 0 3px, transparent 3px 16px),
+    linear-gradient(180deg, #7c4b2c 0%, #5e351e 55%, #442415 100%);
+  border: 2.5px solid #24130d;
+  box-shadow:
+    0 5px 14px rgba(8, 4, 18, 0.62),
+    inset 0 5px 9px rgba(24, 11, 5, 0.55),
+    inset 0 -2px 0 rgba(255, 218, 166, 0.24);
 }
 
+.cc-tools-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(2px, 0.4vw, 5px);
+}
+
+.cc-brush-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border-radius: 12px;
+  background: rgba(24, 11, 6, 0.28);
+  box-shadow: inset 0 2px 5px rgba(10, 4, 2, 0.45);
+}
+
+.cc-groove-sep {
+  width: 3px;
+  height: 36px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass-deep));
+  box-shadow: 0 0 0 1px rgba(24, 12, 8, 0.65);
+  flex: none;
+}
+
+/* Enchanted Pencil, Starlight Wand & Special Brush notches inside the wooden groove */
+.cc-wood-tool {
+  width: var(--hit);
+  height: var(--hit);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: none;
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.24s cubic-bezier(0.3, 1.75, 0.5, 1), filter 0.2s ease;
+}
+
+.cc-wood-tool::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 12px;
+  background: rgba(28, 14, 8, 0.36);
+  border: 1.5px solid rgba(255, 224, 178, 0.16);
+  box-shadow: inset 0 2px 4px rgba(12, 5, 2, 0.55);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cc-wood-tool:active:not(:disabled) {
+  transform: translateY(1px) scale(0.95);
+  box-shadow: none;
+}
+
+.cc-wood-ico {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+}
+
+.cc-brush-ico {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+}
+
+.cc-wood-tool.is-on {
+  transform: translateY(-7px);
+}
+
+.cc-wood-tool.is-on::before {
+  background: radial-gradient(circle at 50% 35%, rgba(255, 240, 178, 0.42), rgba(201, 152, 72, 0.28) 75%);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--ink), 0 0 14px 3px rgba(255, 212, 59, 0.72);
+}
+
+.cc-tool-wand.is-on::before {
+  background: radial-gradient(circle at 50% 35%, rgba(182, 156, 255, 0.45), rgba(45, 34, 88, 0.55) 80%);
+  border-color: #ffe28a;
+  box-shadow: 0 0 0 2px var(--ink), 0 0 16px 4px rgba(182, 156, 255, 0.85);
+}
+
+/* Golden starlight invitation halo while Chapter 1 Starlight Wisp cues the Enchanted Pencil */
+.cc-tool-pencil.is-wisp-cue::before {
+  border-color: #fff3b0;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 18px 6px rgba(255, 218, 92, 0.92);
+  animation: cc-wisp-halo 1.35s ease-in-out infinite;
+}
+
+/* Sculpted medium swatches nestled in the wooden paintbox groove */
 .cc-swatches {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(1px, 0.25vw, 4px);
 }
 
 .cc-swatch {
@@ -744,22 +921,22 @@ button,
   border-radius: 14px;
   background: transparent;
   box-shadow: none;
-  transition: transform 0.25s cubic-bezier(0.3, 1.7, 0.5, 1);
+  transition: transform 0.24s cubic-bezier(0.3, 1.75, 0.5, 1);
 }
 
 .cc-swatch:active:not(:disabled) {
-  transform: translateY(2px);
+  transform: translateY(1px);
   box-shadow: none;
 }
 
 .cc-swatch-body {
   position: absolute;
-  inset: 3px;
+  inset: 5px;
   border-radius: 12px;
   overflow: hidden;
-  border: 3px solid var(--ink);
+  border: 2.5px solid var(--ink);
   background: linear-gradient(135deg, var(--sw-a, #fff), var(--sw-b, #eee));
-  box-shadow: inset 0 -5px 0 rgba(18, 13, 43, 0.22), inset 0 3px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 -5px 0 rgba(18, 13, 43, 0.24), inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 2px 4px rgba(14, 7, 3, 0.45);
   pointer-events: none;
 }
 
@@ -771,16 +948,15 @@ button,
   pointer-events: none;
 }
 
-/* wax / foil gleam */
 .cc-gleam {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.8) 46%, rgba(255, 255, 255, 0.15) 54%, transparent 64%);
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.78) 46%, rgba(255, 255, 255, 0.14) 54%, transparent 64%);
   background-size: 260% 100%;
   background-position: 120% 0;
   mix-blend-mode: screen;
-  animation: cc-gleam 4.2s ease-in-out infinite;
+  animation: cc-gleam 4.5s ease-in-out infinite;
   animation-delay: calc(var(--i, 0) * 0.28s);
 }
 
@@ -789,42 +965,31 @@ button,
 .cc-swatch[data-family="glitter"] .cc-gleam {
   background:
     linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.9) 46%, transparent 62%) 120% 0 / 260% 100%,
-    conic-gradient(from 30deg, rgba(255, 173, 173, 0.35), rgba(253, 255, 182, 0.35), rgba(155, 246, 255, 0.35), rgba(189, 178, 255, 0.35), rgba(255, 173, 173, 0.35));
+    conic-gradient(from 30deg, rgba(255, 173, 173, 0.32), rgba(253, 255, 182, 0.32), rgba(155, 246, 255, 0.32), rgba(189, 178, 255, 0.32), rgba(255, 173, 173, 0.32));
   animation-name: cc-gleam-foil;
-}
-
-.cc-swatch[data-family="crayon"] .cc-swatch-body::after,
-.cc-swatch[data-family="chalk"] .cc-swatch-body::after,
-.cc-swatch[data-family="amber"] .cc-swatch-body::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(-20deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 5px);
-  pointer-events: none;
 }
 
 .cc-swatch-tip {
   position: absolute;
   left: 50%;
-  top: -11px;
-  width: 22px;
-  height: 14px;
-  margin-left: -11px;
+  top: -8px;
+  width: 18px;
+  height: 11px;
+  margin-left: -9px;
   background: linear-gradient(90deg, var(--sw-a, #fff), var(--sw-b, #ddd));
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.26s cubic-bezier(0.3, 1.7, 0.5, 1);
   pointer-events: none;
 }
 
 .cc-swatch.is-on {
-  transform: translateY(-9px);
+  transform: translateY(-8px);
 }
 
 .cc-swatch.is-on .cc-swatch-body {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--gold), 0 0 16px 4px rgba(255, 212, 59, 0.7), inset 0 -5px 0 rgba(18, 13, 43, 0.22);
+  box-shadow: 0 0 0 2.5px #fffaf0, 0 0 0 4.5px var(--gold), 0 0 14px 3px rgba(255, 212, 59, 0.72), inset 0 -5px 0 rgba(18, 13, 43, 0.22);
 }
 
 .cc-swatch.is-on .cc-swatch-tip {
@@ -832,187 +997,519 @@ button,
   transform: none;
 }
 
-/* ---------- Stargazer Bedroom Hub panel ---------- */
-.cc-hub {
-  grid-area: hub;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  min-width: 0;
-  min-height: 0;
-  padding: calc(var(--gap) + 6px) var(--gap) var(--gap);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.07) 1px, transparent 1.6px) 0 0 / 6px 6px,
-    linear-gradient(180deg, #2a1f55 0%, #1d1540 100%);
-  box-shadow: 0 0 0 3px var(--ink), 0 6px 0 3px rgba(35, 25, 66, 0.85), inset 0 0 0 2px rgba(182, 156, 255, 0.25);
-  color: #fff4dc;
-}
-
-/* washi tape holding the journal card in place */
-.cc-hub::before {
-  content: "";
+/* ---------- Violet's Stargazer Desk Hub (Diegetic Wax-Seal Ribbon + 4 Craft Objects) ---------- */
+.cc-voyage-ribbon {
   position: absolute;
-  top: -10px;
+  left: clamp(30px, 3.6vw, 52px);
+  bottom: clamp(16px, 2.4dvh, 26px);
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cc-voyage-seal {
+  min-height: calc(var(--hit) + 2px);
+  padding: 6px 22px 6px 12px;
+  border-radius: 8px 18px 18px 8px;
+  border: 2.5px solid var(--ink);
+  background:
+    repeating-linear-gradient(90deg, rgba(184, 148, 86, 0.08) 0 2px, transparent 2px 10px),
+    linear-gradient(180deg, #fffaf0 0%, #f4e2bc 62%, #e6cc98 100%);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: clamp(15px, 2.4vmin, 21px);
+  letter-spacing: 0.015em;
+  box-shadow:
+    0 4px 0 var(--ink),
+    0 10px 22px rgba(18, 11, 36, 0.42),
+    inset 0 0 0 2px rgba(255, 250, 234, 0.7);
+}
+
+.cc-voyage-seal:not(.is-secondary) {
+  animation: cc-seal-glow 2.6s ease-in-out infinite;
+}
+
+.cc-voyage-seal.is-secondary {
+  padding: 5px 15px 5px 10px;
+  font-size: clamp(13px, 1.9vmin, 16px);
+  background: linear-gradient(180deg, #f8f1e2 0%, #e7d8bc 100%);
+  opacity: 0.94;
+}
+
+.cc-seal-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cc-wax-svg {
+  width: 34px;
+  height: 36px;
+  filter: drop-shadow(0 2px 2px rgba(35, 25, 66, 0.35));
+}
+
+/* 4 Handcrafted Wanderlings Tabletop Craft Objects along the cedar desk apron */
+.cc-desk-stations {
+  position: fixed;
   left: 50%;
-  width: 92px;
-  height: 20px;
-  margin-left: -46px;
-  transform: rotate(-3deg);
-  background: repeating-linear-gradient(45deg, rgba(255, 158, 207, 0.85) 0 6px, rgba(255, 196, 225, 0.85) 6px 12px);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-
-.cc-hub-play {
+  bottom: clamp(6px, 1dvh, 12px);
+  transform: translateX(-50%);
+  z-index: 15;
   display: flex;
-  gap: var(--gap);
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(10px, 2vw, 24px);
+  max-width: calc(100vw - 24px);
 }
 
-.cc-big {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: calc(var(--hit) + 8px);
-  padding: 6px 8px;
-  border-radius: 22px;
-  font-size: clamp(16px, 3vmin, 26px);
-  background: linear-gradient(180deg, #ffe0f0 0%, var(--pink) 60%, #f77fb9 100%);
-}
-
-.cc-play:not(.is-secondary) {
-  background: linear-gradient(180deg, #fff6c2 0%, var(--gold) 60%, var(--amber) 100%);
-  animation: cc-door-pulse 2s ease-in-out infinite;
-}
-
-.cc-play.is-secondary {
-  flex: 0.8 1 0;
-  font-size: clamp(13px, 2.2vmin, 18px);
-  background: linear-gradient(180deg, #f2ecff 0%, var(--lilac) 100%);
-}
-
-.cc-continue {
-  background: linear-gradient(180deg, #fff6c2 0%, var(--gold) 60%, var(--amber) 100%);
-  animation: cc-door-pulse 2s ease-in-out infinite;
-}
-
-.cc-big-inner {
+.cc-station {
+  min-width: clamp(108px, 14vw, 152px);
+  min-height: clamp(72px, 10.2dvh, 88px);
+  padding: 6px 10px 5px;
+  border-radius: 16px 16px 12px 12px;
+  border: 2.5px solid #24130d;
+  background:
+    linear-gradient(180deg, rgba(255, 232, 194, 0.16) 0 2px, transparent 2px),
+    linear-gradient(180deg, #5c3621 0%, #3d2115 100%);
+  color: #f9edd4;
+  box-shadow: 0 5px 14px rgba(8, 4, 18, 0.58), inset 0 1px 0 rgba(255, 224, 174, 0.25);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  line-height: 1.05;
+  transition: transform 0.2s cubic-bezier(0.3, 1.7, 0.5, 1), box-shadow 0.2s ease;
 }
 
-.cc-big-label {
-  min-width: 0;
-  overflow-wrap: anywhere;
+.cc-station:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 9px 18px rgba(8, 4, 18, 0.68), 0 0 0 2px rgba(241, 212, 138, 0.55);
 }
 
-.cc-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+.cc-station.is-open {
+  transform: translateY(-6px);
+  box-shadow: 0 0 0 2.5px var(--gold), 0 10px 22px rgba(255, 212, 59, 0.38);
 }
 
-.cc-tab {
-  min-width: 0;
-  padding: 4px 2px;
-  border-radius: 14px;
-  font-size: clamp(11px, 1.6vmin, 13px);
-  background: linear-gradient(180deg, #4b3d7a 0%, #362a63 100%);
-  color: #e9e1ff;
-  border-color: #120d2b;
-  box-shadow: 0 3px 0 #120d2b;
-}
-
-.cc-tab.is-on {
-  background: linear-gradient(180deg, #fffdf6 0%, var(--paper-2) 100%);
-  color: var(--ink);
-  border-color: var(--ink);
-}
-
-.cc-tab-inner {
+.cc-station-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 4px;
+  width: 100%;
 }
 
-.cc-tab .cc-ico {
+.cc-station-tag {
+  font-family: var(--font-serif);
+  font-size: clamp(11px, 1.55vmin, 13px);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #f7e6c4;
+  text-shadow: 0 1px 2px rgba(14, 8, 22, 0.85);
+}
+
+.cc-station-craft {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: clamp(38px, 5.4dvh, 48px);
+  border-radius: 10px;
+}
+
+/* 1. Paintbox miniature desk preview */
+.cc-craft-paintbox {
+  background: linear-gradient(180deg, #8b5535 0%, #643920 100%);
+  border: 2px solid #24130d;
+  padding: 4px 7px;
+  box-shadow: inset 0 2px 4px rgba(18, 8, 4, 0.45);
+}
+
+.cc-box-hinge {
+  position: absolute;
+  top: -3px;
+  left: 16%;
+  right: 16%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--brass-hi) 0 18%, transparent 18% 82%, var(--brass-hi) 82% 100%);
+}
+
+.cc-box-clasp {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  width: 16px;
+  height: 6px;
+  margin-left: -8px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass-deep));
+  border: 1.2px solid #24130d;
+}
+
+.cc-mini-pans {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.cc-mini-pan {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid #fffaf0;
+  background: linear-gradient(135deg, var(--pan-a), var(--pan-b));
+  box-shadow: 0 1px 2px rgba(18, 12, 34, 0.5);
+  opacity: 0.72;
+}
+
+.cc-mini-pan.is-owned {
+  opacity: 1;
+  box-shadow: 0 0 6px var(--pan-a), 0 1px 2px rgba(18, 12, 34, 0.5);
+}
+
+/* 2. Paper-Doll Sticker Wardrobe Card miniature preview */
+.cc-craft-wardrobe {
+  background: linear-gradient(180deg, #fffaf0 0%, #f1e3c2 100%);
+  border: 2px solid var(--ink);
+  padding: 3px 6px;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 2px 5px rgba(12, 6, 22, 0.4);
+}
+
+.cc-mini-dolls {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cc-mini-doll {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1.5px solid var(--ink);
+  background: #221942;
+}
+
+.cc-mini-doll.has-worn {
+  border-color: var(--brass);
+  box-shadow: 0 0 6px rgba(255, 212, 59, 0.8);
+}
+
+.cc-mini-doll-pix {
+  width: 100%;
+  height: 100%;
+}
+
+/* 3. Warm Wooden Bookshelf miniature preview */
+.cc-craft-bookshelf {
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(180deg, #2d1b2c 0%, #44271c 100%);
+  border: 2px solid #24130d;
+  padding: 3px 6px 5px;
+  gap: 3px;
+}
+
+.cc-mini-seals {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.cc-mini-seal {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(244, 228, 192, 0.22);
+}
+
+.cc-mini-seal.is-on {
+  background: var(--gold);
+  box-shadow: 0 0 4px var(--gold);
+}
+
+.cc-mini-spines {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+}
+
+.cc-mini-spine {
+  width: 10px;
+  height: 20px;
+  border-radius: 2px 2px 0 0;
+  background: var(--spine-bg, #5d3478);
+  border: 1px solid rgba(18, 12, 34, 0.7);
+  border-top: 2px solid var(--spine-foil, #f3d17c);
+}
+
+.cc-mini-spine.is-ghost {
+  background: rgba(255, 240, 210, 0.14);
+  border-color: rgba(255, 240, 210, 0.22);
+  border-top-color: rgba(255, 240, 210, 0.22);
+}
+
+.cc-mini-plank {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #9a633c, #5d351d);
+}
+
+/* 4. Brass Desk-Corner Trinket Dish miniature preview */
+.cc-craft-trinkets {
+  background: radial-gradient(ellipse at 50% 42%, #e6be70 0%, #b78538 62%, #7d561f 100%);
+  border: 2px solid #2b1a0c;
+  border-radius: 999px;
+  gap: 6px;
+  box-shadow: inset 0 2px 6px rgba(42, 24, 6, 0.45);
+}
+
+.cc-mini-bell,
+.cc-mini-scroll {
   width: 24px;
   height: 24px;
 }
 
-.cc-panes {
-  flex: 1 1 auto;
-  min-height: 0;
+.cc-mini-install-pip {
+  position: absolute;
+  top: -5px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  animation: cc-twinkle 2.2s ease-in-out infinite;
+}
+
+.cc-mini-install-pip .cc-ico {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Close-Up Craft Tray / Drawer Overlay ---------- */
+.cc-craft-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  display: grid;
+  place-items: center;
+  padding: clamp(12px, 2.4vmin, 28px);
+  background: radial-gradient(ellipse at 50% 45%, rgba(36, 23, 56, 0.48), rgba(14, 9, 28, 0.8));
+  -webkit-backdrop-filter: blur(2.5px);
+  backdrop-filter: blur(2.5px);
+  animation: cc-fade 0.2s ease both;
+}
+
+.cc-craft-drawer {
   position: relative;
+  width: min(94vw, 760px);
+  max-height: min(84dvh, 620px);
   display: flex;
   flex-direction: column;
+  gap: clamp(8px, 1.4vmin, 14px);
+  padding: clamp(14px, 2.2vmin, 22px);
+  border-radius: 22px;
+  border: 3px solid var(--ink);
+  box-shadow: 0 8px 0 var(--ink), 0 22px 48px rgba(8, 4, 20, 0.65);
+  overflow: hidden;
 }
 
-.cc-pane {
-  flex: 1 1 auto;
-  min-height: 0;
+.cc-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cc-drawer-titles {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: 2px;
 }
 
-.cc-pane-intro {
+.cc-drawer-title {
   margin: 0;
-  padding: 0 4px;
-  font-size: clamp(11px, 1.7vmin, 14px);
-  font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
-  color: rgba(255, 244, 220, 0.82);
+  font-family: var(--font-serif);
+  font-size: clamp(19px, 3.2vmin, 28px);
+  font-weight: 800;
+  line-height: 1.1;
 }
 
-@media (max-height: 560px) {
-  .cc-pane-intro {
-    display: none;
-  }
+.cc-drawer-sub {
+  margin: 0;
+  font-size: clamp(12px, 1.8vmin, 15px);
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+/* Warm tarnished-brass close clasp */
+.cc-drawer-close {
+  background: radial-gradient(circle at 35% 30%, #fff0bd, var(--brass) 70%, var(--brass-deep) 100%);
+  color: var(--ink);
+  flex: none;
+}
+
+/* Drawer 1: Hinged Wooden Watercolor & Foil Box */
+.cc-drawer-paintbox {
+  color: #fff6e2;
+  background:
+    repeating-linear-gradient(90deg, rgba(24, 10, 4, 0.08) 0 3px, transparent 3px 18px),
+    linear-gradient(180deg, #744529 0%, #55301c 58%, #3c2013 100%);
+  box-shadow: 0 8px 0 #1f100a, 0 24px 48px rgba(8, 4, 20, 0.68), inset 0 2px 0 rgba(255, 224, 174, 0.35);
+}
+
+.cc-paintbox-lid-bar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 10px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #3c2013, #29140b);
+}
+
+.cc-hinge-pin {
+  width: 36px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass-deep));
+  border: 1.5px solid #24130d;
 }
 
 .cc-grid {
-  flex: 1 1 auto;
-  min-height: 0;
   display: grid;
-  gap: 8px;
-  align-content: start;
-  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(8px, 1.4vmin, 14px);
 }
 
-.cc-grid-mediums { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; }
-.cc-grid-wardrobe { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; }
-.cc-grid-badges { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cc-grid-paintbox {
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+}
 
-.cc-item {
-  min-width: 0;
-  min-height: 112px;
+.cc-porcelain-pan {
+  min-height: 132px;
   padding: 10px 8px;
   border-radius: 16px;
+  background: linear-gradient(180deg, #fffdf7 0%, #f4e6c9 100%);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  container-type: inline-size;
+}
+
+.cc-pan-well {
+  padding: 4px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #e8dcc2, #ffffff);
+  box-shadow: inset 0 2px 5px rgba(35, 25, 66, 0.2);
+}
+
+.cc-test-strip {
+  width: 82%;
+  height: 10px;
+  border-radius: 3px 8px 4px 7px;
+  background: linear-gradient(90deg, var(--strip-a), var(--strip-b), var(--strip-c));
+  box-shadow: 0 1px 0 rgba(35, 25, 66, 0.22);
+  opacity: 0.9;
+}
+
+/* Drawer 2: Paper-Doll Sticker Wardrobe Card */
+.cc-drawer-wardrobe {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.05) 1px, transparent 1.5px) 0 0 / 6px 6px,
+    linear-gradient(180deg, #fffdf6 0%, #f6e9cc 100%);
+}
+
+.cc-paper-dolls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cc-doll-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 2px dashed rgba(54, 37, 71, 0.3);
+}
+
+.cc-doll-card.is-dressed {
+  border-style: solid;
+  border-color: var(--brass);
+  background: linear-gradient(180deg, #fffdf6, #fff2cc);
+}
+
+.cc-doll-portrait {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  background: #231942;
+}
+
+.cc-doll-portrait canvas { width: 100%; height: 100%; }
+
+.cc-doll-name {
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.cc-doll-badges {
+  display: inline-flex;
+  gap: 4px;
+  min-height: 22px;
+}
+
+.cc-doll-sticker-pip {
+  width: 22px;
+  height: 22px;
+  padding: 2px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid var(--ink);
+}
+
+.cc-doll-sticker-pip canvas { width: 100%; height: 100%; }
+
+.cc-grid-stickers {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cc-diecut-sticker {
+  min-height: 110px;
+  padding: 8px 6px;
+  border-radius: 18px 18px 6px 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9f3e4 100%);
+  box-shadow: 0 0 0 2px #fff, 0 4px 0 var(--ink);
+}
+
+.cc-diecut-sticker.is-on {
+  background: linear-gradient(180deg, #fff8d4 0%, #ffe38f 100%);
+  box-shadow: 0 0 0 2px #fff, 0 4px 0 var(--ink), 0 0 14px rgba(255, 212, 59, 0.65);
 }
 
 .cc-item-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  min-width: 0;
+  gap: 4px;
   width: 100%;
+  min-width: 0;
 }
 
 .cc-item-art {
   position: relative;
   display: block;
-  width: clamp(28px, 42cqw, 46px);
-  height: clamp(28px, 42cqw, 46px);
+  width: 40px;
+  height: 40px;
   flex: none;
   border-radius: 10px;
   overflow: hidden;
@@ -1024,238 +1521,317 @@ button,
   border-width: 2px;
 }
 
-.cc-item-art canvas {
-  width: 100%;
-  height: 100%;
-}
+.cc-item-art canvas { width: 100%; height: 100%; }
 
 .cc-item-name {
-  font-size: clamp(10px, 11cqw, 14px);
+  font-size: clamp(11px, 1.55vmin, 13px);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.15;
   text-align: center;
   overflow-wrap: anywhere;
-  hyphens: auto;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  max-width: 100%;
 }
 
 .cc-tag {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 1px 8px 1px 4px;
+  gap: 3px;
+  padding: 1px 8px 1px 5px;
   border-radius: 999px;
-  font-size: clamp(10px, 1.5vmin, 12px);
+  font-size: 11px;
   font-weight: 900;
   background: #fff;
-  box-shadow: 0 0 0 2px var(--ink);
+  box-shadow: 0 0 0 1.8px var(--ink);
   white-space: nowrap;
 }
 
-.cc-tag-gem {
-  width: 16px;
-  height: 16px;
+.cc-tag-gem { width: 15px; height: 15px; }
+.cc-tag-own, .cc-tag-on { padding: 1px 9px; background: var(--mint); }
+.cc-tag-off { padding: 1px 9px; background: #f2ecff; }
+.cc-cost.is-short { background: #f1e8ee; color: rgba(35, 25, 66, 0.6); }
+.cc-item.is-owned { background: linear-gradient(180deg, #f4fff8 0%, #d8f5e5 100%); }
+.cc-item.is-short { filter: saturate(0.7); }
+
+/* Drawer 3: Warm Wooden Bookshelf (Wax-Seal Constellation Badges + Cloth-Bound Spines + Keepsake Stamp) */
+.cc-drawer-bookshelf {
+  color: #fff6e2;
+  background:
+    repeating-linear-gradient(90deg, rgba(24, 10, 4, 0.08) 0 3px, transparent 3px 16px),
+    linear-gradient(180deg, #5d3722 0%, #442516 58%, #301a11 100%);
 }
 
-.cc-tag-own,
-.cc-tag-on {
-  padding: 1px 8px;
-  background: var(--mint);
+.cc-shelf-molding {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #2b1d3f 0%, #1d1532 100%);
+  border: 2px solid #24130d;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-.cc-tag-off {
-  padding: 1px 8px;
-  background: #f2ecff;
+.cc-wax-badges {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
 }
 
-.cc-cost.is-short {
-  background: #f1e8ee;
-  color: rgba(35, 25, 66, 0.6);
-}
-
-.cc-item.is-owned { background: linear-gradient(180deg, #f3fff8 0%, #d5f6e4 100%); }
-.cc-item.is-short { filter: saturate(0.65); }
-.cc-ward-item.is-on { background: linear-gradient(180deg, #fff6c2 0%, #ffe28a 100%); box-shadow: var(--chunk), 0 0 12px 2px rgba(255, 212, 59, 0.6); }
-
-/* constellation badges */
-.cc-badge {
-  container-type: size;
-  min-width: 0;
+.cc-wax-badge {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 4px 2px;
-  border-radius: 14px;
+  gap: 3px;
+  padding: 5px 3px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 0 0 2px rgba(182, 156, 255, 0.18);
-  color: rgba(233, 225, 255, 0.55);
+  color: rgba(235, 224, 248, 0.56);
 }
 
 .cc-badge-art {
-  width: clamp(22px, min(50cqh, 62cqw), 72px);
-  height: clamp(22px, min(50cqh, 62cqw), 72px);
+  width: clamp(24px, 4.2vmin, 38px);
+  height: clamp(24px, 4.2vmin, 38px);
+  border-radius: 50%;
+  padding: 4px;
+  background: rgba(54, 42, 86, 0.5);
+  border: 1.5px dashed rgba(220, 200, 160, 0.28);
 }
 
-.cc-badge-art svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+.cc-badge-art svg { width: 100%; height: 100%; overflow: visible; }
+.cc-badge-art polyline { fill: none; stroke: rgba(210, 194, 240, 0.45); stroke-width: 3.5; stroke-dasharray: 5 5; }
+.cc-badge-art circle { fill: rgba(210, 194, 240, 0.4); }
+
+.cc-wax-badge.is-on {
+  color: #fff2c6;
 }
 
-.cc-badge-art polyline {
-  fill: none;
-  stroke: rgba(182, 156, 255, 0.4);
-  stroke-width: 3;
-  stroke-dasharray: 5 6;
+.cc-wax-badge.is-on .cc-badge-art {
+  background: radial-gradient(circle at 35% 30%, #c9485c, var(--wax) 65%, var(--wax-deep) 100%);
+  border: 1.5px solid var(--brass-hi);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 10px rgba(255, 212, 59, 0.42);
 }
 
-.cc-badge-art circle {
-  fill: rgba(182, 156, 255, 0.35);
-}
-
-.cc-badge.is-on {
-  color: #fff4c4;
-  background: radial-gradient(circle at 50% 35%, rgba(255, 212, 59, 0.22), transparent 70%);
-  box-shadow: inset 0 0 0 2px rgba(255, 212, 59, 0.55);
-}
-
-.cc-badge.is-on polyline {
-  stroke: #ffe9a6;
-  stroke-dasharray: none;
-}
-
-.cc-badge.is-on circle {
-  fill: var(--gold);
-  filter: drop-shadow(0 0 4px #ffd43b);
-}
+.cc-wax-badge.is-on polyline { stroke: #ffe9a6; stroke-dasharray: none; }
+.cc-wax-badge.is-on circle { fill: var(--gold); filter: drop-shadow(0 0 3px #ffd43b); }
 
 .cc-badge-name {
-  font-size: clamp(9px, 11cqw, 13px);
-  font-weight: 800;
+  font-size: clamp(9px, 1.2vmin, 11px);
+  font-weight: 700;
   text-align: center;
   line-height: 1.1;
-  overflow-wrap: anywhere;
 }
 
-/* living bookshelf */
 .cc-shelf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-shelf-nav {
+  background: linear-gradient(180deg, #f3d796, var(--brass));
+  color: var(--ink);
+}
+
+.cc-book-spines {
   flex: 1 1 auto;
-  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 10px 10px 16px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(16, 8, 12, 0.35) calc(100% - 12px), #8f5b39 calc(100% - 12px), #6c4026 calc(100% - 4px), #462615 100%);
+  border: 2px solid #24130d;
+}
+
+.cc-shelf-empty {
+  grid-column: 1 / -1;
+  margin: 18px 0;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  color: rgba(255, 244, 220, 0.84);
+}
+
+.cc-book-slot {
   display: flex;
   align-items: stretch;
   gap: 6px;
 }
 
-.cc-shelf-nav {
-  align-self: center;
-  background: #362a63;
-  color: #fff4dc;
-  border-color: #120d2b;
-}
-
-.cc-shelf {
+.cc-book-spine {
   flex: 1 1 auto;
   min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: end;
-  gap: 8px;
-  padding: 6px 6px 10px;
-  border-radius: 10px;
-  /* wooden shelf plank */
+  padding: 8px 10px;
+  border-radius: 5px 12px 12px 5px;
   background:
-    linear-gradient(180deg, transparent calc(100% - 10px), #8a5a3a calc(100% - 10px), #6b4128 calc(100% - 3px), #4a2a1a 100%);
-}
-
-.cc-shelf-empty {
-  grid-column: 1 / -1;
-  align-self: center;
-  margin: 0;
-  padding: 8px;
-  text-align: center;
-  font-size: clamp(12px, 1.9vmin, 15px);
-  font-weight: 700;
-  color: rgba(255, 244, 220, 0.8);
-}
-
-.cc-cover {
-  container-type: inline-size;
-  min-width: 0;
-  height: auto;
-  max-height: 100%;
-  padding: 5px;
-  border-radius: 6px 12px 12px 6px;
-  background: linear-gradient(90deg, #5b2a86 0 7px, #fffdf6 7px);
+    linear-gradient(90deg, var(--spine-shadow, #3a1d4f) 0 8px, var(--spine-bg, #5d3478) 8px 100%);
+  color: var(--spine-foil, #f5d98c);
+  border: 2px solid #1b112c;
+  box-shadow: 0 4px 0 #1b112c, inset 0 1px 0 rgba(255, 255, 255, 0.22);
   display: flex;
-  align-items: stretch;
-}
-
-.cc-cover-inner {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
+}
+
+.cc-spine-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
-  min-height: 0;
   padding-left: 6px;
 }
 
+.cc-spine-band {
+  position: absolute;
+  left: -4px;
+  width: 6px;
+  height: 3px;
+  background: var(--spine-foil, #f5d98c);
+  opacity: 0.8;
+}
+
+.cc-spine-band.top { top: 2px; }
+.cc-spine-band.bot { bottom: 2px; }
+
 .cc-cover-pix {
+  width: 42px;
+  height: 56px;
   flex: none;
-  width: auto;
-  max-width: 100%;
-  height: clamp(48px, 16dvh, 145px);
-  aspect-ratio: 3 / 4;
-  object-fit: contain;
   border-radius: 4px;
-  box-shadow: 0 0 0 2px var(--ink);
+  border: 1.5px solid var(--spine-foil, #f5d98c);
+}
+
+.cc-spine-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
 }
 
 .cc-cover-title {
-  font-size: clamp(9px, 11cqw, 13px);
+  font-family: var(--font-serif);
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.15;
-  text-align: center;
+  text-align: left;
   overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-@container (min-width: 150px) {
-  .cc-cover-inner {
-    flex-direction: row;
-    gap: 8px;
-  }
-
-  .cc-cover-pix {
-    flex: none;
-    width: auto;
-    height: clamp(56px, 10vh, 96px);
-    max-height: 100%;
-  }
-
-  .cc-cover-title {
-    flex: 1 1 0;
-    text-align: left;
-    font-size: clamp(11px, 8cqw, 15px);
-  }
+.cc-spine-pages {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.8;
 }
 
-.cc-vault-row {
+.cc-book-keepsake {
+  align-self: center;
+  background: radial-gradient(circle at 35% 30%, #fff2c4, var(--brass) 70%, var(--brass-deep) 100%);
+}
+
+/* Drawer 4: Brass Desk-Corner Trinket Tray */
+.cc-drawer-trinkets {
+  width: min(92vw, 540px);
+  color: #2b1a0c;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 248, 214, 0.45), transparent 55%),
+    linear-gradient(180deg, #e5be70 0%, #c69646 58%, #9e712a 100%);
+  border-color: #2c1b0c;
+  box-shadow: 0 8px 0 #2c1b0c, 0 24px 48px rgba(8, 4, 20, 0.65), inset 0 2px 0 rgba(255, 250, 224, 0.7);
+}
+
+.cc-trinket-dish-body {
   display: flex;
-  gap: var(--gap);
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cc-trinket-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
+}
+
+.cc-trinket-audio {
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fffaf0 0%, #f1e1bc 100%);
+}
+
+.cc-trinket-audio[data-level="0"] {
+  background: linear-gradient(180deg, #3a2e62 0%, #241b47 100%);
+  color: #efe8ff;
+}
+
+.cc-trinket-audio-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cc-trinket-audio-label {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* beforeinstallprompt Install Sketchbook Star-Charm */
+.cc-install-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cc-install {
+  padding: 6px 16px 6px 10px;
+  border-radius: 999px;
+  border-style: dashed;
+  background: linear-gradient(180deg, #fff9e0 0%, #ffe699 100%);
+  font-size: 14px;
+}
+
+.cc-install-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.cc-install-star {
+  width: 26px;
+  height: 26px;
+  animation: cc-spin-slow 10s linear infinite;
+}
+
+.cc-install-x {
+  width: var(--hit);
+  height: var(--hit);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+}
+
+.cc-install-x .cc-ico {
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border-radius: 50%;
+  background: #fffaf0;
+  border: 2px solid var(--ink);
+}
+
+.cc-scroll-btn {
+  flex: 1 1 160px;
+  padding: 6px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fffaf0 0%, #efdec0 100%);
+  font-family: var(--font-serif);
+  font-size: 14px;
 }
 
 .cc-chip {
@@ -1271,7 +1847,8 @@ button,
   white-space: nowrap;
 }
 
-.cc-chip .cc-ico {
+.cc-chip .cc-ico,
+.cc-scroll-btn .cc-ico {
   width: 24px;
   height: 24px;
 }
@@ -1284,247 +1861,171 @@ button,
   pointer-events: none;
 }
 
-/* ---------- book viewer ---------- */
+/* ---------- Living Bookshelf Viewer ---------- */
 .cc-book-nav {
-  align-self: center;
-  justify-self: center;
-  width: calc(var(--hit) + 12px);
-  height: calc(var(--hit) + 12px);
-  background: linear-gradient(180deg, #fff6c2, var(--gold));
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 12;
+  width: calc(var(--hit) + 6px);
+  height: calc(var(--hit) + 6px);
+  background: radial-gradient(circle at 35% 30%, #fff6cc, var(--gold) 75%);
 }
 
-.cc-book-prev { grid-area: railL; }
-.cc-book-next { grid-area: railR; }
+.cc-book-prev { left: 26px; }
+.cc-book-next { right: 16px; }
 
 .cc-bookbar {
-  grid-area: dock;
-  display: flex;
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--gap);
-  min-width: 0;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: rgba(251, 243, 224, 0.94);
+  border: 2.5px solid var(--ink);
+  box-shadow: 0 4px 0 var(--ink), 0 10px 22px rgba(18, 12, 34, 0.35);
 }
 
 .cc-bookbar-info {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 0;
-  padding: 0 8px;
+  padding: 0 6px;
 }
 
 .cc-bookbar-title {
-  font-weight: 900;
-  font-size: clamp(13px, 2.1vmin, 18px);
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: clamp(13px, 2vmin, 17px);
   text-align: center;
-  overflow-wrap: anywhere;
 }
 
 .cc-bookbar-page {
   font-weight: 700;
-  font-size: clamp(11px, 1.7vmin, 14px);
+  font-size: clamp(11px, 1.6vmin, 13px);
   color: var(--ink-soft);
 }
 
 .cc-keepsake {
-  background: linear-gradient(180deg, #ffe0f0, var(--pink));
+  background: linear-gradient(180deg, #fff0c4, var(--brass));
 }
 
-/* ---------- mode-driven visibility & layout ---------- */
-.cc-hub,
+/* ---------- mode-driven visibility & serene spatial layout ---------- */
+.cc-voyage-ribbon,
+.cc-desk-stations,
 .cc-book-prev,
 .cc-book-next,
 .cc-bookbar {
   display: none;
 }
 
-.cc-root[data-mode="hub"] .cc-hub { display: flex; }
-.cc-root[data-mode="book"] .cc-book-prev,
-.cc-root[data-mode="book"] .cc-book-next { display: grid; }
-.cc-root[data-mode="book"] .cc-bookbar { display: flex; }
+.cc-root[data-mode="hub"] .cc-voyage-ribbon { display: inline-flex; }
+.cc-root[data-mode="hub"] .cc-desk-stations { display: flex; }
+.cc-root[data-mode="hub"] .cc-book.cc-spread {
+  bottom: clamp(92px, 13.5dvh, 114px);
+  padding: clamp(12px, 1.8dvh, 18px) clamp(16px, 1.8vw, 24px) clamp(12px, 1.8dvh, 18px) clamp(26px, 2.6vw, 36px);
+}
+.cc-root[data-mode="hub"] .cc-bookmark,
+.cc-root[data-mode="hub"] .cc-relics,
+.cc-root[data-mode="hub"] .cc-dogear,
+.cc-root[data-mode="hub"] .cc-dock {
+  display: none;
+}
 
-.cc-root[data-mode="boot"] .cc-rail,
-.cc-root[data-mode="boot"] .cc-dock,
-.cc-root[data-mode="hub"] .cc-rail,
-.cc-root[data-mode="hub"] .cc-dock,
-.cc-root[data-mode="book"] .cc-rail,
+.cc-root[data-mode="book"] .cc-book.cc-spread {
+  bottom: clamp(10px, 1.4dvh, 16px);
+  padding: clamp(14px, 2dvh, 22px) clamp(20px, 2.4vw, 34px) clamp(74px, 10dvh, 88px) clamp(28px, 3vw, 42px);
+}
+.cc-root[data-mode="book"] .cc-book-prev,
+.cc-root[data-mode="book"] .cc-book-next { display: inline-grid; }
+.cc-root[data-mode="book"] .cc-bookbar { display: inline-flex; }
+.cc-root[data-mode="book"] .cc-bookmark,
+.cc-root[data-mode="book"] .cc-crystal-jar,
+.cc-root[data-mode="book"] .cc-relics,
+.cc-root[data-mode="book"] .cc-dogear,
 .cc-root[data-mode="book"] .cc-dock {
   display: none;
 }
 
-/* keep the canvas size stable while turning / drafting: hide chrome without reflow */
-.cc-root[data-mode="turning"] .cc-rail,
-.cc-root[data-mode="turning"] .cc-dock,
-.cc-root[data-mode="draft"] .cc-rail,
-.cc-root[data-mode="draft"] .cc-dock,
-.cc-root[data-mode="doors"] .cc-rail,
-.cc-root[data-mode="doors"] .cc-dock,
-.cc-root[data-mode="finale"] .cc-rail,
-.cc-root[data-mode="finale"] .cc-dock {
+.cc-root[data-mode="boot"] .cc-bookmark,
+.cc-root[data-mode="boot"] .cc-crystal-jar,
+.cc-root[data-mode="boot"] .cc-corner-right,
+.cc-root[data-mode="boot"] .cc-dogear,
+.cc-root[data-mode="boot"] .cc-dock {
+  display: none;
+}
+
+/* Keep the open sketchbook canvas stable without reflow during turning/modals */
+.cc-root:is([data-mode="turning"], [data-mode="draft"], [data-mode="doors"], [data-mode="finale"]) :is(.cc-dock, .cc-dogear, .cc-bookmark, .cc-corner-right, .cc-crystal-jar) {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
 
-.cc-root[data-mode="boot"] .cc-gems,
-.cc-root[data-mode="boot"] .cc-relics,
-.cc-root[data-mode="boot"] .cc-home,
-.cc-root[data-mode="hub"] .cc-relics,
-.cc-root[data-mode="hub"] .cc-home,
-.cc-root[data-mode="book"] .cc-relics {
-  display: none;
+/* Softly hush peripheral chrome during Sleepy Hush prologue while spotlighting the Enchanted Pencil */
+.cc-root[data-prologue="true"] .cc-bookmark,
+.cc-root[data-prologue="true"] .cc-corner-right,
+.cc-root[data-prologue="true"] .cc-dogear-early {
+  opacity: 0.6;
 }
 
-.cc-root[data-mode="hub"] .cc-book,
-.cc-root[data-mode="boot"] .cc-book {
-  grid-template-columns: minmax(0, 1fr) var(--hub-w);
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas:
-    "top top"
-    "stage hub";
+/* ---------- Starlight Thread FX overlay ---------- */
+.cc-fx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-.cc-root[data-mode="boot"] .cc-book {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "top"
-    "stage";
+.cc-star-thread {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.cc-root[data-mode="book"] .cc-book {
-  grid-template-columns: calc(var(--hit) + 24px) minmax(0, 1fr) calc(var(--hit) + 24px);
+.cc-star-thread svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.cc-root:is([data-mode="draft"], [data-mode="doors"], [data-mode="finale"]) .cc-top {
-  opacity: 0.55;
+.cc-thread-glow,
+.cc-thread-core {
+  stroke-dasharray: var(--thread-len, 600);
+  stroke-dashoffset: var(--thread-len, 600);
+  animation: cc-thread-draw 0.56s cubic-bezier(0.22, 0.85, 0.32, 1) forwards, cc-thread-fade 0.42s ease 0.52s forwards;
 }
 
-/* short viewports: brushes go two-across */
-@media (max-height: 640px) {
-  :root {
-    --rail-w: 124px;
-  }
-
-  .cc-brushes {
-    grid-template-columns: repeat(2, var(--hit));
-  }
-
-  .cc-pips {
-    grid-template-columns: repeat(4, 16px);
-    gap: 4px;
-    padding: 6px;
-  }
-
-  .cc-pip {
-    width: 16px;
-    height: 16px;
-  }
+.cc-thread-burst {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: cc-thread-arrive 0.52s ease-out 0.44s forwards;
 }
 
-/* tall-ish (4:3 tablets): the page spans the full width; tools sit below it */
-@media (max-aspect-ratio: 8/5) {
-  .cc-book {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "top top top"
-      "stage stage stage"
-      "dock dock dock"
-      "railL . railR";
-  }
-
-  .cc-rail {
-    flex-direction: row;
-  }
-
-  .cc-brushes {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: var(--hit);
-    padding: 6px 8px;
-  }
-
-  .cc-pips {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(2, 16px);
-    grid-auto-columns: 16px;
-  }
-
-  .cc-pip {
-    width: 16px;
-    height: 16px;
-  }
-
-  .cc-rail-r {
-    margin-right: clamp(22px, 3.6vmin, 42px);
-  }
-
-  .cc-next {
-    width: auto;
-    max-width: none;
-    padding: 6px 20px;
-  }
-
-  .cc-next-inner,
-  .cc-early-inner {
-    flex-direction: row;
-    gap: 8px;
-  }
-
-  .cc-early {
-    width: auto;
-    max-width: none;
-    padding: 4px 14px;
-  }
-
-  .cc-root[data-mode="hub"] .cc-book {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) clamp(230px, 38vh, 330px);
-    grid-template-areas:
-      "top"
-      "stage"
-      "hub";
-  }
-
-  .cc-root[data-mode="hub"] .cc-hub {
-    display: grid;
-    grid-template-columns: clamp(170px, 22vw, 240px) minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-      "play tabs"
-      "play panes";
-  }
-
-  .cc-hub-play { grid-area: play; flex-direction: column; }
-  .cc-tabs { grid-area: tabs; }
-  .cc-panes { grid-area: panes; }
-  .cc-grid-mediums { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .cc-grid-wardrobe { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .cc-grid-badges { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-
-  .cc-root[data-mode="book"] .cc-book {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      "top top top"
-      "stage stage stage"
-      "railL dock railR";
-  }
+.cc-thread-spark {
+  opacity: 0;
+  animation: cc-thread-arrive 0.48s ease-out 0.48s forwards;
 }
 
-/* ---------- modals ---------- */
+/* ---------- Heirloom Modals (Hinged Astral Pencil Tin, Star-Doors, Stitched Finale) ---------- */
 .cc-modal-layer {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 55;
   display: grid;
   place-items: center;
-  padding: max(var(--rim), env(safe-area-inset-top)) var(--rim);
-  background: radial-gradient(ellipse at 50% 40%, rgba(42, 31, 85, 0.55), rgba(18, 13, 43, 0.86));
+  padding: max(12px, env(safe-area-inset-top)) 14px;
+  background: radial-gradient(ellipse at 50% 42%, rgba(40, 27, 78, 0.58), rgba(14, 9, 32, 0.88));
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
-  animation: cc-fade 0.25s ease both;
+  animation: cc-fade 0.24s ease both;
 }
 
 .cc-modal {
@@ -1537,7 +2038,7 @@ button,
 }
 
 .cc-modal.is-closing {
-  animation: cc-fade-out 0.26s ease both;
+  animation: cc-fade-out 0.25s ease both;
 }
 
 .cc-modal-card {
@@ -1545,11 +2046,11 @@ button,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(4px, 1.2vmin, 12px);
-  width: min(100%, 1040px);
+  gap: clamp(6px, 1.2vmin, 12px);
+  width: min(100%, 1020px);
   max-height: 100%;
-  padding: clamp(10px, 2.2vmin, 24px) clamp(12px, 2.6vmin, 30px) clamp(12px, 2.6vmin, 28px);
-  border-radius: 28px;
+  padding: clamp(12px, 2vmin, 22px) clamp(14px, 2.4vmin, 28px);
+  border-radius: 26px;
 }
 
 .cc-modal-head {
@@ -1560,93 +2061,157 @@ button,
 
 .cc-modal-title {
   margin: 0;
-  font-size: clamp(20px, 4.2vmin, 38px);
-  font-weight: 900;
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 4vmin, 34px);
+  font-weight: 800;
   line-height: 1.05;
   text-align: center;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
 }
 
 .cc-head-star {
-  width: clamp(22px, 3.6vmin, 34px);
-  height: clamp(22px, 3.6vmin, 34px);
+  width: clamp(20px, 3.2vmin, 30px);
+  height: clamp(20px, 3.2vmin, 30px);
   animation: cc-twinkle 2.4s ease-in-out infinite;
 }
 
 .cc-modal-sub {
   margin: 0;
-  font-size: clamp(12px, 2.2vmin, 18px);
-  font-weight: 700;
+  font-size: clamp(12px, 2vmin, 16px);
+  font-weight: 600;
   text-align: center;
   opacity: 0.9;
 }
 
-/* Astral Pencil Tin */
-.cc-tin-lid {
-  color: #fff4dc;
-  background:
-    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.85) 0 1.5px, transparent 2px),
-    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.8) 0 1.5px, transparent 2px),
-    radial-gradient(circle at 92% 70%, rgba(255, 255, 255, 0.7) 0 1.2px, transparent 1.8px),
-    radial-gradient(circle at 6% 80%, rgba(255, 255, 255, 0.7) 0 1.2px, transparent 1.8px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 16px),
-    linear-gradient(180deg, #8f74d6 0%, #5f46aa 55%, #3f2c80 100%);
-  box-shadow: 0 0 0 4px var(--ink), 0 8px 0 4px var(--ink), 0 24px 50px rgba(0, 0, 0, 0.55), inset 0 4px 0 rgba(255, 255, 255, 0.35);
+/* Hinged Vintage Metal Astral Pencil Tin */
+.cc-pencil-tin {
+  padding: 0;
+  gap: 0;
+  background: transparent;
+  perspective: 900px;
 }
 
-.cc-tin-lid .cc-modal-title {
-  text-shadow: 0 3px 0 var(--ink);
+.cc-tin-lid-top {
+  width: 100%;
+  padding: clamp(10px, 1.6vmin, 16px) clamp(14px, 2.4vmin, 28px);
+  border-radius: 24px 24px 8px 8px;
+  color: #fff6de;
+  background:
+    radial-gradient(circle at 14% 28%, rgba(255, 246, 214, 0.75) 0 1.3px, transparent 2px),
+    radial-gradient(circle at 86% 24%, rgba(255, 246, 214, 0.7) 0 1.4px, transparent 2px),
+    linear-gradient(180deg, #322863 0%, #221a49 62%, #181236 100%);
+  border: 3px solid var(--brass);
+  box-shadow: 0 0 0 2px var(--ink), inset 0 2px 0 rgba(255, 240, 198, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transform-origin: 50% 100%;
+  animation: cc-tin-open 0.42s cubic-bezier(0.22, 1.25, 0.45, 1) both;
+}
+
+.cc-tin-emboss {
+  width: min(260px, 60%);
+  height: 22px;
+  display: block;
+}
+
+.cc-tin-emboss svg { width: 100%; height: 100%; }
+
+.cc-tin-hinges {
+  width: 92%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10%;
+  z-index: 2;
+}
+
+.cc-tin-hinge {
+  width: 44px;
+  height: 11px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass) 55%, var(--brass-deep));
+  border: 2px solid var(--ink);
+}
+
+.cc-tin-clasp-ico {
+  width: 28px;
+  height: 28px;
+}
+
+.cc-tin-tray {
+  width: 100%;
+  padding: clamp(12px, 2vmin, 20px) clamp(14px, 2.2vmin, 24px) clamp(14px, 2.2vmin, 24px);
+  border-radius: 10px 10px 26px 26px;
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(123, 63, 160, 0.25), transparent 65%),
+    linear-gradient(180deg, #1d163c 0%, #140f2c 100%);
+  border: 3px solid var(--brass);
+  box-shadow: 0 0 0 2px var(--ink), 0 8px 0 2px var(--ink), 0 22px 46px rgba(0, 0, 0, 0.62), inset 0 6px 14px rgba(0, 0, 0, 0.55);
 }
 
 .cc-cards {
   display: grid;
   grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
-  gap: clamp(8px, 2vmin, 22px);
+  gap: clamp(10px, 2vmin, 22px);
   width: 100%;
-  min-height: 0;
-  margin-top: clamp(6px, 1.4vmin, 14px);
 }
 
-.cc-card {
+/* Deckle-edged holographic brush & relic cards */
+.cc-deckle-card {
+  position: relative;
   min-width: 0;
-  padding: clamp(8px, 1.6vmin, 16px) clamp(8px, 1.4vmin, 14px);
-  border-radius: 22px;
-  border-width: 4px;
-  box-shadow: 0 6px 0 var(--ink);
+  padding: clamp(8px, 1.5vmin, 14px);
+  border-radius: 16px 22px 18px 20px;
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px #fffaf0, 0 6px 0 var(--ink);
   background:
-    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.06) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    linear-gradient(180deg, #fffdf6 0%, var(--paper-2) 100%);
+    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.055) 1px, transparent 1.6px) 0 0 / 5px 5px,
+    linear-gradient(180deg, #fffdf7 0%, #f4e6c7 100%);
   display: flex;
   align-items: stretch;
+  overflow: hidden;
 }
 
-.cc-card.is-relic {
+.cc-deckle-card.is-relic {
   background:
-    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.06) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    linear-gradient(180deg, #fff9e6 0%, #ffe9b8 100%);
+    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.055) 1px, transparent 1.6px) 0 0 / 5px 5px,
+    linear-gradient(180deg, #fff9e6 0%, #fce4b0 100%);
+}
+
+.cc-card-holo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 28%, rgba(255, 210, 240, 0.25) 42%, rgba(160, 244, 255, 0.26) 50%, rgba(255, 240, 160, 0.24) 58%, transparent 70%);
+  background-size: 240% 100%;
+  animation: cc-gleam 5.2s ease-in-out infinite;
 }
 
 .cc-card.is-chosen {
-  box-shadow: 0 6px 0 var(--ink), 0 0 0 5px var(--gold), 0 0 30px 10px rgba(255, 212, 59, 0.8);
+  box-shadow: 0 6px 0 var(--ink), 0 0 0 4px var(--gold), 0 0 28px 8px rgba(255, 212, 59, 0.8);
 }
 
 .cc-card-inner {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(3px, 0.8vmin, 8px);
+  gap: clamp(4px, 0.8vmin, 8px);
   width: 100%;
   min-width: 0;
 }
 
 .cc-card-art {
   display: block;
-  height: clamp(64px, 24dvh, 200px);
+  height: clamp(64px, 22dvh, 178px);
   aspect-ratio: 4 / 3;
   max-width: 100%;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 0 0 3px var(--ink);
+  border: 2.5px solid var(--ink);
   background: var(--night);
 }
 
@@ -1657,164 +2222,200 @@ button,
 }
 
 .cc-card-type {
-  padding: 1px 10px;
+  padding: 2px 10px;
   border-radius: 999px;
-  font-size: clamp(10px, 1.6vmin, 13px);
+  font-size: clamp(10px, 1.5vmin, 12px);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background: var(--lilac);
+  background: #dfd2ff;
+  border: 1.5px solid var(--ink);
   color: var(--ink);
 }
 
 .cc-card.is-relic .cc-card-type {
-  background: var(--gold);
+  background: #ffe08a;
 }
 
 .cc-card-name {
-  font-size: clamp(14px, 2.5vmin, 22px);
-  font-weight: 900;
+  font-family: var(--font-serif);
+  font-size: clamp(14px, 2.3vmin, 20px);
+  font-weight: 800;
   line-height: 1.1;
   text-align: center;
-  overflow-wrap: anywhere;
 }
 
 .cc-card-desc {
-  font-size: clamp(11px, 1.9vmin, 16px);
+  font-size: clamp(11px, 1.75vmin, 15px);
   font-weight: 600;
   line-height: 1.25;
   text-align: center;
-  color: rgba(35, 25, 66, 0.85);
-  overflow-wrap: anywhere;
+  color: rgba(35, 25, 66, 0.86);
 }
 
-/* Star-Door chooser */
+/* Star-Door Parchment Archways parting starry curtains */
 .cc-door-wall {
-  width: min(100%, 860px);
-  color: #fff4dc;
+  width: min(100%, 880px);
+  color: #fff5de;
+  overflow: hidden;
   background:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.85) 0 1.5px, transparent 2px),
-    radial-gradient(circle at 70% 10%, rgba(255, 255, 255, 0.8) 0 1.2px, transparent 1.8px),
-    radial-gradient(circle at 88% 55%, rgba(255, 255, 255, 0.75) 0 1.5px, transparent 2px),
-    radial-gradient(circle at 10% 70%, rgba(255, 255, 255, 0.6) 0 1.2px, transparent 1.8px),
-    radial-gradient(ellipse at 50% 120%, rgba(255, 158, 207, 0.45), transparent 60%),
-    linear-gradient(180deg, #2a1f55 0%, #1a1240 100%);
-  box-shadow: 0 0 0 4px var(--ink), 0 0 0 10px #6b4128, 0 0 0 13px var(--ink), 0 24px 50px rgba(0, 0, 0, 0.55);
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.85) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 74% 12%, rgba(255, 255, 255, 0.8) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 86% 62%, rgba(255, 255, 255, 0.72) 0 1.4px, transparent 2px),
+    radial-gradient(ellipse at 50% 115%, rgba(255, 198, 122, 0.34), transparent 62%),
+    linear-gradient(180deg, #281f52 0%, #19123b 100%);
+  border: 3px solid var(--brass);
+  box-shadow: 0 0 0 3px var(--ink), 0 0 0 9px #5a341e, 0 0 0 12px var(--ink), 0 26px 52px rgba(0, 0, 0, 0.62);
 }
 
-.cc-door-wall .cc-modal-title {
-  text-shadow: 0 3px 0 #000;
+.cc-curtain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: clamp(28px, 6vw, 68px);
+  pointer-events: none;
+  opacity: 0.72;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 232, 178, 0.08) 0 3px, rgba(16, 10, 38, 0.25) 3px 11px),
+    linear-gradient(180deg, #3a2b72 0%, #23184c 100%);
 }
+
+.cc-curtain-l { left: 0; border-radius: 0 0 90% 0 / 0 0 42% 0; border-right: 2px solid rgba(241, 212, 138, 0.45); }
+.cc-curtain-r { right: 0; border-radius: 0 0 0 90% / 0 0 0 42%; border-left: 2px solid rgba(241, 212, 138, 0.45); }
 
 .cc-door-row {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: repeat(var(--n, 2), minmax(0, 300px));
+  grid-template-columns: repeat(var(--n, 2), minmax(0, 290px));
   justify-content: center;
-  gap: clamp(12px, 4vmin, 48px);
+  gap: clamp(14px, 4vmin, 44px);
   width: 100%;
-  min-height: 0;
-  margin-top: clamp(6px, 1.4vmin, 14px);
+  margin-top: 6px;
 }
 
-.cc-door {
+.cc-parchment-arch {
   min-width: 0;
-  padding: clamp(8px, 1.4vmin, 14px);
-  border-radius: 120px 120px 20px 20px;
-  border-width: 4px;
-  background: linear-gradient(180deg, #4b3d7a 0%, #2a1f55 100%);
-  color: #fff4dc;
-  box-shadow: 0 6px 0 var(--ink), 0 0 24px rgba(182, 156, 255, 0.35);
+  padding: clamp(10px, 1.5vmin, 16px);
+  border-radius: 130px 130px 18px 18px;
+  border: 3px solid var(--ink);
+  background:
+    radial-gradient(circle at 1px 1px, rgba(35, 25, 66, 0.05) 1px, transparent 1.5px) 0 0 / 5px 5px,
+    linear-gradient(180deg, #fffaf0 0%, #f1e0bb 100%);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px var(--brass), 0 6px 0 var(--ink), 0 0 24px rgba(255, 212, 82, 0.3);
   display: flex;
   align-items: stretch;
 }
 
-.cc-door:hover {
-  box-shadow: 0 6px 0 var(--ink), 0 0 30px 6px rgba(255, 212, 59, 0.55);
+.cc-parchment-arch:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 2px var(--gold), 0 6px 0 var(--ink), 0 0 32px 4px rgba(255, 212, 82, 0.55);
 }
 
 .cc-door.is-chosen {
-  box-shadow: 0 6px 0 var(--ink), 0 0 0 5px var(--gold), 0 0 40px 14px rgba(255, 212, 59, 0.85);
+  box-shadow: 0 6px 0 var(--ink), 0 0 0 5px var(--gold), 0 0 38px 12px rgba(255, 212, 59, 0.85);
 }
 
 .cc-door-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(3px, 0.8vmin, 8px);
+  gap: clamp(4px, 0.8vmin, 8px);
   width: 100%;
-  min-width: 0;
 }
 
 .cc-door-art {
   display: block;
-  height: clamp(90px, 34dvh, 300px);
+  height: clamp(92px, 32dvh, 270px);
   aspect-ratio: 2 / 3;
   max-width: 100%;
   border-radius: 100px 100px 10px 10px;
   overflow: hidden;
-  box-shadow: 0 0 0 3px var(--ink), 0 0 18px rgba(255, 212, 59, 0.5);
+  border: 2.5px solid var(--ink);
+  box-shadow: 0 0 16px rgba(255, 212, 59, 0.45);
 }
 
 .cc-door-title {
-  font-size: clamp(13px, 2.3vmin, 20px);
-  font-weight: 900;
+  font-family: var(--font-serif);
+  font-size: clamp(13px, 2.2vmin, 19px);
+  font-weight: 800;
   line-height: 1.1;
   text-align: center;
-  overflow-wrap: anywhere;
 }
 
 .cc-door-sub {
-  font-size: clamp(11px, 1.8vmin, 15px);
+  font-size: clamp(11px, 1.7vmin, 14px);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
-  opacity: 0.85;
-  overflow-wrap: anywhere;
+  color: var(--ink-soft);
 }
 
-/* Finale */
+/* Illuminated Stitched Storybook Title-Plate Finale */
 .cc-finale {
   cursor: pointer;
   position: relative;
-  outline: none;
 }
 
-.cc-finale-card {
-  width: min(100%, 900px);
-  padding: clamp(18px, 4vmin, 48px);
-  color: #fff;
+.cc-finale-plate {
+  position: relative;
+  width: min(92vw, 760px);
+  padding: clamp(22px, 4.2vmin, 48px) clamp(20px, 4vmin, 44px);
+  color: var(--ink);
   text-align: center;
-  background: radial-gradient(ellipse at 50% 50%, rgba(123, 63, 160, 0.65), rgba(18, 13, 43, 0) 70%);
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse at 50% 40%, #fffdf8 0%, #f7ebd0 70%, #ebd6aa 100%);
+  border: 3px solid var(--brass);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    0 14px 44px rgba(10, 4, 24, 0.65),
+    inset 0 0 0 8px rgba(255, 250, 238, 0.8),
+    inset 0 0 0 10px rgba(180, 134, 62, 0.4);
 }
+
+.cc-plate-filigree {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+}
+
+.cc-plate-filigree.tl { top: 12px; left: 12px; }
+.cc-plate-filigree.tr { top: 12px; right: 12px; transform: scaleX(-1); }
+.cc-plate-filigree.bl { bottom: 12px; left: 12px; transform: scaleY(-1); }
+.cc-plate-filigree.br { bottom: 12px; right: 12px; transform: scale(-1); }
 
 .cc-finale-kicker {
   margin: 0;
-  font-size: clamp(14px, 2.8vmin, 24px);
-  font-weight: 800;
-  color: #ffe9a6;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(14px, 2.5vmin, 22px);
+  font-weight: 700;
+  color: var(--wax);
 }
 
 .cc-finale-name {
-  margin: 0;
-  font-size: clamp(28px, 7.5vmin, 76px);
+  margin: 6px 0;
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 6.2vmin, 58px);
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1.08;
   overflow-wrap: anywhere;
-  background: linear-gradient(90deg, #7fe7f0, #b69cff, #ff9ecf, #ffd43b, #7fe7f0);
+  background: linear-gradient(90deg, #4b2a7d, #9a458e, #c87b22, #38798a, #4b2a7d);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 4px 0 rgba(18, 13, 43, 0.9));
-  animation: cc-aurora-text 5s linear infinite;
+  animation: cc-aurora-text 6s linear infinite;
 }
 
 .cc-finale-hint {
-  margin: 0;
-  margin-top: 8px;
-  font-size: clamp(12px, 2vmin, 17px);
+  margin: 8px 0 0;
+  font-size: clamp(12px, 1.9vmin, 16px);
   font-weight: 700;
-  opacity: 0.85;
+  color: var(--ink-soft);
   animation: cc-breathe 2.4s ease-in-out infinite;
 }
 
@@ -1843,20 +2444,20 @@ button,
 .cc-burst-star:nth-child(3n) { background: var(--aurora); }
 .cc-burst-star:nth-child(3n + 1) { background: var(--pink); }
 
-/* ---------- toasts ---------- */
+/* ---------- Ultra-calm Whisper Parchment Toasts (never overlapping bookmark or wooden groove) ---------- */
 .cc-toasts {
   position: fixed;
   left: 50%;
-  top: calc(var(--rim) + 6px);
+  top: clamp(54px, 7.6dvh, 72px);
   transform: translateX(-50%);
-  z-index: 40;
+  z-index: 48;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   pointer-events: none;
   width: max-content;
-  max-width: 90vw;
+  max-width: 88vw;
 }
 
 .cc-root:is([data-mode="draft"], [data-mode="doors"], [data-mode="finale"]) .cc-toasts {
@@ -1864,42 +2465,61 @@ button,
 }
 
 .cc-toast {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 18px 8px 10px;
-  border-radius: 14px 18px 16px 12px;
-  background: #fffaf0;
-  box-shadow: 0 0 0 3px var(--ink), 0 5px 0 3px var(--ink);
-  font-weight: 800;
-  font-size: clamp(13px, 2vmin, 17px);
-  transform: rotate(-0.8deg);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  padding: 6px 16px 6px 10px;
+  border-radius: 10px 14px 12px 10px;
+  background: linear-gradient(180deg, #fffcf3 0%, #f3e4c3 100%);
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 rgba(35, 25, 66, 0.78), 0 8px 18px rgba(12, 8, 28, 0.32);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: clamp(13px, 1.9vmin, 16px);
+  color: var(--ink);
+  transform: rotate(-0.6deg);
+  transition: opacity 0.32s ease, transform 0.32s ease;
 }
 
 .cc-toast.is-leaving {
   opacity: 0;
-  transform: translateY(-10px) rotate(-0.8deg);
+  transform: translateY(-8px) rotate(-0.6deg);
 }
 
 .cc-toast-star {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------- Compact viewport adjustments ---------- */
+@media (max-width: 820px) {
+  .cc-bookmark-title {
+    display: none;
+  }
+
+  .cc-station {
+    min-width: clamp(78px, 21vw, 118px);
+    padding: 5px 6px 4px;
+  }
+
+  .cc-wax-badges {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 /* ---------- animations ---------- */
 .cc-boing {
-  animation: cc-boing 0.5s cubic-bezier(0.3, 1.8, 0.5, 1);
+  animation: cc-boing 0.48s cubic-bezier(0.3, 1.8, 0.5, 1);
 }
 
 .cc-shake {
-  animation: cc-shake 0.4s ease;
+  animation: cc-shake 0.38s ease;
 }
 
 @keyframes cc-boing {
-  0% { transform: scale(0.8); }
-  45% { transform: scale(1.12); }
-  70% { transform: scale(0.96); }
+  0% { transform: scale(0.84); }
+  45% { transform: scale(1.1); }
+  72% { transform: scale(0.96); }
   100% { transform: scale(1); }
 }
 
@@ -1908,6 +2528,16 @@ button,
   25% { translate: -5px 0; }
   50% { translate: 5px 0; }
   75% { translate: -3px 0; }
+}
+
+@keyframes cc-lamp {
+  from { opacity: 0.82; }
+  to { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes cc-dust-drift {
+  0%, 100% { transform: translate(0, 0) scale(0.85); opacity: 0.28; }
+  50% { transform: translate(14px, -16px) scale(1.15); opacity: 0.72; }
 }
 
 @keyframes cc-gleam {
@@ -1921,32 +2551,73 @@ button,
 }
 
 @keyframes cc-twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.15); }
-}
-
-@keyframes cc-lamp {
-  from { opacity: 0.85; }
-  to { opacity: 1; transform: scale(1.04); }
-}
-
-@keyframes cc-gem-glint {
-  0%, 80%, 100% { transform: rotate(0deg) scale(1); }
-  88% { transform: rotate(-8deg) scale(1.12); }
+  0%, 100% { opacity: 0.4; transform: scale(0.84); }
+  50% { opacity: 1; transform: scale(1.14); }
 }
 
 @keyframes cc-spin-slow {
   to { transform: rotate(360deg); }
 }
 
-@keyframes cc-door-pulse {
-  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 212, 59, 0)); }
-  50% { filter: drop-shadow(0 0 10px rgba(255, 212, 59, 0.85)); }
+@keyframes cc-wisp-halo {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 12px 3px rgba(255, 214, 82, 0.7); }
+  50% { box-shadow: 0 0 0 3px #fff8cf, 0 0 24px 8px rgba(255, 220, 102, 1); }
 }
 
-@keyframes cc-doodle-glow {
-  0%, 100% { box-shadow: 0 4px 0 #120d2b, 0 0 10px 3px rgba(182, 156, 255, 0.6); }
-  50% { box-shadow: 0 4px 0 #120d2b, 0 0 20px 7px rgba(182, 156, 255, 0.95); }
+@keyframes cc-dogear-glow {
+  0%, 100% { filter: drop-shadow(-4px -4px 10px rgba(255, 212, 82, 0.62)); }
+  50% { filter: drop-shadow(-6px -6px 18px rgba(255, 224, 110, 0.96)); }
+}
+
+@keyframes cc-seal-glow {
+  0%, 100% { box-shadow: 0 4px 0 var(--ink), 0 10px 20px rgba(18, 11, 36, 0.42), inset 0 0 0 2px rgba(255, 250, 234, 0.7); }
+  50% { box-shadow: 0 4px 0 var(--ink), 0 10px 26px rgba(255, 206, 98, 0.52), inset 0 0 0 2px rgba(255, 250, 234, 0.9); }
+}
+
+@keyframes cc-jar-tumble {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-7deg) scale(1.06); }
+  55% { transform: rotate(5deg) scale(1.03); }
+  80% { transform: rotate(-2deg) scale(1.01); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes cc-shard-shimmer {
+  0% { transform: translateY(0) rotate(0deg); }
+  45% { transform: translateY(-4px) rotate(10deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes cc-crystal-fall {
+  0% { transform: translate(var(--dx, 0px), -14px) scale(0.75) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate(calc(var(--dx, 0px) * 0.3), 24px) scale(0.9) rotate(130deg); opacity: 0; }
+}
+
+@keyframes cc-socket-pop {
+  0% { transform: scale(0.8); filter: drop-shadow(0 0 2px #ffd43b); }
+  45% { transform: scale(1.36); filter: drop-shadow(0 0 16px #fff3a8); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 7px rgba(255, 212, 59, 0.9)); }
+}
+
+@keyframes cc-thread-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes cc-thread-fade {
+  to { opacity: 0; }
+}
+
+@keyframes cc-thread-arrive {
+  0% { transform: scale(0.2); opacity: 0; }
+  35% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+@keyframes cc-tin-open {
+  0% { transform: rotateX(-52deg) translateY(10px); opacity: 0.4; }
+  100% { transform: rotateX(0deg) translateY(0); opacity: 1; }
 }
 
 @keyframes cc-boot {
@@ -1955,7 +2626,7 @@ button,
 }
 
 @keyframes cc-breathe {
-  0%, 100% { opacity: 0.6; }
+  0%, 100% { opacity: 0.65; }
   50% { opacity: 1; }
 }
 
@@ -1990,7 +2661,8 @@ button,
     scroll-behavior: auto !important;
   }
 
-  .cc-burst {
+  .cc-burst,
+  .cc-dust-mote {
     display: none;
   }
 }

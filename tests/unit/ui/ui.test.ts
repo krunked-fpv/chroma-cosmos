@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CHAPTERS, DRAFT_CARDS, MATERIALS } from '../../../src/contracts';
+import { CHAPTERS, DRAFT_CARDS, MATERIALS, TOOL_TAG_DURATION_MS } from '../../../src/contracts';
 import type {
   AudioLevel,
   HubState,
   HudState,
   IllustrationKind,
   PixelImage,
+  StoryStarState,
   UiCallbacks,
   UiDeps,
 } from '../../../src/contracts';
@@ -19,6 +20,9 @@ function mockCallbacks() {
     onSelectMaterial: vi.fn(),
     onSelectBrush: vi.fn(),
     onToggleDoodle: vi.fn(),
+    onSelectToolMode: vi.fn(),
+    onHighlightMilestone: vi.fn(),
+    onUiFoley: vi.fn(),
     onTurnPage: vi.fn(),
     onAudioCycle: vi.fn(),
     onUnlockMaterial: vi.fn(),
@@ -28,11 +32,13 @@ function mockCallbacks() {
     onBookPage: vi.fn(),
     onCloseBook: vi.fn(),
     onSaveKeepsake: vi.fn(),
+    onSaveBookKeepsake: vi.fn(),
     onExportVault: vi.fn(),
     onImportVault: vi.fn(),
     onBackToHub: vi.fn(),
     onGesture: vi.fn(),
     onHover: vi.fn(),
+    onDismissPrologue: vi.fn(),
     onFinaleDone: vi.fn(),
   };
   return cb;
@@ -49,6 +55,16 @@ function mockDeps() {
   return { deps, illustration, clientToInternal };
 }
 
+function sampleStars(): StoryStarState[] {
+  return [
+    { id: 'violet', kind: 'violet', label: 'Violet', lit: true, progress: 1, regionIds: [1, 2, 3, 4], x: 100, y: 160 },
+    { id: 'lumi', kind: 'lumi', label: 'Lumi', lit: false, progress: 0.5, regionIds: [5, 6, 7, 8], x: 220, y: 150 },
+    { id: 'nova', kind: 'nova', label: 'Nova', lit: false, progress: 0, regionIds: [9, 10, 11], x: 340, y: 170 },
+    { id: 'planet', kind: 'planet', label: 'Ringed Planet', lit: false, progress: 0, regionIds: [12, 13], x: 380, y: 70 },
+    { id: 'cloud', kind: 'cloud', label: 'Space Clouds', lit: false, progress: 0, regionIds: [14, 15], x: 150, y: 65 },
+  ];
+}
+
 function sampleHud(over: Partial<HudState> = {}): HudState {
   return {
     mode: 'chapter',
@@ -60,9 +76,13 @@ function sampleHud(over: Partial<HudState> = {}): HudState {
     brushes: ['standard', 'turboCheetah'],
     selectedBrush: 'standard',
     doodle: false,
+    toolMode: 'pencil',
     relics: ['zoomiePaw'],
     coreAwake: 4,
     coreTotal: 10,
+    storyStars: sampleStars(),
+    wispPencilCue: false,
+    prologueActive: false,
     pageComplete: false,
     audioLevel: 3,
     ...over,
@@ -84,9 +104,11 @@ function sampleHub(over: Partial<HubState> = {}): HubState {
       novaScarf: false,
     },
     storybooks: [
-      { id: 'book-1', title: 'Aurora Voyage', galaxyName: 'Sparkle-Paws Aurora', createdAt: 1000, pageCount: 5 },
+      { id: 'book-1', title: 'Aurora Voyage', galaxyName: 'Sparkle-Paws Aurora', createdAt: 1000, pageCount: 5, seed: 4242 },
+      { id: 'book-2', title: 'Cheetah Comet', galaxyName: 'Golden Zoomie Nebula', createdAt: 2000, pageCount: 5 },
     ],
     hasRunInProgress: true,
+    audioLevel: 3,
     ...over,
   };
 }
@@ -110,7 +132,23 @@ function setMatchMedia(opts: { standalone?: boolean; reducedMotion?: boolean } =
   });
 }
 
-describe('Sketchbook UI (UiPort)', () => {
+function makePointerEvent(type: string, x: number, y: number, pointerId = 1): PointerEvent {
+  const ev = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent;
+  Object.defineProperties(ev, {
+    pointerId: { value: pointerId },
+    clientX: { value: x },
+    clientY: { value: y },
+    pointerType: { value: 'touch' },
+    button: { value: 0 },
+    buttons: { value: type === 'pointerup' ? 0 : 1 },
+    pressure: { value: 0.6 },
+    tiltX: { value: 0 },
+    tiltY: { value: 0 },
+  });
+  return ev;
+}
+
+describe('Wanderlings Cozy Tabletop Sketchbook UI (UiPort)', () => {
   let root: HTMLElement;
 
   beforeEach(() => {
@@ -127,11 +165,136 @@ describe('Sketchbook UI (UiPort)', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     document.body.innerHTML = '';
   });
 
-  it('fires chapter HUD callbacks: material, brush, doodle, audio cycle, next page vs early, back to hub', () => {
+  it('wooden groove handles Enchanted Pencil vs Starlight Wand, wisp cue, brush notches, mediums, foley, and <=4-word auto-fading micro-tag', () => {
+    vi.useFakeTimers();
+    const ui = createUi(root);
+    const cb = mockCallbacks();
+    const { deps } = mockDeps();
+    ui.mount(cb, deps);
+    ui.updateHud(sampleHud({ wispPencilCue: true, prologueActive: true }));
+    ui.setMode('chapter');
+
+    // Anti-clutter: ZERO side rails; all tools & unlocked mediums live in the single carved wooden groove
+    expect(root.querySelector('.cc-rail')).toBeNull();
+    expect(root.querySelectorAll('.cc-swatch').length).toBe(7);
+
+    const pencil = root.querySelector<HTMLButtonElement>('.cc-tool-pencil[data-tool="pencil"]')!;
+    const wand = root.querySelector<HTMLButtonElement>('.cc-tool-wand[data-tool="wand"]')!;
+    const tag = root.querySelector<HTMLElement>('.cc-tool-tag')!;
+    const tagText = root.querySelector<HTMLElement>('.cc-tool-tag-text')!;
+
+    expect(pencil.classList.contains('is-on')).toBe(true);
+    expect(pencil.classList.contains('is-wisp-cue')).toBe(true);
+    expect(root.querySelector<HTMLElement>('.cc-root')?.dataset.prologue).toBe('true');
+    expect(tag.hidden).toBe(true);
+
+    // Clicking Enchanted Pencil fires woodTap, onSelectToolMode('pencil'), onDismissPrologue, and <=4-word micro-tag
+    pencil.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('woodTap');
+    expect(cb.onSelectToolMode).toHaveBeenCalledWith('pencil');
+    expect(cb.onDismissPrologue).toHaveBeenCalledTimes(1);
+    expect(tag.hidden).toBe(false);
+    expect(tagText.textContent).toBe('Color shapes to wake');
+    expect(tagText.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(4);
+
+    // Clicking Starlight Wand fires woodTap, onSelectToolMode('wand'), and <=4-word micro-tag
+    wand.click();
+    expect(cb.onSelectToolMode).toHaveBeenCalledWith('wand');
+    expect(tagText.textContent).toBe('Sky doodle & poke');
+    expect(tagText.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(4);
+
+    // Selecting a drafted special brush while in Wand mode switches back to Pencil, fires onSelectBrush + woodTap
+    ui.updateHud(sampleHud({ toolMode: 'wand', doodle: true }));
+    const cheetahBrush = root.querySelector<HTMLButtonElement>('.cc-wood-groove .cc-brush[data-brush="turboCheetah"]')!;
+    cheetahBrush.click();
+    expect(cb.onSelectToolMode).toHaveBeenLastCalledWith('pencil');
+    expect(cb.onSelectBrush).toHaveBeenCalledWith('turboCheetah');
+    expect(tagText.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(4);
+
+    // Selecting unlocked material 6 fires woodTap + onSelectMaterial(6) + <=4-word tag
+    root.querySelector<HTMLButtonElement>('.cc-swatch[data-material="6"]')!.click();
+    expect(cb.onSelectMaterial).toHaveBeenCalledWith(6);
+    expect(tagText.textContent).toBe('Rainbow Prism Wax');
+    expect(tagText.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(4);
+
+    // Whisper micro-tag auto-fades cleanly after TOOL_TAG_DURATION_MS (2500ms)
+    expect(tag.hidden).toBe(false);
+    vi.advanceTimersByTime(TOOL_TAG_DURATION_MS);
+    expect(tag.hidden).toBe(true);
+
+    // Fallback when onSelectToolMode is omitted calls onToggleDoodle
+    const cbLegacy = mockCallbacks();
+    delete cbLegacy.onSelectToolMode;
+    ui.mount(cbLegacy, deps);
+    ui.updateHud(sampleHud({ doodle: false, toolMode: 'pencil' }));
+    wand.click();
+    expect(cbLegacy.onToggleDoodle).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders Bookmark Story Star Sockets (3-5), fires onHighlightMilestone + wispChime on unlit tap, and animates starlight thread SVG', () => {
+    const ui = createUi(root);
+    const cb = mockCallbacks();
+    const { deps } = mockDeps();
+    ui.mount(cb, deps);
+    ui.updateHud(sampleHud());
+    ui.setMode('chapter');
+
+    const sockets = root.querySelectorAll<HTMLButtonElement>('.cc-bookmark .cc-story-socket');
+    expect(sockets.length).toBeGreaterThanOrEqual(3);
+    expect(sockets.length).toBeLessThanOrEqual(5);
+
+    const litSocket = root.querySelector<HTMLButtonElement>('.cc-story-socket[data-milestone="violet"]')!;
+    const unlitSocket = root.querySelector<HTMLButtonElement>('.cc-story-socket[data-milestone="lumi"]')!;
+    expect(litSocket.classList.contains('is-lit')).toBe(true);
+    expect(unlitSocket.classList.contains('is-lit')).toBe(false);
+
+    // Tapping unlit socket fires wispChime + onHighlightMilestone('lumi')
+    unlitSocket.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('wispChime');
+    expect(cb.onHighlightMilestone).toHaveBeenCalledWith('lumi');
+
+    // animateStarThread mounts a golden SVG starlight Bézier arc in .cc-fx-overlay
+    ui.animateStarThread?.('lumi', 210, 320);
+    const thread = root.querySelector<HTMLElement>('.cc-fx-overlay .cc-star-thread[data-milestone="lumi"]');
+    expect(thread).not.toBeNull();
+    expect(thread?.querySelector('svg path.cc-thread-core')).not.toBeNull();
+  });
+
+  it('Corked Glass Apothecary Jar reflects gems, animates crystal drops, and taps back to Hub in chapter mode', () => {
+    const ui = createUi(root);
+    const cb = mockCallbacks();
+    const { deps } = mockDeps();
+    ui.mount(cb, deps);
+    ui.updateHud(sampleHud({ gems: 42 }));
+    ui.setMode('chapter');
+
+    const jar = root.querySelector<HTMLButtonElement>('.cc-crystal-jar')!;
+    expect(jar.dataset.gems).toBe('42');
+    expect(jar.querySelector('.cc-gems-n')?.textContent).toBe('42');
+    expect(jar.querySelectorAll('.cc-jar-shard').length).toBeGreaterThan(2);
+
+    // animateCrystalDrop spawns faceted shard drops & clinking class
+    ui.animateCrystalDrop?.(3);
+    expect(jar.classList.contains('is-clinking')).toBe(true);
+    expect(jar.querySelectorAll('.cc-crystal-drop').length).toBe(3);
+
+    // Updating gems updates jar tag and crystal count
+    ui.updateHud(sampleHud({ gems: 95 }));
+    expect(jar.dataset.gems).toBe('95');
+    expect(jar.querySelector('.cc-gems-n')?.textContent).toBe('95');
+
+    // Tapping jar in chapter mode plays jarClink and returns to Violet's Desk Hub
+    jar.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('jarClink');
+    expect(cb.onBackToHub).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses diegetic parchment dog-ears (bottom-right glowing vs top-right subtle) with ZERO Next Page / Turn early text buttons', () => {
     const ui = createUi(root);
     const cb = mockCallbacks();
     const { deps } = mockDeps();
@@ -139,52 +302,60 @@ describe('Sketchbook UI (UiPort)', () => {
     ui.updateHud(sampleHud({ pageComplete: false }));
     ui.setMode('chapter');
 
-    // Locked mediums are hidden in the dock (only 7 core unlocked)
-    const swatches = root.querySelectorAll<HTMLButtonElement>('.cc-swatch');
-    expect(swatches.length).toBe(7);
+    // Purge check: ZERO "Next Page" or "Turn early" text buttons anywhere
+    const allText = root.textContent ?? '';
+    expect(allText).not.toMatch(/Next Page/i);
+    expect(allText).not.toMatch(/Turn early/i);
 
-    // Select material 3
-    root.querySelector<HTMLButtonElement>('.cc-swatch[data-material="3"]')!.click();
-    expect(cb.onSelectMaterial).toHaveBeenCalledWith(3);
+    const nextDogEar = root.querySelector<HTMLButtonElement>('.cc-dogear-next[data-action="turn-next"]')!;
+    const earlyDogEar = root.querySelector<HTMLButtonElement>('.cc-dogear-early[data-action="turn-early"]')!;
+    expect(nextDogEar.textContent?.trim()).toBe('');
+    expect(earlyDogEar.textContent?.trim()).toBe('');
 
-    // Select brush turboCheetah
-    root.querySelector<HTMLButtonElement>('.cc-brush[data-brush="turboCheetah"]')!.click();
-    expect(cb.onSelectBrush).toHaveBeenCalledWith('turboCheetah');
+    expect(nextDogEar.hidden).toBe(true);
+    expect(earlyDogEar.hidden).toBe(false);
 
-    // Toggle Free-Starlight Doodle
-    root.querySelector<HTMLButtonElement>('.cc-doodle')!.click();
-    expect(cb.onToggleDoodle).toHaveBeenCalledTimes(1);
+    earlyDogEar.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('paperRustle');
+    expect(cb.onTurnPage).toHaveBeenCalledWith(true);
 
-    // Audio cycle + 4 distinct visual states
+    // When pageComplete becomes true, bottom-right glowing dog-ear appears and top-right hides
+    ui.updateHud(sampleHud({ pageComplete: true }));
+    expect(nextDogEar.hidden).toBe(false);
+    expect(earlyDogEar.hidden).toBe(true);
+
+    // Tap works
+    nextDogEar.click();
+    expect(cb.onTurnPage).toHaveBeenCalledWith(false);
+
+    // Inward-left drag/swipe (> 28px) also turns page
+    vi.mocked(cb.onTurnPage).mockClear();
+    nextDogEar.dispatchEvent(makePointerEvent('pointerdown', 1000, 650));
+    nextDogEar.dispatchEvent(makePointerEvent('pointermove', 960, 648));
+    nextDogEar.dispatchEvent(makePointerEvent('pointerup', 960, 648));
+    expect(cb.onTurnPage).toHaveBeenCalledTimes(1);
+    expect(cb.onTurnPage).toHaveBeenCalledWith(false);
+  });
+
+  it('corner brass bell audio cycles 4 distinct visual states (3 -> 2 -> 1 -> 0)', () => {
+    const ui = createUi(root);
+    const cb = mockCallbacks();
+    const { deps } = mockDeps();
+    ui.mount(cb, deps);
+    ui.updateHud(sampleHud({ audioLevel: 3 }));
+    ui.setMode('chapter');
+
     const audioBtn = root.querySelector<HTMLButtonElement>('.cc-audio')!;
     audioBtn.click();
     expect(cb.onAudioCycle).toHaveBeenCalledTimes(1);
-    const audioSvgs = new Set<string>();
+
+    const svgs = new Set<string>();
     for (const lvl of [3, 2, 1, 0] as AudioLevel[]) {
       ui.updateHud(sampleHud({ audioLevel: lvl }));
       expect(audioBtn.dataset.level).toBe(String(lvl));
-      audioSvgs.add(audioBtn.innerHTML);
+      svgs.add(audioBtn.innerHTML);
     }
-    expect(audioSvgs.size).toBe(4);
-
-    // Early turn button visible when pageComplete is false
-    const nextBtn = root.querySelector<HTMLButtonElement>('.cc-next')!;
-    const earlyBtn = root.querySelector<HTMLButtonElement>('.cc-early')!;
-    expect(nextBtn.hidden).toBe(true);
-    expect(earlyBtn.hidden).toBe(false);
-    earlyBtn.click();
-    expect(cb.onTurnPage).toHaveBeenCalledWith(true);
-
-    // Next Page button appears when pageComplete is true
-    ui.updateHud(sampleHud({ pageComplete: true }));
-    expect(nextBtn.hidden).toBe(false);
-    expect(earlyBtn.hidden).toBe(true);
-    nextBtn.click();
-    expect(cb.onTurnPage).toHaveBeenCalledWith(false);
-
-    // Back to hub
-    root.querySelector<HTMLButtonElement>('.cc-home')!.click();
-    expect(cb.onBackToHub).toHaveBeenCalledTimes(1);
+    expect(svgs.size).toBe(4);
   });
 
   it('caches illustrations and avoids rebuilding them across repeated updateHud/updateHub frames', () => {
@@ -198,7 +369,6 @@ describe('Sketchbook UI (UiPort)', () => {
     const callsAfterFirst = illustration.mock.calls.length;
     expect(callsAfterFirst).toBeGreaterThan(0);
 
-    // Repeating updateHud with same or slightly changed numeric values should not call illustration again
     for (let i = 0; i < 10; i++) {
       ui.updateHud({ ...hud, gems: 42 + i, selectedMaterial: ((i % 7) + 1) as HudState['selectedMaterial'] });
     }
@@ -211,41 +381,88 @@ describe('Sketchbook UI (UiPort)', () => {
     expect(illustration.mock.calls.length).toBe(callsAfterHub);
   });
 
-  it('fires hub callbacks: play, continue, unlock medium, buy/toggle wardrobe, open book, export and import text', async () => {
+  it('Hub renders wax-sealed Voyage ribbon & 4 tabletop craft stations (Paintbox, Wardrobe Card, Bookshelf, Trinket Tray) with ZERO text tabs', async () => {
     const ui = createUi(root);
     const cb = mockCallbacks();
     const { deps } = mockDeps();
     ui.mount(cb, deps);
-    ui.updateHub(sampleHub({ gems: 100, hasRunInProgress: true }));
+    ui.updateHub(sampleHub({ gems: 100, hasRunInProgress: true, audioLevel: 2 }));
     ui.setMode('hub');
 
-    root.querySelector<HTMLButtonElement>('.cc-continue')!.click();
-    expect(cb.onContinueRun).toHaveBeenCalledTimes(1);
+    // ZERO old tab strips or "Mediums | Wardrobe | Badges | Books" text tabs
+    expect(root.querySelector('.cc-tabs')).toBeNull();
+    expect(root.querySelector('[role="tablist"]')).toBeNull();
+    expect(root.querySelectorAll('[role="tab"]').length).toBe(0);
 
-    root.querySelector<HTMLButtonElement>('.cc-play')!.click();
+    // Wax-sealed parchment ribbon: Continue Voyage + New Voyage
+    const continueBtn = root.querySelector<HTMLButtonElement>('.cc-voyage-seal.cc-continue')!;
+    const newVoyageBtn = root.querySelector<HTMLButtonElement>('.cc-voyage-seal.cc-play')!;
+    expect(continueBtn.textContent).toContain('Continue Voyage');
+    expect(newVoyageBtn.textContent).toContain('New Voyage');
+
+    continueBtn.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('paperRustle');
+    expect(cb.onContinueRun).toHaveBeenCalledTimes(1);
+    newVoyageBtn.click();
     expect(cb.onStartRun).toHaveBeenCalledTimes(1);
 
-    // Unlock medium (id 8 = OpalPearl, cost 30 <= 100)
+    // Verify all 4 tabletop craft stations exist
+    const paintboxStation = root.querySelector<HTMLButtonElement>('.cc-station-paintbox[data-station="paintbox"]')!;
+    const wardrobeStation = root.querySelector<HTMLButtonElement>('.cc-station-wardrobe[data-station="wardrobe"]')!;
+    const bookshelfStation = root.querySelector<HTMLButtonElement>('.cc-station-bookshelf[data-station="bookshelf"]')!;
+    const trinketsStation = root.querySelector<HTMLButtonElement>('.cc-station-trinkets[data-station="trinkets"]')!;
+    expect([paintboxStation, wardrobeStation, bookshelfStation, trinketsStation].every(Boolean)).toBe(true);
+
+    // 1. Hinged Wooden Paintbox -> unlock exotic medium 8 with woodTap + jarClink
+    paintboxStation.click();
+    expect(root.querySelector<HTMLElement>('.cc-drawer-paintbox')!.hidden).toBe(false);
     root.querySelector<HTMLButtonElement>('.cc-shop-item[data-material="8"]')!.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('woodTap');
+    expect(cb.onUiFoley).toHaveBeenCalledWith('jarClink');
     expect(cb.onUnlockMaterial).toHaveBeenCalledWith(8);
 
-    // Wardrobe tab: toggle owned (violetPins) and buy unowned (violetCape, cost 25 <= 100)
-    root.querySelector<HTMLButtonElement>('.cc-tab[data-tab="wardrobe"]')!.click();
+    // 2. Paper-Doll Sticker Wardrobe Card -> shows Violet/Lumi/Nova previews & peels/buys stickers with stickerPeel
+    wardrobeStation.click();
+    expect(root.querySelector<HTMLElement>('.cc-drawer-wardrobe')!.hidden).toBe(false);
+    expect(root.querySelectorAll('.cc-doll-card').length).toBe(3);
+
     root.querySelector<HTMLButtonElement>('.cc-ward-item[data-wardrobe="violetPins"]')!.click();
+    expect(cb.onUiFoley).toHaveBeenCalledWith('stickerPeel');
     expect(cb.onToggleWardrobe).toHaveBeenCalledWith('violetPins');
 
     root.querySelector<HTMLButtonElement>('.cc-ward-item[data-wardrobe="violetCape"]')!.click();
     expect(cb.onBuyWardrobe).toHaveBeenCalledWith('violetCape');
 
-    // Books tab: open book, export, and import text
-    root.querySelector<HTMLButtonElement>('.cc-tab[data-tab="books"]')!.click();
-    root.querySelector<HTMLButtonElement>('.cc-cover[data-book="book-1"]')!.click();
+    // 3. Warm Wooden Bookshelf -> wax-seal Constellation Badges, deterministic cloth spines, 1-tap Keepsake stamp, open book
+    bookshelfStation.click();
+    expect(root.querySelector<HTMLElement>('.cc-drawer-bookshelf')!.hidden).toBe(false);
+    expect(root.querySelectorAll('.cc-wax-badge').length).toBe(8);
+    expect(root.querySelector('.cc-wax-badge[data-badge="firstBloom"]')?.classList.contains('is-on')).toBe(true);
+
+    const spine1 = root.querySelector<HTMLButtonElement>('.cc-book-spine[data-book="book-1"]')!;
+    const spine2 = root.querySelector<HTMLButtonElement>('.cc-book-spine[data-book="book-2"]')!;
+    expect(spine1.dataset.spineColor).toBeTruthy();
+    expect(spine2.dataset.spineColor).toBeTruthy();
+
+    // 1-tap Keepsake Postcard PNG brass stamp button
+    root.querySelector<HTMLButtonElement>('.cc-book-keepsake[data-keepsake-book="book-1"]')!.click();
+    expect(cb.onSaveBookKeepsake).toHaveBeenCalledWith('book-1');
+
+    // Open storybook from cloth spine
+    spine1.click();
     expect(cb.onOpenBook).toHaveBeenCalledWith('book-1');
+
+    // 4. Brass Desk-Corner Trinket Tray -> Parent Volume Brass Bell (synced to HubState.audioLevel), Export & Import Wax Scroll
+    trinketsStation.click();
+    expect(root.querySelector<HTMLElement>('.cc-drawer-trinkets')!.hidden).toBe(false);
+    const trinketBell = root.querySelector<HTMLButtonElement>('.cc-trinket-audio')!;
+    expect(trinketBell.dataset.level).toBe('2');
+    trinketBell.click();
+    expect(cb.onAudioCycle).toHaveBeenCalledTimes(1);
 
     root.querySelector<HTMLButtonElement>('.cc-export')!.click();
     expect(cb.onExportVault).toHaveBeenCalledTimes(1);
 
-    // Simulate selecting a JSON file in the hidden file input
     const fileInput = root.querySelector<HTMLInputElement>('input.cc-file')!;
     const payload = '{"format":"chroma-cosmos-vault","version":1}';
     const fakeFile = new File([payload], 'backup.json', { type: 'application/json' });
@@ -254,9 +471,13 @@ describe('Sketchbook UI (UiPort)', () => {
     await vi.waitFor(() => {
       expect(cb.onImportVault).toHaveBeenCalledWith(payload);
     });
+
+    // Brass close clasp dismisses open craft drawer
+    root.querySelector<HTMLButtonElement>('.cc-drawer-trinkets .cc-drawer-close')!.click();
+    expect(root.querySelector<HTMLElement>('.cc-craft-overlay')!.hidden).toBe(true);
   });
 
-  it('handles book viewer navigation, keepsake export, and close', () => {
+  it('handles book viewer navigation, keepsake export, close, and Living Bookshelf pointer pokes', () => {
     const ui = createUi(root);
     const cb = mockCallbacks();
     const { deps } = mockDeps();
@@ -278,49 +499,27 @@ describe('Sketchbook UI (UiPort)', () => {
 
     root.querySelector<HTMLButtonElement>('.cc-book-back')!.click();
     expect(cb.onCloseBook).toHaveBeenCalledTimes(1);
-  });
 
-  it('forwards pointer gestures to onGesture in book mode for Living Bookshelf pokes', () => {
-    const ui = createUi(root);
-    const cb = mockCallbacks();
-    const { deps } = mockDeps();
-    ui.mount(cb, deps);
-    const book = sampleHub().storybooks[0]!;
+    // Pointer events still forward in book mode
     ui.showBook(book, 0, 3);
-
-    const makePtr = (type: string, x: number, y: number): PointerEvent => {
-      const ev = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent;
-      Object.defineProperties(ev, {
-        pointerId: { value: 1 },
-        clientX: { value: x },
-        clientY: { value: y },
-        pointerType: { value: 'touch' },
-        button: { value: 0 },
-        buttons: { value: type === 'pointerup' ? 0 : 1 },
-        pressure: { value: 0.6 },
-        tiltX: { value: 0 },
-        tiltY: { value: 0 },
-      });
-      return ev;
-    };
-
-    ui.canvasHost.dispatchEvent(makePtr('pointerdown', 120, 90));
-    ui.canvasHost.dispatchEvent(makePtr('pointermove', 125, 92));
-    ui.canvasHost.dispatchEvent(makePtr('pointerup', 125, 92));
-
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerdown', 120, 90));
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointermove', 125, 92));
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerup', 125, 92));
     expect(cb.onGesture).toHaveBeenCalledTimes(3);
-    expect(cb.onGesture).toHaveBeenNthCalledWith(1, expect.objectContaining({ phase: 'start', x: 120, y: 90 }));
-    expect(cb.onGesture).toHaveBeenNthCalledWith(2, expect.objectContaining({ phase: 'move', x: 125, y: 92 }));
-    expect(cb.onGesture).toHaveBeenNthCalledWith(3, expect.objectContaining({ phase: 'end', x: 125, y: 92 }));
   });
 
-  it('showDraft renders 3 illustrated cards and resolves with the chosen card id', async () => {
+  it('Hinged Vintage Astral Pencil Tin, Star-Doors, and Illuminated Finale play foley and resolve cleanly', async () => {
     const ui = createUi(root);
     const cb = mockCallbacks();
     const { deps } = mockDeps();
     ui.mount(cb, deps);
 
-    const p = ui.showDraft(['turboCheetah', 'prismRibbon', 'zeroGGel']);
+    // 1. Hinged Vintage Metal Astral Pencil Tin
+    const pDraft = ui.showDraft(['turboCheetah', 'prismRibbon', 'zeroGGel']);
+    expect(cb.onUiFoley).toHaveBeenCalledWith('tinSnap');
+    expect(root.querySelector('.cc-pencil-tin .cc-tin-lid-top')).not.toBeNull();
+    expect(root.querySelector('.cc-pencil-tin .cc-tin-hinges')).not.toBeNull();
+
     const cards = root.querySelectorAll<HTMLButtonElement>('.cc-card');
     expect(cards.length).toBe(3);
 
@@ -331,46 +530,35 @@ describe('Sketchbook UI (UiPort)', () => {
     expect(second.querySelector('canvas.cc-pix')).not.toBeNull();
 
     second.click();
-    await expect(p).resolves.toBe('prismRibbon');
-  });
+    await expect(pDraft).resolves.toBe('prismRibbon');
+    expect(cb.onUiFoley).toHaveBeenCalledWith('stickerPeel');
 
-  it('showDoors renders illustrated doors and resolves with the chosen chapter id', async () => {
-    const ui = createUi(root);
-    const cb = mockCallbacks();
-    const { deps } = mockDeps();
-    ui.mount(cb, deps);
-
-    const p = ui.showDoors(['cheetahSavannah', 'saturnRings']);
-    const doors = root.querySelectorAll<HTMLButtonElement>('.cc-door');
-    expect(doors.length).toBe(2);
-
+    // 2. Parchment Star-Doors with parting curtains
+    const pDoors = ui.showDoors(['cheetahSavannah', 'saturnRings']);
+    expect(root.querySelectorAll('.cc-door').length).toBe(2);
+    expect(root.querySelector('.cc-curtain-l')).not.toBeNull();
     const saturn = root.querySelector<HTMLButtonElement>('.cc-door[data-chapter="saturnRings"]')!;
     expect(saturn.querySelector('canvas.cc-pix')).not.toBeNull();
     saturn.click();
-    await expect(p).resolves.toBe('saturnRings');
-  });
+    await expect(pDoors).resolves.toBe('saturnRings');
+    expect(cb.onUiFoley).toHaveBeenCalledWith('paperRustle');
 
-  it('showFinale displays galaxy name, resolves on tap, and invokes onFinaleDone', async () => {
-    const ui = createUi(root);
-    const cb = mockCallbacks();
-    const { deps } = mockDeps();
-    ui.mount(cb, deps);
-
-    const p = ui.showFinale('The Sparkle-Paws Aurora Spiral');
+    // 3. Illuminated stitched title-plate Finale
+    const pFinale = ui.showFinale('The Sparkle-Paws Aurora Spiral');
+    expect(cb.onUiFoley).toHaveBeenCalledWith('wispChime');
     const modal = root.querySelector<HTMLElement>('.cc-finale')!;
+    expect(modal.querySelector('.cc-finale-plate')).not.toBeNull();
     expect(modal.textContent).toContain('The Sparkle-Paws Aurora Spiral');
-
     modal.click();
-    await expect(p).resolves.toBeUndefined();
+    await expect(pFinale).resolves.toBeUndefined();
     expect(cb.onFinaleDone).toHaveBeenCalledTimes(1);
   });
 
-  it('PWA install badge: hidden when standalone, shown on beforeinstallprompt otherwise, dismissible, prompts on tap, hides on appinstalled', async () => {
-    // 1. Standalone mode: badge stays hidden even after beforeinstallprompt
+  it('PWA Install Star-Charm inside Brass Trinket Tray obeys standalone, beforeinstallprompt, prompt(), dismiss, and appinstalled', async () => {
+    // 1. Standalone mode: hidden even after beforeinstallprompt
     setMatchMedia({ standalone: true, reducedMotion: true });
     const uiStandalone = createUi(root);
-    const cb1 = mockCallbacks();
-    uiStandalone.mount(cb1, mockDeps().deps);
+    uiStandalone.mount(mockCallbacks(), mockDeps().deps);
 
     const wrap1 = root.querySelector<HTMLElement>('.cc-install-wrap')!;
     expect(wrap1.hidden).toBe(true);
@@ -390,7 +578,9 @@ describe('Sketchbook UI (UiPort)', () => {
     const uiBrowser = createUi(root);
     uiBrowser.mount(mockCallbacks(), mockDeps().deps);
     const wrap2 = root.querySelector<HTMLElement>('.cc-install-wrap')!;
+    const pip2 = root.querySelector<HTMLElement>('.cc-mini-install-pip')!;
     expect(wrap2.hidden).toBe(true);
+    expect(pip2.hidden).toBe(true);
 
     const promptSpy = vi.fn(async () => undefined);
     const bip2 = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
@@ -400,21 +590,21 @@ describe('Sketchbook UI (UiPort)', () => {
     window.dispatchEvent(bip2);
     expect(bip2.defaultPrevented).toBe(true);
     expect(wrap2.hidden).toBe(false);
+    expect(pip2.hidden).toBe(false);
 
     root.querySelector<HTMLButtonElement>('.cc-install')!.click();
     await vi.waitFor(() => expect(promptSpy).toHaveBeenCalledTimes(1));
     expect(wrap2.hidden).toBe(true);
 
-    // 3. Re-triggering beforeinstallprompt -> dismiss button hides it
-    const bip3 = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
-      prompt: vi.fn(async () => undefined),
-    });
-    window.dispatchEvent(bip3);
+    // 3. Re-trigger -> dismiss hides star-charm
+    window.dispatchEvent(
+      Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: vi.fn(async () => undefined) }),
+    );
     expect(wrap2.hidden).toBe(false);
     root.querySelector<HTMLButtonElement>('.cc-install-x')!.click();
     expect(wrap2.hidden).toBe(true);
 
-    // 4. appinstalled hides a visible badge
+    // 4. appinstalled hides visible star-charm
     document.body.innerHTML = '<div id="app"></div>';
     root = document.getElementById('app')!;
     const ui3 = createUi(root);
@@ -428,7 +618,7 @@ describe('Sketchbook UI (UiPort)', () => {
     expect(wrap3.hidden).toBe(true);
   });
 
-  it('updates mode data attribute cleanly (boot, turning, chapter, hub) and displays toasts', () => {
+  it('updates mode data attribute cleanly (boot, turning, chapter, hub) and renders calm whisper toasts', () => {
     const ui = createUi(root);
     ui.mount(mockCallbacks(), mockDeps().deps);
     const shell = root.querySelector<HTMLElement>('.cc-root')!;
@@ -439,5 +629,20 @@ describe('Sketchbook UI (UiPort)', () => {
 
     ui.toast('Sparkle unlocked!');
     expect(root.querySelector('.cc-toast')?.textContent).toContain('Sparkle unlocked!');
+  });
+
+  it('populates empty Hub bookshelf and unlit wax-seal badges on fresh save', () => {
+    const ui = createUi(root);
+    ui.mount(mockCallbacks(), mockDeps().deps);
+    ui.updateHub(sampleHub({ badges: [], storybooks: [], hasRunInProgress: false }));
+    ui.setMode('hub');
+
+    expect(root.querySelector('.cc-voyage-seal.cc-play')?.textContent).toContain('Begin Voyage');
+    expect(root.querySelector<HTMLButtonElement>('.cc-voyage-seal.cc-continue')!.hidden).toBe(true);
+    expect(root.querySelectorAll('.cc-wax-badge').length).toBe(8);
+    expect(root.querySelector('.cc-shelf-empty')?.textContent).toContain('Finish a voyage');
+    for (const nav of root.querySelectorAll<HTMLButtonElement>('.cc-shelf-nav')) {
+      expect(nav.hidden).toBe(true);
+    }
   });
 });

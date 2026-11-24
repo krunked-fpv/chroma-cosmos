@@ -85,28 +85,49 @@ export function crystalJarSvg(gems: number): string {
   const shards = JAR_SHARDS.slice(0, count)
     .map(
       (s, i) =>
-        `<g class="cc-jar-shard" style="--si:${i}"><polygon points="${s.pts}" fill="${s.fill}" stroke="#231942" stroke-width="1.2"/>` +
-        `<polygon points="${s.pts}" fill="${s.shine}" opacity=".32"/></g>`,
+        `<g class="cc-jar-shard" style="--si:${i}"><polygon points="${s.pts}" fill="${s.fill}" stroke="#231942" stroke-width="1.15"/>` +
+        `<polygon points="${s.pts}" fill="${s.shine}" opacity=".38"/></g>`,
     )
     .join('');
 
   return svg(
-    // Soft moonlight jar glow
-    `<ellipse cx="28" cy="36" rx="18" ry="15" fill="#9be8ff" opacity=".18"/>` +
-      // Cork stopper
-      `<path d="M21 5h14l-1.3 8.5h-11.4z" fill="#b87a4b" stroke="#231942" stroke-width="2"/>` +
-      `<path d="M22.5 8.5h11M23.5 11.2h9" stroke="#7c4728" stroke-width="1.2" opacity=".7"/>` +
-      // Glass neck & body silhouette
-      `<path d="M19.5 13h17v4.5c5.8 3 9.5 8.6 9.5 16.5 0 9.5-5.5 16-18 16S10 43.5 10 34c0-7.9 3.7-13.5 9.5-16.5z" fill="rgba(232,247,255,0.22)" stroke="#231942" stroke-width="2.2"/>` +
-      // Glowing crystal shards inside
+    `<defs>` +
+      `<linearGradient id="cc-jar-glass" x1="12" y1="14" x2="46" y2="50" gradientUnits="userSpaceOnUse">` +
+      `<stop offset="0%" stop-color="#fff8de" stop-opacity=".46"/>` +
+      `<stop offset="48%" stop-color="#f6d598" stop-opacity=".22"/>` +
+      `<stop offset="100%" stop-color="#87c5e8" stop-opacity=".3"/>` +
+      `</linearGradient>` +
+      `<linearGradient id="cc-jar-cork" x1="20" y1="5" x2="36" y2="14" gradientUnits="userSpaceOnUse">` +
+      `<stop offset="0%" stop-color="#d89d65"/>` +
+      `<stop offset="55%" stop-color="#b57441"/>` +
+      `<stop offset="100%" stop-color="#7c4724"/>` +
+      `</linearGradient>` +
+      `</defs>` +
+      // Warm amber candlelight aura & glass base shadow
+      `<ellipse cx="28" cy="51.5" rx="14.5" ry="3.2" fill="#180d2c" opacity=".32"/>` +
+      `<ellipse cx="28" cy="36" rx="18" ry="15" fill="#ffe19e" opacity=".2"/>` +
+      // Textured cork stopper with bevel highlight
+      `<path d="M20.5 4.8h15l-1.5 8.8h-12z" fill="url(#cc-jar-cork)" stroke="#231942" stroke-width="1.9"/>` +
+      `<path d="M22.3 7.2h11.4" stroke="#f4cfa1" stroke-width="1.1" opacity=".65"/>` +
+      `<circle cx="24.5" cy="9.5" r=".8" fill="#6d3a1c"/><circle cx="30.5" cy="8.4" r=".7" fill="#6d3a1c"/><circle cx="28" cy="11.2" r=".7" fill="#6d3a1c"/>` +
+      // Warm amber-tinted apothecary bottle silhouette
+      `<path d="M19 13.2h18v4.3c6 3.1 9.8 8.7 9.8 16.5 0 9.6-5.8 16.2-18.8 16.2S9.2 43.6 9.2 34c0-7.8 3.8-13.4 9.8-16.5z" fill="url(#cc-jar-glass)" stroke="#231942" stroke-width="2.1"/>` +
+      // Subtle glass floor thickness
+      `<path d="M14.5 44.5c3.5 3.4 8 4.4 13.5 4.4s10-1 13.5-4.4" stroke="#ffecc2" stroke-width="1.6" opacity=".52"/>` +
+      // Glowing faceted crystal shards accumulating inside
       `<g class="cc-jar-crystals">${shards}</g>` +
-      // Twine collar around neck
-      `<path d="M18.5 15.5c4.5 1.8 14.5 1.8 19 0" stroke="#e4c590" stroke-width="2.6"/>` +
-      `<path d="M18.5 15.5c4.5 1.8 14.5 1.8 19 0" stroke="#7c4728" stroke-width="1.1"/>` +
-      // Glass highlight & warm reflection
-      `<path d="M15 26c-1.5 3.6-1.7 9 .2 13.8" stroke="#ffffff" stroke-width="2.4" opacity=".72"/>` +
-      `<path d="M40.5 25c1 2.5 1.2 5.4.6 8.2" stroke="#ffe9a6" stroke-width="1.6" opacity=".55"/>` +
-      `<ellipse cx="28" cy="13" rx="8.5" ry="2" fill="#e6f7ff" stroke="#231942" stroke-width="1.6"/>`,
+      // Coiled hemp twine collar + string tail extending right to the parchment tag
+      `<path d="M18 15.6c4.8 2 15.2 2 20 0" stroke="#e8ca94" stroke-width="3.2"/>` +
+      `<path d="M18.2 17.8c4.6 1.7 14.8 1.7 19.6 0" stroke="#c89e62" stroke-width="2"/>` +
+      `<path d="M18 15.6c4.8 2 15.2 2 20 0" stroke="#6d4320" stroke-width="1" opacity=".8"/>` +
+      `<path d="M37.6 16.6c4.2 1.2 6.8 4.4 9.6 8.2" stroke="#c89e62" stroke-width="1.8"/>` +
+      `<path d="M37.6 16.6c4.2 1.2 6.8 4.4 9.6 8.2" stroke="#6d4320" stroke-width=".9" stroke-dasharray="2 2"/>` +
+      `<circle cx="37.8" cy="16.8" r="2.1" fill="#e8ca94" stroke="#231942" stroke-width="1.2"/>` +
+      // Luminous curved glass specular sheen & warm amber rim highlight
+      `<path d="M14.6 25.4c-1.7 3.9-1.9 9.5.3 14.6" stroke="#ffffff" stroke-width="2.6" opacity=".78"/>` +
+      `<path d="M17.5 23.2c-.5 1.2-.8 2.6-.8 4" stroke="#ffffff" stroke-width="1.4" opacity=".62"/>` +
+      `<path d="M41.2 25.5c1 2.7 1.2 5.6.5 8.5" stroke="#ffdf94" stroke-width="1.8" opacity=".65"/>` +
+      `<ellipse cx="28" cy="13.2" rx="9" ry="2.2" fill="#fff7df" stroke="#231942" stroke-width="1.6"/>`,
     '0 0 56 56',
   );
 }
@@ -166,32 +187,69 @@ export const DOG_EAR_EARLY_SVG = svg(
   '0 0 48 48',
 );
 
-/** Tarnished brass corner clasp for the heirloom cotton sketchbook frame. */
+/** Ornate shaded metallic-brass corner clasp with tiny rivets for the heirloom cotton sketchbook. */
 export const BRASS_CLASP_SVG = svg(
-  `<path d="M3 3h24c-2 6-5 9-10 10-5 1-8 4-10 10V3z" fill="#c99848" stroke="#231942" stroke-width="1.8"/>` +
-    `<path d="M5 5h17c-1.8 4-4.2 6-7.8 6.8-3.6.8-6 3.2-7.2 7.2V5z" fill="#e6be70" opacity=".75"/>` +
-    `<circle cx="9.5" cy="9.5" r="2" fill="#8b5d22" stroke="#231942" stroke-width="1.1"/>` +
-    `<circle cx="19" cy="7.5" r="1.3" fill="#fff2c2"/>` +
-    `<circle cx="7.5" cy="19" r="1.3" fill="#fff2c2"/>`,
+  `<defs><linearGradient id="cc-brass-clasp" x1="2" y1="2" x2="28" y2="28" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0%" stop-color="#fff0bc"/><stop offset="45%" stop-color="#d8a84f"/><stop offset="100%" stop-color="#875c1d"/>` +
+    `</linearGradient></defs>` +
+    `<path d="M2.5 2.5h26c-1.8 5.2-4.6 8.2-9 9.6-4.4 1.4-6.4 3.4-7.8 7.8-1.4 4.4-4.4 7.2-9.2 8.6V2.5z" fill="url(#cc-brass-clasp)" stroke="#231942" stroke-width="1.7"/>` +
+    `<path d="M4.8 4.8h19.5c-1.6 3.5-3.8 5.4-7.4 6.5-3.6 1.1-5.5 3-6.6 6.6-1.1 3.6-2.9 5.5-5.5 6.8V4.8z" fill="none" stroke="#fff6d6" stroke-width="1.1" opacity=".72"/>` +
+    `<circle cx="9.2" cy="9.2" r="2.2" fill="#7c5319" stroke="#231942" stroke-width="1.1"/>` +
+    `<circle cx="8.6" cy="8.6" r=".8" fill="#fff5cc"/>` +
+    `<circle cx="20.2" cy="7.2" r="1.5" fill="#9c6c24" stroke="#231942" stroke-width=".9"/>` +
+    `<circle cx="19.8" cy="6.8" r=".55" fill="#fff5cc"/>` +
+    `<circle cx="7.2" cy="20.2" r="1.5" fill="#9c6c24" stroke="#231942" stroke-width=".9"/>` +
+    `<circle cx="6.8" cy="19.8" r=".55" fill="#fff5cc"/>`,
   '0 0 32 32',
 );
 
 /** Delicate hand-drawn botanical & celestial ink corner filigree. */
 export const CORNER_FILIGREE_SVG = svg(
-  `<path d="M6 42 C8 22, 18 10, 42 6" stroke="#4a3763" stroke-width="1.3" opacity=".45"/>` +
-    `<path d="M14 26 C18 22, 22 18, 28 14" stroke="#4a3763" stroke-width="1" stroke-dasharray="2 3" opacity=".4"/>` +
-    `<path d="M16 15a5 5 0 105 5 3.6 3.6 0 01-5-5z" fill="#c99848" opacity=".45"/>` +
-    `<circle cx="31" cy="11" r="1.4" fill="#c99848" opacity=".55"/>` +
-    `<circle cx="11" cy="32" r="1.3" fill="#c99848" opacity=".55"/>`,
+  `<path d="M6 42 C8 22, 18 10, 42 6" stroke="#5b4372" stroke-width="1.3" opacity=".42"/>` +
+    `<path d="M13 27 C17 22, 22 17, 29 13" stroke="#5b4372" stroke-width="1" stroke-dasharray="2 3" opacity=".36"/>` +
+    `<path d="M15.5 14.5a5 5 0 105 5 3.6 3.6 0 01-5-5z" fill="#d3a34e" opacity=".52"/>` +
+    `<circle cx="31" cy="11" r="1.4" fill="#d3a34e" opacity=".6"/>` +
+    `<circle cx="11" cy="32" r="1.3" fill="#d3a34e" opacity=".6"/>`,
   '0 0 48 48',
 );
 
-/** Embossed crimson-gold wax seal emblem for the Begin / Continue Voyage parchment ribbon. */
+/** 3D embossed crimson-and-gold wax seal emblem for the silk-and-vellum Voyage ribbon banner. */
 export const WAX_SEAL_VOYAGE_SVG = svg(
-  `<path d="M18 3c3.4 0 5 1.8 7.8 2.6 2.8.8 5 2.7 5.6 5.6.6 2.9 2.6 4.4 2.6 7.8 0 3.4-1.8 5-2.6 7.8-.8 2.8-2.7 5-5.6 5.6-2.9.6-4.4 2.6-7.8 2.6-3.4 0-5-1.8-7.8-2.6-2.8-.8-5-2.7-5.6-5.6C4 23.9 2 22.4 2 19c0-3.4 1.8-5 2.6-7.8.8-2.8 2.7-5 5.6-5.6C13.1 4.8 14.6 3 18 3z" fill="#b43c4e" stroke="#231942" stroke-width="1.8"/>` +
-    `<circle cx="18" cy="19" r="11.5" fill="#9a2f40" stroke="#e8c373" stroke-width="1.5"/>` +
-    `<path d="M18 10.5l2.1 5.4 5.4 2.1-5.4 2.1-2.1 5.4-2.1-5.4-5.4-2.1 5.4-2.1z" fill="#ffd43b" stroke="#231942" stroke-width="1"/>`,
-  '0 0 36 38',
+  `<defs>` +
+    `<radialGradient id="cc-wax-red" cx="35%" cy="28%" r="70%">` +
+    `<stop offset="0%" stop-color="#df5d70"/><stop offset="52%" stop-color="#b43448"/><stop offset="100%" stop-color="#6b1a28"/>` +
+    `</radialGradient>` +
+    `<linearGradient id="cc-wax-gold" x1="12" y1="10" x2="26" y2="27" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0%" stop-color="#fff6c4"/><stop offset="55%" stop-color="#ffd44f"/><stop offset="100%" stop-color="#b8781c"/>` +
+    `</linearGradient>` +
+    `</defs>` +
+    `<path d="M19 2.4c3.5 0 5.3 1.7 8.1 2.5 2.9.8 5.2 2.8 5.9 5.7.7 3 2.7 4.7 2.7 8.4 0 3.5-1.9 5.2-2.7 8.2-.8 2.9-2.8 5.1-5.8 5.8-3 .7-4.7 2.6-8.2 2.6-3.5 0-5.2-1.9-8.1-2.6-2.9-.8-5.1-2.8-5.8-5.8-.7-3-2.6-4.7-2.6-8.2 0-3.6 1.9-5.4 2.6-8.3.8-2.9 2.9-5 5.8-5.8C13.8 4.1 15.5 2.4 19 2.4z" fill="url(#cc-wax-red)" stroke="#231942" stroke-width="1.7"/>` +
+    `<path d="M10.5 9.2c2.5-2.6 5.6-3.7 9.4-3.5" stroke="#ffadb9" stroke-width="1.8" opacity=".55"/>` +
+    `<circle cx="19" cy="19" r="11.6" fill="#8f2435" stroke="#e9c472" stroke-width="1.6"/>` +
+    `<circle cx="19" cy="19" r="9.4" fill="none" stroke="#631522" stroke-width="1.1" opacity=".7"/>` +
+    `<path d="M19 10.6l2.3 5.9 5.9 2.5-5.9 2.3-2.3 5.9-2.3-5.9-5.9-2.3 5.9-2.5z" fill="url(#cc-wax-gold)" stroke="#231942" stroke-width="1.1"/>` +
+    `<circle cx="19" cy="19" r="1.6" fill="#fff8d6"/>`,
+  '0 0 38 38',
+);
+
+/** Translucent pastel starry washi-tape strip SVG pinning the Paper-Doll Sticker Sheet. */
+export const WASHI_TAPE_SVG = svg(
+  `<path d="M3 4l2.5 3.5L3 11l2.5 3.5L3 18h66l-2.5-3.5L69 11l-2.5-3.5L69 4z" fill="#f7c8dc" fill-opacity=".86" stroke="#b37896" stroke-width="1"/>` +
+    `<path d="M6 7h60M6 15h60" stroke="#fff6e8" stroke-width="1" stroke-dasharray="4 4" opacity=".75"/>` +
+    `<path d="M18 8l1 2.2 2.2.8-2.2.8-1 2.2-1-2.2-2.2-.8 2.2-.8z" fill="#fff7d1"/>` +
+    `<path d="M36 7.5l1.1 2.4 2.4.9-2.4.9-1.1 2.4-1.1-2.4-2.4-.9 2.4-.9z" fill="#ffe694"/>` +
+    `<path d="M54 8l1 2.2 2.2.8-2.2.8-1 2.2-1-2.2-2.2-.8 2.2-.8z" fill="#c7f2ff"/>`,
+  '0 0 72 22',
+);
+
+/** Ornate gilded archway keystone medallion with a luminous star for Star-Door portals. */
+export const DOOR_KEYSTONE_SVG = svg(
+  `<defs><linearGradient id="cc-key-g" x1="8" y1="2" x2="32" y2="30" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0%" stop-color="#fff4bf"/><stop offset="50%" stop-color="#dfb053"/><stop offset="100%" stop-color="#8b5e1d"/>` +
+    `</linearGradient></defs>` +
+    `<path d="M20 2l14 7-4 17-10 5-10-5-4-17z" fill="url(#cc-key-g)" stroke="#231942" stroke-width="1.8"/>` +
+    `<path d="M20 6.5l2.4 5.5 5.9.7-4.4 4 1.2 5.8-5.1-2.9-5.1 2.9 1.2-5.8-4.4-4 5.9-.7z" fill="#fffbe0" stroke="#231942" stroke-width="1.2"/>`,
+  '0 0 40 34',
 );
 
 export const ICON_STAR = svg(
@@ -268,6 +326,11 @@ export const ICON_SCROLL_IMPORT = svg(
     `<circle cx="24" cy="23" r="4.5" fill="#d9ad5b" stroke="#231942" stroke-width="1.5"/>`,
 );
 export const ICON_TIN_CLASP = svg(
-  `<rect x="6" y="10" width="20" height="12" rx="4" fill="#d9ad5b" stroke="#231942" stroke-width="2"/>` +
-    `<circle cx="16" cy="16" r="2.6" fill="#231942"/>`,
+  `<defs><linearGradient id="cc-tin-brass" x1="4" y1="6" x2="28" y2="26" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0%" stop-color="#fff1bd"/><stop offset="50%" stop-color="#d7a54a"/><stop offset="100%" stop-color="#875c1d"/>` +
+    `</linearGradient></defs>` +
+    `<rect x="4" y="8" width="24" height="16" rx="5" fill="url(#cc-tin-brass)" stroke="#231942" stroke-width="2"/>` +
+    `<rect x="7" y="10.5" width="18" height="11" rx="3" fill="none" stroke="#fff6d6" stroke-width="1" opacity=".7"/>` +
+    `<circle cx="16" cy="16" r="2.8" fill="#462b12" stroke="#231942" stroke-width="1.2"/>` +
+    `<circle cx="9.2" cy="16" r="1.2" fill="#7c5319"/><circle cx="22.8" cy="16" r="1.2" fill="#7c5319"/>`,
 );

@@ -58,6 +58,29 @@ describe('src/styles/main.css hit-target, touch-lock, and accessibility assertio
     expect(css).not.toMatch(/\.cc-rail\b/);
   });
 
+  it('imports offline @fontsource Fraunces, Quicksand, and Patrick Hand in src/ui/index.ts and defines purposeful font variables in CSS', () => {
+    const uiIndex = readFileSync(resolve(ROOT, 'src/ui/index.ts'), 'utf8');
+    expect(uiIndex).toContain("import '@fontsource/fraunces/latin-600.css';");
+    expect(uiIndex).toContain("import '@fontsource/fraunces/latin-700.css';");
+    expect(uiIndex).toContain("import '@fontsource/fraunces/latin-700-italic.css';");
+    expect(uiIndex).toContain("import '@fontsource/quicksand/latin-600.css';");
+    expect(uiIndex).toContain("import '@fontsource/quicksand/latin-700.css';");
+    expect(uiIndex).toContain("import '@fontsource/patrick-hand/latin-400.css';");
+    expect(uiIndex.indexOf("@fontsource/patrick-hand/latin-400.css")).toBeLessThan(
+      uiIndex.indexOf("import '../styles/main.css'"),
+    );
+
+    expect(css).toContain("--font-display: 'Fraunces', Georgia, serif;");
+    expect(css).toContain("--font-hand: 'Patrick Hand', cursive, sans-serif;");
+    expect(css).toContain("--font-ui: 'Quicksand', ui-rounded, system-ui, sans-serif;");
+    // Seamless cotton sketchbook frame & zero duplicate Hub bell
+    const frameBlock = css.match(/\.cc-frame\s*\{([^}]+)\}/);
+    expect(frameBlock).not.toBeNull();
+    expect(frameBlock![1]).toContain('background: var(--paper);');
+    expect(frameBlock![1]).toContain('box-shadow: none;');
+    expect(css).toMatch(/\.cc-root\[data-mode="hub"\]\s+\.cc-audio[\s\S]*?display:\s*none;/);
+  });
+
   it('contains strictly zero occurrences of speechSynthesis anywhere in src/ui/**', () => {
     const uiDir = resolve(ROOT, 'src/ui');
     const files = readdirSync(uiDir).filter((f) => f.endsWith('.ts'));

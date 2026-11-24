@@ -8,12 +8,12 @@ import type { UiFoleyKind } from '../contracts/audio';
 import { CHAPTERS, DRAFT_CARDS } from '../contracts/roguelike';
 import type { ChapterId, DraftCardId } from '../contracts/roguelike';
 import { button, clear, frag, h, iconSpan } from './dom';
-import { CORNER_FILIGREE_SVG, ICON_STAR, ICON_TIN_CLASP } from './icons';
+import { CORNER_FILIGREE_SVG, DOOR_KEYSTONE_SVG, ICON_STAR, ICON_TIN_CLASP } from './icons';
 import type { IllustrationCache } from './illustrations';
 import { boing, prefersReducedMotion } from './spring';
 
-export const CARD_ART: [number, number] = [96, 72];
-export const DOOR_ART: [number, number] = [64, 96];
+export const CARD_ART: [number, number] = [120, 90];
+export const DOOR_ART: [number, number] = [80, 120];
 
 const KID_TYPE: Record<'brush' | 'relic', string> = { brush: 'Magic Brush', relic: 'Lucky Relic' };
 
@@ -124,7 +124,8 @@ export class Modals {
       );
 
       let done = false;
-      for (const id of cards) {
+      const mid = (cards.length - 1) / 2;
+      cards.forEach((id, idx) => {
         const def = DRAFT_CARDS.find((c) => c.id === id);
         const name = def?.name ?? id;
         const card = button(
@@ -147,8 +148,9 @@ export class Modals {
           ),
         );
         card.dataset.card = id;
+        card.style.setProperty('--fan', `${((idx - mid) * 1.5).toFixed(2)}deg`);
         row.append(card);
-      }
+      });
       this.open(el, () => undefined);
     });
   }
@@ -195,9 +197,14 @@ export class Modals {
           h(
             'span',
             { class: 'cc-door-inner' },
+            iconSpan(DOOR_KEYSTONE_SVG, 'cc-door-keystone'),
             h('span', { class: 'cc-door-art' }, this.art({ type: 'door', chapter: id }, DOOR_ART)),
-            h('span', { class: 'cc-door-title' }, ch?.title ?? id),
-            h('span', { class: 'cc-door-sub' }, ch?.subtitle ?? ''),
+            h(
+              'span',
+              { class: 'cc-door-plaque' },
+              h('span', { class: 'cc-door-title' }, ch?.title ?? id),
+              h('span', { class: 'cc-door-sub' }, ch?.subtitle ?? ''),
+            ),
           ),
         );
         door.dataset.chapter = id;

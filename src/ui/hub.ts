@@ -25,6 +25,7 @@ import {
   ICON_SCROLL_EXPORT,
   ICON_SCROLL_IMPORT,
   ICON_STAR,
+  WASHI_TAPE_SVG,
   WAX_SEAL_VOYAGE_SVG,
   audioIcon,
 } from './icons';
@@ -185,7 +186,12 @@ export class HubPanel {
       'wardrobe',
       'cc-station-wardrobe',
       'Paper-Doll Sticker Wardrobe Card',
-      h('span', { class: 'cc-station-craft cc-craft-wardrobe' }, this.wardrobePreview),
+      h(
+        'span',
+        { class: 'cc-station-craft cc-craft-wardrobe' },
+        iconSpan(WASHI_TAPE_SVG, 'cc-washi-strip'),
+        this.wardrobePreview,
+      ),
       'Stickers',
     );
 
@@ -202,6 +208,7 @@ export class HubPanel {
         this.bookshelfSealsPreview,
         this.bookshelfSpinesPreview,
         h('span', { class: 'cc-mini-plank', 'aria-hidden': 'true' }),
+        h('span', { class: 'cc-mini-wax-seal', 'aria-hidden': 'true' }),
       ),
       'Bookshelf',
     );
@@ -250,6 +257,8 @@ export class HubPanel {
       'cc-drawer-wardrobe',
       'Paper-Doll Sticker Sheet',
       'Peel a vinyl sticker to dress Violet, Lumi & Nova.',
+      iconSpan(WASHI_TAPE_SVG, 'cc-drawer-washi tl'),
+      iconSpan(WASHI_TAPE_SVG, 'cc-drawer-washi tr'),
       this.wardrobeCast,
       this.wardrobeGrid,
     );
@@ -581,7 +590,7 @@ export class HubPanel {
             h(
               'span',
               { class: 'cc-item-art cc-swatch-body' },
-              cache.canvas({ type: 'material', material: def.id }, 32, 32),
+              cache.canvas({ type: 'material', material: def.id }, 72, 72),
               h('span', { class: 'cc-gleam', 'aria-hidden': 'true' }),
             ),
           ),
@@ -591,6 +600,8 @@ export class HubPanel {
         ),
       );
       b.dataset.material = String(def.id);
+      b.style.setProperty('--pan-a', def.palette[0] ?? '#fff');
+      b.style.setProperty('--pan-b', def.palette[1] ?? def.palette[0] ?? '#eee');
       this.mediumsGrid.append(b);
     }
   }
@@ -599,7 +610,7 @@ export class HubPanel {
     const cache = this.cache!;
     const owned = new Set<WardrobeItemId>(s.wardrobeOwned);
 
-    // Closed desk preview: live miniature portraits of Violet, Lumi & Nova on the cream cardstock sheet
+    // Closed desk preview: live miniature portraits of Violet, Lumi & Nova on the washi-taped cream cardstock sheet
     clear(this.wardrobePreview);
     for (const ch of CHARACTERS) {
       const wornCount = WARDROBE_ITEMS.filter((w) => w.owner === ch.id && owned.has(w.id) && s.wardrobe[w.id]).length;
@@ -607,12 +618,12 @@ export class HubPanel {
         h(
           'span',
           { class: `cc-mini-doll${wornCount > 0 ? ' has-worn' : ''}` },
-          cache.canvas({ type: 'portrait', who: ch.id }, 24, 24, 'cc-mini-doll-pix'),
+          cache.canvas({ type: 'portrait', who: ch.id }, 32, 36, 'cc-mini-doll-pix'),
         ),
       );
     }
 
-    // Open close-up drawer: live character portraits with glowing sticker chips
+    // Open close-up drawer: ornate gilded paper-doll cameo frames showcasing HERO Hi-Bit portraits
     clear(this.wardrobeCast);
     for (const ch of CHARACTERS) {
       const wornItems = WARDROBE_ITEMS.filter((w) => w.owner === ch.id && owned.has(w.id) && s.wardrobe[w.id]);
@@ -620,23 +631,24 @@ export class HubPanel {
         'span',
         { class: 'cc-doll-badges' },
         ...wornItems.map((w) =>
-          h('span', { class: 'cc-doll-sticker-pip', title: w.name }, cache.canvas({ type: 'wardrobe', item: w.id }, 20, 20)),
+          h('span', { class: 'cc-doll-sticker-pip', title: w.name }, cache.canvas({ type: 'wardrobe', item: w.id }, 28, 28)),
         ),
       );
       this.wardrobeCast.append(
         h(
           'div',
           { class: `cc-doll-card${wornItems.length > 0 ? ' is-dressed' : ''}`, 'data-character': ch.id },
-          h('span', { class: 'cc-doll-portrait' }, cache.canvas({ type: 'portrait', who: ch.id }, 48, 48)),
+          h('span', { class: 'cc-doll-portrait' }, cache.canvas({ type: 'portrait', who: ch.id }, 92, 106)),
           h('span', { class: 'cc-doll-name' }, ch.name),
           pips,
         ),
       );
     }
 
-    // Peelable die-cut vinyl/paper stickers
+    // Peelable die-cut vinyl stickers with HERO 72x72 pixel art and playful organic angles
+    const stickerTilts = [-2, 1.4, -1.2, 1.7, -1.5, 1.2] as const;
     clear(this.wardrobeGrid);
-    for (const w of WARDROBE_ITEMS) {
+    WARDROBE_ITEMS.forEach((w, idx) => {
       const own = owned.has(w.id);
       const on = own && !!s.wardrobe[w.id];
       const afford = s.gems >= w.cost;
@@ -668,15 +680,16 @@ export class HubPanel {
         h(
           'span',
           { class: 'cc-item-inner' },
-          h('span', { class: 'cc-item-art cc-sticker-art' }, cache.canvas({ type: 'wardrobe', item: w.id }, 32, 32)),
+          h('span', { class: 'cc-item-art cc-sticker-art' }, cache.canvas({ type: 'wardrobe', item: w.id }, 72, 72)),
           h('span', { class: 'cc-item-name' }, w.name),
           status,
         ),
       );
       b.dataset.wardrobe = w.id;
+      b.style.setProperty('--tilt', `${stickerTilts[idx % stickerTilts.length]}deg`);
       if (own) b.setAttribute('aria-pressed', String(on));
       this.wardrobeGrid.append(b);
-    }
+    });
   }
 
   private buildBadges(earned: Set<BadgeId>): void {
@@ -716,20 +729,28 @@ export class HubPanel {
     // Live miniature cloth-bound book spines on the desk Bookshelf object
     clear(this.bookshelfSpinesPreview);
     const previewBooks = books.slice(0, 6);
+    const heights = [29, 34, 27, 32, 30, 28] as const;
+    const leans = [-2, 0, 1.5, -1, 0.8, 8] as const;
     if (previewBooks.length === 0) {
-      this.bookshelfSpinesPreview.append(
-        h('span', { class: 'cc-mini-spine is-ghost' }),
-        h('span', { class: 'cc-mini-spine is-ghost' }),
-        h('span', { class: 'cc-mini-spine is-ghost' }),
-      );
+      const starterTones = [BOOKCLOTH_TONES[0]!, BOOKCLOTH_TONES[1]!, BOOKCLOTH_TONES[3]!, BOOKCLOTH_TONES[2]!];
+      starterTones.forEach((tone, idx) => {
+        const sp = h('span', { class: 'cc-mini-spine is-ghost' });
+        sp.style.setProperty('--spine-bg', tone.cloth);
+        sp.style.setProperty('--spine-foil', tone.foil);
+        sp.style.setProperty('--spine-h', `${heights[idx % heights.length]}px`);
+        sp.style.setProperty('--spine-lean', `${idx === starterTones.length - 1 ? 8 : leans[idx]}deg`);
+        this.bookshelfSpinesPreview.append(sp);
+      });
     } else {
-      for (const b of previewBooks) {
+      previewBooks.forEach((b, idx) => {
         const tone = bookSpineTone(b);
         const sp = h('span', { class: 'cc-mini-spine', 'data-spine-color': tone.name });
         sp.style.setProperty('--spine-bg', tone.cloth);
         sp.style.setProperty('--spine-foil', tone.foil);
+        sp.style.setProperty('--spine-h', `${heights[idx % heights.length]}px`);
+        sp.style.setProperty('--spine-lean', `${idx === previewBooks.length - 1 && previewBooks.length >= 2 ? 7 : leans[idx % leans.length]}deg`);
         this.bookshelfSpinesPreview.append(sp);
-      }
+      });
     }
 
     const pages = Math.max(1, Math.ceil(books.length / BOOKS_PER_PAGE));
@@ -757,7 +778,7 @@ export class HubPanel {
           'span',
           { class: 'cc-spine-inner' },
           h('span', { class: 'cc-spine-band top', 'aria-hidden': 'true' }),
-          cache.canvas({ type: 'bookCover', seed, title: b.title }, 54, 72, 'cc-cover-pix'),
+          cache.canvas({ type: 'bookCover', seed, title: b.title }, 72, 96, 'cc-cover-pix'),
           h(
             'span',
             { class: 'cc-spine-meta' },
@@ -765,6 +786,7 @@ export class HubPanel {
             h('span', { class: 'cc-spine-pages' }, `${b.pageCount} ${b.pageCount === 1 ? 'page' : 'pages'}`),
           ),
           h('span', { class: 'cc-spine-band bot', 'aria-hidden': 'true' }),
+          h('span', { class: 'cc-spine-ribbon', 'aria-hidden': 'true' }),
         ),
       );
       openBtn.dataset.book = b.id;

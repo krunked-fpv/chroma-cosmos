@@ -2,8 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chroma Cosmos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#120d2b" />
+    <meta name="description" content="Interactive Hi-Bit Cosmic Coloring Book Roguelike starring Violet, Lumi &amp; Nova" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Chroma Cosmos" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="icon" href="./icon-192.png" />
+    <title>Chroma Cosmos: Violet's Living Sketchbook</title>
+    <style>
+      /* Pre-CSS paint guard: twilight background before the stylesheet arrives (no white flash). */
+      html, body { margin: 0; height: 100%; background: #120d2b; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+    </style>
   </head>
   <body>
     <div id="app"></div>

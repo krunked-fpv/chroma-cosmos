@@ -1,6 +1,7 @@
 /**
  * FX pixel rasterizers: EffectKind, Wisp ghost-stroke, Wonder Whispers, and Poke Invites ->
  * system FX region ids drawn into the actor plane.
+ * 200 starlight bubble, 201 echo butterfly, 202 relic mooncat, 203 constellation crown,
  * 221 rainbow, 222 prism beam, 223 droplet, 224 flower, 225 comet-car, 226 gem, 227 gold doodle,
  * 228 trampoline, 229 constellation, 230 slide-cloud, 231 wisp core, 232 wisp aura, 233 wonder chalk.
  * All writes go through PixelPlane (bounds-clamped).
@@ -20,6 +21,10 @@ export type WonderSketchFn = (
 ) => WonderSketchDot[];
 
 export const FX_ID = {
+  starlightBubble: 200,
+  echoButterfly: 201,
+  relicMooncat: 202,
+  constellationCrown: 203,
   rainbow: 221,
   prism: 222,
   droplet: 223,
@@ -266,6 +271,188 @@ export function rasterizeEffect(p: PixelPlane, e: EffectRenderState): void {
       }
       break;
     }
+    case 'bubblePop': {
+      if (t < 0.45) {
+        const r = 3 + 7 * easeOut(t / 0.45);
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * Math.PI * 2;
+          p.put(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r, FX_ID.starlightBubble, 1);
+        }
+        // Specular prism crescent highlight on top-left of bubble
+        p.put(e.x - r * 0.45, e.y - r * 0.45, FX_ID.prism, 2);
+        p.put(e.x - r * 0.25, e.y - r * 0.55, FX_ID.prism, 2);
+      }
+      if (t >= 0.3) {
+        const popT = easeOut((t - 0.3) / 0.7);
+        const rPop = 5 + 18 * popT;
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2 + rnd() * 0.35;
+          const dr = rPop * (0.75 + rnd() * 0.35);
+          const bx = e.x + Math.cos(a) * dr;
+          const by = e.y + Math.sin(a) * dr;
+          p.put(bx, by, FX_ID.starlightBubble, (i % 2) + 1);
+          if (i % 2 === 0) p.put(bx + Math.cos(a), by + Math.sin(a), FX_ID.prism, (i % 6) + 1);
+        }
+      }
+      break;
+    }
+    case 'meteorStreak': {
+      const x1 = num(e.x2, e.x + 70);
+      const y1 = num(e.y2, e.y + 18);
+      const dx = x1 - e.x;
+      const dy = y1 - e.y;
+      const dist = Math.hypot(dx, dy);
+      const f = easeOut(t);
+      const hx = e.x + dx * f;
+      const hy = e.y + dy * f - Math.sin(f * Math.PI) * 8;
+      if (!Number.isFinite(hx) || !Number.isFinite(hy)) break;
+      const ux = Number.isFinite(dist) && dist > 0.001 ? dx / dist : 1;
+      const uy = Number.isFinite(dist) && dist > 0.001 ? dy / dist : 0;
+      const nx = -uy;
+      const ny = ux;
+      const tailLen = Math.min(20, Number.isFinite(dist) ? Math.max(10, dist * 0.32) : 18);
+      p.line(hx, hy, hx - ux * tailLen, hy - uy * tailLen, FX_ID.cometCar, 1);
+      p.line(hx + nx, hy + ny, hx - ux * (tailLen * 0.7) + nx, hy - uy * (tailLen * 0.7) + ny, FX_ID.goldDoodle, 2);
+      p.line(hx - nx, hy - ny, hx - ux * (tailLen * 0.7) - nx, hy - uy * (tailLen * 0.7) - ny, FX_ID.goldDoodle, 1);
+      p.disc(hx, hy, 1.8, FX_ID.goldDoodle, 2);
+      p.put(hx, hy, FX_ID.prism, 2);
+      for (let i = 1; i <= 4; i++) {
+        const back = i * 4.2 + rnd() * 2;
+        const spread = (rnd() - 0.5) * 4;
+        p.put(hx - ux * back + nx * spread, hy - uy * back + ny * spread, i % 2 === 0 ? FX_ID.goldDoodle : FX_ID.cometCar, 1);
+      }
+      break;
+    }
+    case 'lightningZap': {
+      const x1 = num(e.x2, e.x + 48);
+      const y1 = num(e.y2, e.y + 14);
+      const dx = x1 - e.x;
+      const dy = y1 - e.y;
+      const dist = Math.hypot(dx, dy);
+      if (!Number.isFinite(dist) || dist < 0.5) {
+        star(p, e.x, e.y, 3, FX_ID.goldDoodle);
+        break;
+      }
+      const nx = -dy / dist;
+      const ny = dx / dist;
+      const segs = 6;
+      const upTo = Math.max(1, Math.ceil(easeOut(t) * segs));
+      const crackle = Math.floor(age / 70);
+      let px = e.x;
+      let py = e.y;
+      for (let i = 1; i <= upTo; i++) {
+        const u = i / segs;
+        const jitter = i === segs ? 0 : (((i + crackle) & 1) === 0 ? 1 : -1) * (2.5 + rnd() * 4.5);
+        const qx = e.x + dx * u + nx * jitter;
+        const qy = e.y + dy * u + ny * jitter;
+        p.line(px, py, qx, qy, FX_ID.goldDoodle, 2);
+        p.line(px + nx, py + ny, qx + nx, qy + ny, FX_ID.constellation, 1);
+        px = qx;
+        py = qy;
+      }
+      if (t > 0.2) star(p, px, py, 2, FX_ID.prism);
+      break;
+    }
+    case 'crownFireworks': {
+      const sc = 0.55 + 0.65 * easeOut(clamp01(t * 1.4));
+      const bx0 = e.x - 10 * sc;
+      const bx1 = e.x + 10 * sc;
+      const by = e.y + 4 * sc;
+      // Royal 3-peak crown silhouette
+      p.line(bx0, by, bx1, by, FX_ID.constellationCrown, 2);
+      p.line(bx0, by + 1, bx1, by + 1, FX_ID.constellationCrown, 1);
+      const lx = e.x - 11 * sc;
+      const ly = e.y - 5 * sc;
+      const mx = e.x;
+      const my = e.y - 9 * sc;
+      const rx = e.x + 11 * sc;
+      const ry = e.y - 5 * sc;
+      const vlx = e.x - 5 * sc;
+      const vrx = e.x + 5 * sc;
+      const vy = e.y - 1 * sc;
+      p.line(bx0, by, lx, ly, FX_ID.constellationCrown, 2);
+      p.line(lx, ly, vlx, vy, FX_ID.constellationCrown, 2);
+      p.line(vlx, vy, mx, my, FX_ID.constellationCrown, 2);
+      p.line(mx, my, vrx, vy, FX_ID.constellationCrown, 2);
+      p.line(vrx, vy, rx, ry, FX_ID.constellationCrown, 2);
+      p.line(rx, ry, bx1, by, FX_ID.constellationCrown, 2);
+      diamond(p, lx, ly - 1, 1, FX_ID.gem);
+      diamond(p, mx, my - 1, 2, FX_ID.gem);
+      diamond(p, rx, ry - 1, 1, FX_ID.gem);
+      // Radiant golden & aurora firework burst rays
+      const rIn = 8 + 10 * easeOut(t);
+      const rOut = 14 + 34 * easeOut(t);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + rnd() * 0.2;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        const id = i % 2 === 0 ? FX_ID.constellationCrown : FX_ID.constellation;
+        p.line(e.x + ca * rIn, e.y + sa * rIn, e.x + ca * rOut, e.y + sa * rOut, id, 1);
+        p.put(e.x + ca * (rOut + 2), e.y + sa * (rOut + 2), FX_ID.gem, 2);
+      }
+      break;
+    }
+    case 'magnetArc': {
+      const x1 = num(e.x2, e.x + 56);
+      const y1 = num(e.y2, e.y - 34);
+      const dx = x1 - e.x;
+      const dy = y1 - e.y;
+      const dist = Math.hypot(dx, dy);
+      const bow = Number.isFinite(dist) && dist > 0.001 ? Math.min(dist * 0.32, 42) : 16;
+      const nx = Number.isFinite(dist) && dist > 0.001 ? -dy / dist : 0;
+      const ny = Number.isFinite(dist) && dist > 0.001 ? dx / dist : -1;
+      const cx = (e.x + x1) * 0.5 + nx * bow;
+      const cy = (e.y + y1) * 0.5 + ny * bow;
+      p.curve(e.x, e.y, cx, cy, x1, y1, easeOut(t), FX_ID.constellation, 1);
+      const u = easeInOut(t);
+      const inv = 1 - u;
+      const ox = inv * inv * e.x + 2 * inv * u * cx + u * u * x1;
+      const oy = inv * inv * e.y + 2 * inv * u * cy + u * u * y1;
+      diamond(p, ox, oy, 2, FX_ID.gem);
+      p.put(ox, oy, FX_ID.goldDoodle, 2);
+      for (let k = 1; k <= 3; k++) {
+        const uk = clamp01(u - k * 0.08);
+        const ik = 1 - uk;
+        const tx = ik * ik * e.x + 2 * ik * uk * cx + uk * uk * x1;
+        const ty = ik * ik * e.y + 2 * ik * uk * cy + uk * uk * y1;
+        p.put(tx, ty, k === 1 ? FX_ID.goldDoodle : FX_ID.constellation, 1);
+      }
+      break;
+    }
+    case 'echoTrail': {
+      const x1 = num(e.x2, e.x + 64);
+      const y1 = num(e.y2, e.y - 20);
+      const dx = x1 - e.x;
+      const dy = y1 - e.y;
+      const f = easeInOut(t);
+      const phaseOff = rnd() * Math.PI * 2;
+      for (let i = 1; i <= 9; i++) {
+        const ff = Math.max(0, f - i * 0.045);
+        const fx = e.x + dx * ff;
+        const fy = e.y + dy * ff + Math.sin(ff * Math.PI * 3 + phaseOff) * 7;
+        const id = i % 2 === 0 ? FX_ID.prism : FX_ID.echoButterfly;
+        p.put(fx, fy, id, (i % 4) + 1);
+        if (i <= 4) {
+          p.put(fx - 1, fy - 1, FX_ID.echoButterfly, 1);
+          p.put(fx + 1, fy - 1, FX_ID.echoButterfly, 1);
+        }
+      }
+      const bx = e.x + dx * f;
+      const by = e.y + dy * f + Math.sin(f * Math.PI * 3 + phaseOff) * 7;
+      if (Number.isFinite(bx) && Number.isFinite(by)) {
+        const flap = Math.sin(age * 0.024) > 0 ? 2 : 1;
+        // Miniature flapping butterfly silhouette
+        p.put(bx, by, FX_ID.prism, 2);
+        p.put(bx, by + 1, FX_ID.prism, 1);
+        for (let wy = -flap; wy <= 1; wy++) {
+          p.put(bx - 1, by + wy, FX_ID.echoButterfly, 2);
+          p.put(bx + 1, by + wy, FX_ID.echoButterfly, 2);
+          p.put(bx - 2, by + wy - (flap > 1 ? 1 : 0), FX_ID.echoButterfly, 1);
+          p.put(bx + 2, by + wy - (flap > 1 ? 1 : 0), FX_ID.echoButterfly, 1);
+        }
+      }
+      break;
+    }
     // particle-only effects
     case 'starBurst':
     case 'paperDust':
@@ -282,11 +469,11 @@ export function rasterizeEffects(p: PixelPlane, effects: readonly EffectRenderSt
 
 /**
  * Draws a lush, clearly readable 2-3px curved pastel rainbow ghost-stroke ribbon along `wisp.ghostPath`
- * up to `wisp.ghostStrokeT` during `prologueStroke` mode (using FX_ID.rainbow 221 across bands + glowing
- * 231/232 tip sparkles).
+ * up to `wisp.ghostStrokeT` whenever `wisp.active && wisp.mode !== 'hidden' && wisp.ghostPath.length >= 2`
+ * (covering both prologue AND Firefly Hint `hintBeam` modes using FX_ID.rainbow 221 + glowing 231/232 tip sparkles).
  */
 export function rasterizeWispGhostStroke(p: PixelPlane, wisp: WispRenderState | undefined, timeMs: number): void {
-  if (!wisp || !wisp.active || wisp.mode !== 'prologueStroke' || wisp.ghostPath.length < 2) return;
+  if (!wisp || !wisp.active || wisp.mode === 'hidden' || wisp.ghostPath.length < 2) return;
   const progress = clamp01(wisp.ghostStrokeT);
   if (progress <= 0.005) return;
   const pts = wisp.ghostPath;

@@ -158,7 +158,7 @@ export function blitWisp(
     return 0;
   }
   const src = sheet ?? FALLBACK_WISP_SHEET;
-  const moving = wisp.mode === 'prologueStroke' || wisp.mode === 'idleGuide' || wisp.mode === 'nudge';
+  const moving = wisp.mode === 'prologueStroke' || wisp.mode === 'idleGuide' || wisp.mode === 'nudge' || wisp.mode === 'hintBeam';
   const anim = (moving ? src.anims.float ?? src.anims.idle : src.anims.idle ?? src.anims.float) ?? Object.values(src.anims)[0];
   if (!anim || anim.frames.length === 0) return 0;
   const safeTime = Number.isFinite(timeMs) && timeMs > 0 ? timeMs : 0;

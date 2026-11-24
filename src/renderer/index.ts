@@ -164,13 +164,13 @@ export function createRenderer(): RendererPort {
     if (interactive && toolModeInt === 0) {
       if (f.view.hoveredRegionId !== undefined) {
         const raw = Math.floor(f.view.hoveredRegionId);
-        hoverId = raw > 0 && raw < 255 ? raw : 0;
+        hoverId = (raw >= 1 && raw <= 199) || (raw >= 234 && raw <= 254) ? raw : 0;
       } else if (f.hoverPos && page && Number.isFinite(f.hoverPos.x) && Number.isFinite(f.hoverPos.y)) {
         const hx = Math.floor(f.hoverPos.x);
         const hy = Math.floor(f.hoverPos.y);
         if (hx >= 0 && hy >= 0 && hx < PAGE_W && hy < PAGE_H) {
           const rid = page.regionMap[hy * PAGE_W + hx] ?? 0;
-          if (rid > 0 && rid < 212) hoverId = rid;
+          if (rid >= 1 && rid <= 199) hoverId = rid;
         }
       }
     }
@@ -204,6 +204,7 @@ export function createRenderer(): RendererPort {
 
     setUniform('uPrologueMist', interactive && f.view.wisp ? clamp01(f.view.wisp.prologueMist) : 0);
     setUniform('uDogEarGlow', interactive ? clamp01(f.dogEarGlow ?? (f.view.pageComplete && f.mode === 'chapter' ? 1 : 0)) : 0);
+    setUniform('uHintDim', interactive && !turning ? clamp01(f.hintDim ?? f.view.hintState?.dimAmount ?? 0) : 0);
 
     const n = Math.min(MAX_SPARKLES, f.view.sparkleSources.length);
     sparkleArr.fill(0);
@@ -500,6 +501,7 @@ export function createRenderer(): RendererPort {
       uWandGlow: { value: new Float32Array(4), type: 'vec4<f32>' },
       uPrologueMist: { value: 0, type: 'f32' },
       uDogEarGlow: { value: 0, type: 'f32' },
+      uHintDim: { value: 0, type: 'f32' },
       uSparkle: { value: sparkleArr, type: 'vec2<f32>', size: MAX_SPARKLES },
       uSparkleN: { value: 0, type: 'i32' },
     } as const;

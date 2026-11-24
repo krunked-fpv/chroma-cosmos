@@ -3,7 +3,7 @@
  * Layer 2 pigment materials, Layer 3 ink / sel-out / ripple / actors. GLSL ES 3.00, texelFetch + NEAREST for
  * every pixel-art lookup.
  */
-import { PAGE_H, PAGE_W, STROKE_SCALE, INK_HEX, PAPER_HEX, BG_HEX } from '../contracts/constants';
+import { PAGE_H, PAGE_W, STROKE_SCALE, INK_HEX, PAPER_HEX, BG_HEX, GOLD_HEX } from '../contracts/constants';
 import { REGION_FLAG, SYSTEM_REGIONS } from '../contracts/regions';
 import { GLSL_HEADER, f, vec3Hex } from './glsl-util';
 import { MATERIAL_FUNCS_GLSL, buildMaterialTables } from './materials';
@@ -58,6 +58,7 @@ uniform vec4 uFlashlight; // x, y, r, active
 uniform vec4 uWandGlow;   // x, y, r, active
 uniform float uPrologueMist; // 0..1 Sleepy Hush lavender mist veil
 uniform float uDogEarGlow;   // 0..1 bottom-right curled corner Star-Door light
+uniform float uHintDim;      // 0..1 Firefly Hint Spotlight dim factor (12% max paper dim)
 uniform vec2 uSparkle[${MAX_SPARKLES}];
 uniform int uSparkleN;
 
@@ -66,6 +67,7 @@ out vec4 fragColor;
 const vec3 INK = ${vec3Hex(INK_HEX)};
 const vec3 PAPER = ${vec3Hex(PAPER_HEX)};
 const vec3 BG = ${vec3Hex(BG_HEX)};
+const vec3 GOLD = ${vec3Hex(GOLD_HEX)};
 const vec3 GOLD_WHITE = vec3(1.0, 0.965, 0.78);
 const int FLAG_COMPLETE = ${REGION_FLAG.complete};
 const int FLAG_REVEALED = ${REGION_FLAG.ghostRevealed};
@@ -73,6 +75,7 @@ const int FLAG_WIGGLE = ${REGION_FLAG.wiggle};
 const int FLAG_FLASH = ${REGION_FLAG.flash};
 const int FLAG_HIDDEN = ${REGION_FLAG.hidden};
 const int FLAG_GUIDE_GLOW = ${REGION_FLAG.guideGlow};
+const int FLAG_SPOTLIGHT = ${REGION_FLAG.spotlight};
 const float STROKE_S = ${f(STROKE_SCALE)};
 const float RIPPLE_MAX = 300.0;
 
@@ -281,7 +284,7 @@ void main() {
       if (distOut <= 1.0) {
         col = mix(col, INK, 0.78);
       } else if (distOut >= 3.0 && distOut < 4.0) {
-        col = mix(col, ${vec3Hex('#d9ae5b')}, 0.82);
+        col = mix(col, GOLD, 0.84);
       }
     }
   } else {
@@ -293,7 +296,7 @@ void main() {
     bool isActor = actorPx.a > 0.0 && (uClean < 0.5 || actorId < 231 || actorId > 233);
     gFxVar = isActor ? floor(actorPx.g * 255.0 + 0.5) : 0.0;
 
-    // 4-neighbour ids (ink sel-out, wiggle, guide glow)
+    // 4-neighbour ids (ink sel-out, wiggle, guide glow, spotlight halo)
     int nE = rid(ip + ivec2(1, 0));
     int nW = rid(ip + ivec2(-1, 0));
     int nS = rid(ip + ivec2(0, 1));
@@ -305,21 +308,21 @@ void main() {
       if (id == 0) {
         wig = hasFlag(regionRow0(nE).a, FLAG_WIGGLE) || hasFlag(regionRow0(nW).a, FLAG_WIGGLE)
            || hasFlag(regionRow0(nS).a, FLAG_WIGGLE) || hasFlag(regionRow0(nN).a, FLAG_WIGGLE);
-      } else if (id < 212) {
+      } else if (id < 200) {
         wig = hasFlag(regionRow0(id).a, FLAG_WIGGLE);
       }
       if (wig) {
         float tick = floor(uTime * 6.0);
         ivec2 j = ivec2(int(floor(hash12(vec2(tick, 1.0)) * 3.0)) - 1, int(floor(hash12(vec2(tick, 2.0)) * 3.0)) - 1);
         int idq = rid(ip + j);
-        if (idq == 0 || (idq < 212 && hasFlag(regionRow0(idq).a, FLAG_WIGGLE))) id = idq;
+        if (idq == 0 || (idq < 200 && hasFlag(regionRow0(idq).a, FLAG_WIGGLE))) id = idq;
       }
     }
 
     bool resolved = false;
     bool needSky = false;
     float wandPeekMix = 0.0;
-    bool paintable = (id > 0 && id < 212) || (id >= 234 && id <= 254);
+    bool paintable = (id > 0 && id < 200) || (id >= 234 && id <= 254);
     ivec4 s0 = paintable ? regionRow0(id) : ivec4(0);
 
     // ---- Layer 3: ink (and sel-out) ----
@@ -359,10 +362,11 @@ void main() {
         col = INK;
         bool selOutDone = false;
         bool guideInk = false;
+        bool spotInk = false;
         int ids4[4] = int[4](nE, nW, nS, nN);
         for (int k = 0; k < 4; k++) {
           int nid = ids4[k];
-          if ((nid > 0 && nid < 212) || (nid >= 234 && nid <= 254)) {
+          if ((nid > 0 && nid < 200) || (nid >= 234 && nid <= 254)) {
             ivec4 ns0 = regionRow0(nid);
             if (!selOutDone && hasFlag(ns0.a, FLAG_COMPLETE) && ns0.r > 0) {
               vec3 tint = PALAVG[clamp(ns0.r, 1, MAT_COUNT - 1)];
@@ -370,8 +374,9 @@ void main() {
               if (hasFlag(ns0.a, FLAG_FLASH)) col = mix(col, GOLD_WHITE, 0.55 + 0.25 * sin(uTime * 22.0));
               selOutDone = true;
             }
-            if (uClean < 0.5 && !hasFlag(ns0.a, FLAG_COMPLETE) && hasFlag(ns0.a, FLAG_GUIDE_GLOW)) {
-              guideInk = true;
+            if (uClean < 0.5 && !hasFlag(ns0.a, FLAG_COMPLETE)) {
+              if (hasFlag(ns0.a, FLAG_GUIDE_GLOW)) guideInk = true;
+              if (uHintDim > 0.001 && hasFlag(ns0.a, FLAG_SPOTLIGHT)) spotInk = true;
             }
           }
         }
@@ -379,6 +384,14 @@ void main() {
           float gWave = 0.5 + 0.5 * sin(uTime * 3.2 + (pp.x + pp.y) * 0.08);
           float gSpark = smoothstep(0.74, 0.98, hash12(vec2(ip) + floor(uTime * 4.0) * 0.13));
           col = mix(col, vec3(1.0, 0.89, 0.55), 0.28 + 0.30 * gWave + 0.22 * gSpark * gWave);
+        }
+        if (spotInk) {
+          float hd = clamp(uHintDim, 0.0, 1.0);
+          float sWave = 0.5 + 0.5 * sin(uTime * 4.4 + (pp.x - pp.y) * 0.09);
+          float sSpark = smoothstep(0.70, 0.97, hash12(vec2(ip) + floor(uTime * 5.0) * 0.19));
+          vec3 sHalo = mix(${vec3Hex('#ffd97d')}, ${vec3Hex('#7ce8ff')}, 0.20 * (0.5 + 0.5 * sin(uTime * 3.0 + pp.x * 0.07)));
+          sHalo = mix(sHalo, GOLD_WHITE, 0.35 * sSpark);
+          col = mix(col, sHalo, clamp((0.48 + 0.30 * sWave + 0.22 * sSpark) * hd, 0.0, 0.92));
         }
       }
       resolved = true;
@@ -422,7 +435,7 @@ void main() {
       bool isFixedMat = false;
       bool complete = paintable && hasFlag(s0.a, FLAG_COMPLETE);
 
-      if (id >= 212 && id <= 233) {
+      if (id >= 200 && id <= 233) {
         int fx = sysFixed(id);
         aboveMist = (id == 221 || id == 231 || id == 232 || id == 233);
         if (fx < 0 && fx != -3) {
@@ -479,18 +492,27 @@ void main() {
       }
 
       if (!resolved) {
-        // Enchanted Pencil hover shimmer + idle Starlight Wisp guide breathing on uncompleted regions
+        // Enchanted Pencil hover shimmer + idle Starlight Wisp guide + Firefly Hint Spotlight on uncompleted regions
         bool hoverUncomp = false;
         bool guideUncomp = false;
+        bool spotUncomp = false;
+        bool dimUncomp = false;
         if (!isFixedMat && uClean < 0.5 && paintable && !complete) {
           hoverUncomp = (uToolMode == 0 && uHoverRegion > 0 && id == uHoverRegion);
           guideUncomp = hasFlag(s0.a, FLAG_GUIDE_GLOW);
+          if (uHintDim > 0.001) {
+            spotUncomp = hasFlag(s0.a, FLAG_SPOTLIGHT);
+            dimUncomp = !spotUncomp;
+          }
         }
         bool needWatercolorEdge = !isFixedMat && mat > 0 && a > 0.0 && PROG[clamp(mat, 1, MAT_COUNT - 1)] == 3;
 
         // Single edge lookup across the entire shader
-        float edge = (hoverUncomp || guideUncomp || needWatercolorEdge) ? edgeAmount(ip, id) : 0.0;
+        float edge = (hoverUncomp || guideUncomp || spotUncomp || needWatercolorEdge) ? edgeAmount(ip, id) : 0.0;
 
+        if (dimUncomp) {
+          base *= (1.0 - 0.12 * clamp(uHintDim, 0.0, 1.0));
+        }
         if (hoverUncomp) {
           float hBreath = 0.5 + 0.5 * sin(uTime * 3.6 + (pp.x + pp.y) * 0.045);
           float pulse = 0.14 + 0.14 * hBreath;
@@ -504,6 +526,18 @@ void main() {
           base = mix(base, vec3(1.0, 0.93, 0.68), 0.12 + 0.16 * gPulse + 0.08 * gWave);
           base = mix(base, vec3(1.0, 0.88, 0.52), edge * (0.32 + 0.24 * gPulse));
           base = mix(base, vec3(1.0, 0.97, 0.84), gDust * (0.25 + 0.35 * gPulse));
+        }
+        if (spotUncomp) {
+          float hd = clamp(uHintDim, 0.0, 1.0);
+          float sPulse = 0.5 + 0.5 * sin(uTime * 4.2);
+          float sAurora = 0.5 + 0.5 * sin(uTime * 2.8 + pp.x * 0.045 - pp.y * 0.035);
+          float sDust = smoothstep(0.82, 0.98, hash12(floor(pp * 0.5) + floor(uTime * 4.0) * 0.41));
+          vec3 sGold = ${vec3Hex('#ffd97d')};
+          vec3 sCyan = ${vec3Hex('#7ce8ff')};
+          vec3 sFill = mix(sGold, sCyan, 0.32 * sAurora);
+          base = mix(base, sFill, (0.20 + 0.18 * sPulse) * hd);
+          base = mix(base, mix(sGold, GOLD_WHITE, 0.35 * sPulse), edge * (0.48 + 0.28 * sPulse) * hd);
+          base = mix(base, GOLD_WHITE, sDust * (0.30 + 0.35 * sPulse) * hd);
         }
 
         col = base;

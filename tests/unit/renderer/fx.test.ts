@@ -24,6 +24,7 @@ const ALL_KINDS: EffectKind[] = [
   'rainbowSlide', 'starlightFlowerRain', 'zeroGTrampoline', 'cheetahRacetrack', 'discoMirage', 'gentleSparkle',
   'rainbowArc', 'rainbowBridge', 'harmonyArc', 'gemPickup', 'starBurst', 'paperDust', 'stardustTrail',
   'chromaticRipple', 'goldDoodle', 'hiddenStar', 'paintSplatComet', 'shootingStar', 'constellationFireworks',
+  'bubblePop', 'meteorStreak', 'lightningZap', 'crownFireworks', 'magnetArc', 'echoTrail',
 ];
 const FX_IDS = new Set<number>(Object.values(FX_ID));
 
@@ -121,27 +122,38 @@ describe('FX rasterizers', () => {
   });
 
   it('effects fully outside the page draw nothing', () => {
-    for (const kind of ['rainbowArc', 'rainbowBridge', 'gemPickup', 'hiddenStar', 'goldDoodle', 'zeroGTrampoline', 'discoMirage'] as const) {
+    for (const kind of [
+      'rainbowArc', 'rainbowBridge', 'gemPickup', 'hiddenStar', 'goldDoodle', 'zeroGTrampoline', 'discoMirage',
+      'bubblePop', 'meteorStreak', 'lightningZap', 'crownFireworks', 'magnetArc', 'echoTrail',
+    ] as const) {
       const p = new PixelPlane();
       rasterizeEffect(p, fx(kind, -2000, -2000, { x2: -1900, y2: -1950 }));
       expect(p.count, kind).toBe(0);
     }
   });
 
-  it('typical effects draw pixels with the documented system FX ids', () => {
+  it('typical effects including Sprint 2 FX draw pixels with documented system FX ids (200..230)', () => {
     const expectIds: Array<[EffectKind, number]> = [
       ['rainbowArc', 221], ['rainbowBridge', 221], ['rainbowSlide', 221], ['discoMirage', 222],
       ['starlightFlowerRain', 223], ['gemPickup', 226], ['goldDoodle', 227], ['zeroGTrampoline', 228],
       ['cheetahRacetrack', 227], ['constellationFireworks', 229],
+      ['bubblePop', 200], ['meteorStreak', 225], ['lightningZap', 227],
+      ['crownFireworks', 203], ['magnetArc', 229], ['echoTrail', 201],
     ];
     for (const [kind, id] of expectIds) {
       const p = new PixelPlane();
       rasterizeEffect(p, fx(kind, 200, 120, { x2: 280, y2: 150, y: 120 }));
       expect(p.count, kind).toBeGreaterThan(0);
+      audit(p);
       let found = false;
       for (let i = 0; i < PAGE_W * PAGE_H; i++) if (p.data[i * 4 + 3] === 255 && p.data[i * 4] === id) { found = true; break; }
       expect(found, `${kind} should draw id ${id}`).toBe(true);
     }
+    // Verify early bubblePop phase draws bubble ring + prism crescent too
+    const earlyBubble = new PixelPlane();
+    rasterizeEffect(earlyBubble, fx('bubblePop', 200, 120, { t: 0.2 }));
+    expect(earlyBubble.count).toBeGreaterThan(10);
+    audit(earlyBubble);
     const slide = new PixelPlane();
     rasterizeEffect(slide, fx('rainbowSlide', 200, 120, { x2: 260, y2: 190 }));
     expect(slide.idAt(200, 117)).toBe(230); // slide-cloud puff
@@ -232,11 +244,27 @@ describe('particles', () => {
     };
     const out: PixelParticle[] = [];
     particlesForWisp(wisp, 1200, out);
-    expect(out.length).toBeGreaterThanOrEqual(6);
+    expect(out.length).toBeGreaterThanOrEqual(9); // 6 orbiting motes + 3 ghost-path sparkles
     for (const q of out) {
       expect(Number.isFinite(q.x) && Number.isFinite(q.y)).toBe(true);
       expect(q.alpha).toBeGreaterThan(0);
       expect(q.alpha).toBeLessThanOrEqual(1);
+    }
+
+    // Firefly Hint hintBeam mode also emits ghost-path sparkles alongside orbiting motes
+    const hintOut: PixelParticle[] = [];
+    particlesForWisp({ ...wisp, mode: 'hintBeam', prologueMist: 0 }, 1200, hintOut);
+    expect(hintOut.length).toBeGreaterThanOrEqual(9);
+
+    // Every new Sprint 2 EffectKind emits bounded particles
+    for (const kind of ['bubblePop', 'meteorStreak', 'lightningZap', 'crownFireworks', 'magnetArc', 'echoTrail'] as const) {
+      const list = particlesForEffects([fx(kind, 180, 120, { x2: 250, y2: 100 })]);
+      expect(list.length, `${kind} particles`).toBeGreaterThanOrEqual(6);
+      for (const q of list) {
+        expect(Number.isFinite(q.x) && Number.isFinite(q.y)).toBe(true);
+        expect(q.alpha).toBeGreaterThan(0);
+        expect(q.alpha).toBeLessThanOrEqual(1);
+      }
     }
 
     const inactiveOut: PixelParticle[] = [];
@@ -258,13 +286,17 @@ describe('particles', () => {
 });
 
 describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', () => {
-  it('exposes system FX ids 231..233', () => {
+  it('exposes system FX ids 200..203 and 231..233', () => {
+    expect(FX_ID.starlightBubble).toBe(200);
+    expect(FX_ID.echoButterfly).toBe(201);
+    expect(FX_ID.relicMooncat).toBe(202);
+    expect(FX_ID.constellationCrown).toBe(203);
     expect(FX_ID.wispCore).toBe(231);
     expect(FX_ID.wispAura).toBe(232);
     expect(FX_ID.wonderChalk).toBe(233);
   });
 
-  it('draws a softly spaced looping rainbow ghost-stroke along ghostPath up to ghostStrokeT', () => {
+  it('draws a softly spaced looping rainbow ghost-stroke along ghostPath in both prologueStroke and hintBeam modes', () => {
     const baseWisp: WispRenderState = {
       active: true,
       mode: 'prologueStroke',
@@ -284,13 +316,17 @@ describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', (
 
     const pQuarter = new PixelPlane();
     const pFull = new PixelPlane();
+    const pHint = new PixelPlane();
     rasterizeWispGhostStroke(pQuarter, { ...baseWisp, ghostStrokeT: 0.25 }, 600);
     rasterizeWispGhostStroke(pFull, baseWisp, 600);
+    rasterizeWispGhostStroke(pHint, { ...baseWisp, mode: 'hintBeam', prologueMist: 0 }, 600);
     const aFull = audit(pFull);
     expect(pQuarter.count).toBeGreaterThan(0);
     expect(pFull.count).toBeGreaterThan(pQuarter.count);
     expect(pFull.count).toBeGreaterThanOrEqual(220); // lush continuous 2-3px rainbow ribbon
     expect(aFull.pixels).toBe(pFull.count);
+    expect(pHint.count).toBe(pFull.count);
+    expect(Buffer.from(pHint.data).equals(Buffer.from(pFull.data))).toBe(true);
 
     const ids = new Set<number>();
     const rainbowVariants = new Set<number>();
@@ -306,9 +342,9 @@ describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', (
     expect(ids.has(FX_ID.wispAura)).toBe(true);
     expect(rainbowVariants.size).toBeGreaterThanOrEqual(4);
 
-    // Non-prologueStroke or inactive wisp draws nothing
+    // Hidden, inactive, zero-progress, or degenerate-path wisp draws nothing
     const pIdle = new PixelPlane();
-    rasterizeWispGhostStroke(pIdle, { ...baseWisp, mode: 'idleGuide' }, 600);
+    rasterizeWispGhostStroke(pIdle, { ...baseWisp, mode: 'hidden' }, 600);
     rasterizeWispGhostStroke(pIdle, { ...baseWisp, active: false }, 600);
     rasterizeWispGhostStroke(pIdle, { ...baseWisp, ghostStrokeT: 0 }, 600);
     rasterizeWispGhostStroke(pIdle, { ...baseWisp, ghostPath: [{ x: 100, y: 100 }] }, 600);

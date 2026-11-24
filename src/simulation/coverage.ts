@@ -3,10 +3,10 @@
  * material votes. Everything after `constructor` is O(brush area) or O(1); the only full-map
  * passes happen at load (CSR / adjacency / centroids) and in snapshot/restore.
  */
-import { PAGE_H, PAGE_PIXELS, PAGE_W, TWIN_TAIL_NEIGHBOR_CHANCE } from '../contracts';
+import { MAX_MATERIAL_ID, PAGE_H, PAGE_PIXELS, PAGE_W, TWIN_TAIL_NEIGHBOR_CHANCE } from '../contracts';
 import { hash32 } from './util';
 
-const MATS = 13; // index 0 unused, 1..12 materials
+const MATS = MAX_MATERIAL_ID + 1; // index 0 unused, 1..MAX_MATERIAL_ID materials
 const TWIN_THRESHOLD = Math.floor(TWIN_TAIL_NEIGHBOR_CHANCE * 4294967296);
 
 export class Coverage {
@@ -277,6 +277,74 @@ export class Coverage {
       if (dx * dx + dy * dy <= r2) this.paint(idx, id, mat);
     }
     return radius;
+  }
+
+  /**
+   * Paints the smallest disc around the unpainted pixel nearest to (anchorX, anchorY) holding
+   * >= fraction of the region's remaining unpainted pixels. Returns disc geometry + newly painted count.
+   */
+  fillUnpaintedFraction(
+    id: number,
+    anchorX: number,
+    anchorY: number,
+    mat: number,
+    fraction: number,
+  ): { x: number; y: number; radius: number; newlyPainted: number } {
+    const total = this.total[id]!;
+    const remaining = total - this.painted[id]!;
+    if (total === 0 || remaining <= 0 || fraction <= 0) {
+      return { x: anchorX, y: anchorY, radius: 0, newlyPainted: 0 };
+    }
+    const start = this.offsets[id]!;
+    const end = this.offsets[id + 1]!;
+    // Pick the unpainted pixel closest to (anchorX, anchorY) as the disc center
+    let ax = this.cx[id]!;
+    let ay = this.cy[id]!;
+    let bestD2 = Infinity;
+    for (let k = start; k < end; k++) {
+      const idx = this.pixels[k]!;
+      if (this.mask[idx] !== 0) continue;
+      const px = (idx % PAGE_W) + 0.5;
+      const py = Math.floor(idx / PAGE_W) + 0.5;
+      const dx = px - anchorX;
+      const dy = py - anchorY;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        ax = px;
+        ay = py;
+      }
+    }
+    const hist = new Uint32Array(700);
+    for (let k = start; k < end; k++) {
+      const idx = this.pixels[k]!;
+      if (this.mask[idx] !== 0) continue;
+      const dx = (idx % PAGE_W) + 0.5 - ax;
+      const dy = Math.floor(idx / PAGE_W) + 0.5 - ay;
+      const b = Math.min(699, Math.ceil(Math.sqrt(dx * dx + dy * dy)));
+      hist[b]!++;
+    }
+    const target = Math.max(1, Math.ceil(fraction * remaining));
+    let cum = 0;
+    let radius = 699;
+    for (let b = 0; b < 700; b++) {
+      cum += hist[b]!;
+      if (cum >= target) {
+        radius = b;
+        break;
+      }
+    }
+    const r2 = radius * radius;
+    let newlyPainted = 0;
+    for (let k = start; k < end; k++) {
+      const idx = this.pixels[k]!;
+      const dx = (idx % PAGE_W) + 0.5 - ax;
+      const dy = Math.floor(idx / PAGE_W) + 0.5 - ay;
+      if (dx * dx + dy * dy <= r2) {
+        if (this.paint(idx, id, mat)) newlyPainted++;
+      }
+    }
+    return { x: ax, y: ay, radius: Math.max(1, radius), newlyPainted };
   }
 
   /** True when any pixel of the region lies within `r` of (px,py). */

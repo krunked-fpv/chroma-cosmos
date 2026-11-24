@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CAUSALITY_MATRIX,
   GEM_REWARDS,
+  MAX_MATERIAL_ID,
+  PAGE_FINALE_MS,
   POKE_CHASE_MS,
   REGION_FLAG,
   STAGE_MIN,
@@ -116,7 +118,7 @@ describe('4-stage awakening and Auto-Bloom', () => {
 describe('Pigment-Driven Causality', () => {
   it('matchCausality implements every matrix rule, the kind targets and the gentleSparkle fallback', () => {
     for (const rule of CAUSALITY_MATRIX) {
-      for (let m = 1; m <= 12; m++) {
+      for (let m = 1; m <= MAX_MATERIAL_ID; m++) {
         const kinds = rule.target === 'cloud' ? (['cloud'] as const) : (['planet', 'rings'] as const);
         for (const k of kinds) {
           const got = matchCausality(k, m);
@@ -455,16 +457,31 @@ describe('snapshot / restore', () => {
 });
 
 describe('gem totals', () => {
-  it('a fully painted page pays regionBloom/actorBloom once per region plus pageComplete once', () => {
+  it('a fully painted page pays individual blooms + questBloom once per Hero Quest (no double-award on auto-filled slivers) + pageComplete once', () => {
     const sim = mkSim();
     const ev: SimEvent[] = [];
     for (const id of CORE_IDS) {
       paintRegion(sim, id, 6, 3);
       ev.push(...sim.drainEvents());
     }
-    const actorRegions = [5, 6, 9, 10, 1, 2];
-    const expected = actorRegions.length * GEM_REWARDS.actorBloom + 4 * GEM_REWARDS.regionBloom + GEM_REWARDS.pageComplete;
+    // 3 first actor sub-regions (1,5,9 -> actorBloom), 2 first prop sub-regions (12,14 -> regionBloom),
+    // 5 Composite Hero Quest Auto-Blooms (questBloom, auto-filling 2,6,10,13,15 without double-award), + pageComplete (+8)
+    const expected =
+      3 * GEM_REWARDS.actorBloom +
+      2 * GEM_REWARDS.regionBloom +
+      5 * GEM_REWARDS.questBloom +
+      GEM_REWARDS.pageComplete;
     expect(gemsOf(ev)).toBe(expected);
+    expect(ev.filter((e) => e.type === 'gems' && e.reason === 'questBloom')).toHaveLength(5);
+    expect(ev.filter((e) => e.type === 'gems' && e.reason === 'pageComplete')).toEqual([
+      { type: 'gems', amount: GEM_REWARDS.pageComplete, reason: 'pageComplete' },
+    ]);
+    expect(sim.view().pageFinale).toMatchObject({
+      active: true,
+      remainingMs: PAGE_FINALE_MS,
+      stayAndDoodle: false,
+      autoTurnTriggered: false,
+    });
     tap(sim, 60, 110);
     expect(gemsOf(sim.drainEvents())).toBe(0);
   });

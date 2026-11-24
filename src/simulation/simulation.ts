@@ -6,21 +6,29 @@
 import {
   BRUSH_RADIUS_PX,
   CANONICAL_REGIONS,
+  CROWN_QUEST_BLOOM_THRESHOLD,
+  DRAFT_CARDS,
   GEM_REWARDS,
+  HERO_QUEST_BLOOM_THRESHOLD,
+  HINT_SPOTLIGHT_MS,
   IDLE_WISP_DELAY_MS,
   KALEIDOSCOPE_PREFILL,
   KALEIDOSCOPE_TARGETS,
+  MAX_MATERIAL_ID,
   MAX_STAMPS_PER_BATCH,
   PAGE_H,
   PAGE_PIXELS,
   PAGE_W,
   PROLOGUE_DURATION_MS,
   REGION_FLAG,
+  REGION_RANGES,
   REGION_STATE_BYTES,
   REGION_STATE_ROW1_OFFSET,
   RIPPLE_MS,
   SOCKET_WIGGLE_MS,
   STAGE_MIN,
+  STALLED_QUEST_DELAY_MS,
+  STALLED_QUEST_THRESHOLD,
   STAMP_SPACING,
   UV_FLASHLIGHT_RADIUS,
   WAND_UV_PEEK_RADIUS,
@@ -33,9 +41,15 @@ import type {
   GestureEvent,
   GpuStamp,
   GpuStampBatch,
+  HeroQuestId,
+  HeroStoryQuest,
+  HintRequestState,
+  HintSource,
+  PageFinaleController,
   PagePath,
   PokeInvite,
   RegionKind,
+  RelicId,
   RunContext,
   SimEvent,
   SimView,
@@ -45,17 +59,25 @@ import type {
   StoryStarState,
   ToolMode,
   ToolState,
+  UiSpriteId,
   WispMode,
   WispRenderState,
   WonderWhisperHint,
 } from '../contracts';
 import { ActorSystem } from './actors';
-import type { ActorHost } from './actors';
+import type { ActorHost, ActorRT } from './actors';
 import { matchCausality } from './causality';
 import { Coverage } from './coverage';
 import { EffectPool } from './effects';
 import type { EffectRT } from './effects';
+import { createPageFinaleController } from './finale';
 import { clamp, mulberry32 } from './util';
+
+const DYNAMIC_MAX = REGION_RANGES.dynamic[1];
+const SYSTEM_MIN = REGION_RANGES.system[0];
+const SYSTEM_MAX = REGION_RANGES.system[1];
+const GHOST_MIN = REGION_RANGES.ghost[0];
+const GHOST_MAX = REGION_RANGES.ghost[1];
 
 const SPONGE_KINDS: readonly RegionKind[] = ['star', 'asteroid', 'cloud', 'comet'];
 const ZOOMIE_FILL = 0.5;
@@ -68,6 +90,22 @@ const PROLOGUE_STROKE_LOOP_MS = 2200;
 const PROLOGUE_DISSOLVE_MS = 250;
 const PENCIL_TRAY_X = 165;
 const PENCIL_TRAY_Y = 256;
+const HINT_FADE_MS = 300;
+const MOON_CAT_INTERVAL_MS = 3500;
+const MOON_CAT_FILL_FRACTION = 0.2;
+const BUBBLE_SPLASH_FRACTION = 0.18;
+const BUTTERFLY_ECHO_FRACTION = 0.3;
+const LIGHTNING_TRIGGER_PCT = 0.55;
+const LIGHTNING_FILL_FRACTION = 0.22;
+const MAGNET_SPEED_PX_S = 280;
+
+const RELIC_TAGS: Partial<Record<RelicId, string>> = (() => {
+  const out: Partial<Record<RelicId, string>> = {};
+  for (const card of DRAFT_CARDS) {
+    if (card.type === 'relic') out[card.id as RelicId] = card.shortTag;
+  }
+  return out;
+})();
 
 const DEFAULT_MILESTONES: ReadonlyArray<{ id: StoryMilestoneKind; label: string; ids: readonly number[] }> = [
   { id: 'violet', label: 'Violet', ids: [1, 2, 3, 4] },
@@ -78,7 +116,7 @@ const DEFAULT_MILESTONES: ReadonlyArray<{ id: StoryMilestoneKind; label: string;
 ];
 
 function normMat(m: number): number {
-  return Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1;
+  return Number.isInteger(m) && m >= 1 && m <= MAX_MATERIAL_ID ? m : 1;
 }
 
 function smoothstep(t: number): number {
@@ -101,6 +139,7 @@ interface Gesture {
   pointerId: number;
   mode: 'paint' | 'doodle' | 'poke' | 'none';
   lock: number;
+  brush: BrushId;
   radius: number;
   mat: number;
   allow: Uint8Array;
@@ -113,6 +152,8 @@ interface Gesture {
   carry: number;
   lastT: number;
   speed: number;
+  fxAccum: number;
+  bubbleSpawned: boolean;
 }
 
 // offsets within radius 3 sorted by distance (ties: dy, dx) for the ink-tap snap
@@ -147,7 +188,10 @@ export class Simulation implements SimulationPort, ActorHost {
   private readonly bloomT = new Float32Array(256);
   private readonly ghostRevealed = new Uint8Array(256);
   private readonly forcedWiggle = new Uint8Array(256);
-  private readonly guideGlow = new Uint8Array(256);
+  private readonly spotlight = new Uint8Array(256);
+  private readonly idleGlow = new Uint8Array(256);
+  private readonly stalledGlow = new Uint8Array(256);
+  private readonly lightningZapped = new Uint8Array(256);
   private readonly nudgeWiggleMs = new Float32Array(256);
   private readonly originX = new Float32Array(256);
   private readonly originY = new Float32Array(256);
@@ -165,7 +209,25 @@ export class Simulation implements SimulationPort, ActorHost {
   private sparkles: { x: number; y: number }[] = [];
   private sparkDirty = true;
 
+  private heroQuests: HeroStoryQuest[] = [];
+  private questLastMat: number[] = [];
+  private questPauseMs: number[] = [];
   private storyStars: StoryStarState[] = [];
+  private readonly finale: PageFinaleController = createPageFinaleController();
+
+  private hintActive = false;
+  private hintSource: HintSource = 'none';
+  private hintQuestId: HeroQuestId | null = null;
+  private hintTargetRegionIds: number[] = [];
+  private hintRemainingMs = 0;
+  private hintDurationMs = HINT_SPOTLIGHT_MS;
+  private hintDimAmount = 0;
+  private hintElapsedMs = 0;
+
+  private moonCatTimerMs = 0;
+  private gravityPokeAwarded = false;
+  private magnetTracked = new Set<number>();
+
   private prologueActive = false;
   private prologueMs = 0;
   private prologueDissolveMs = 0;
@@ -177,8 +239,7 @@ export class Simulation implements SimulationPort, ActorHost {
   private idleMs = 0;
   private idleGuideActive = false;
   private idleTargetId = 0;
-  private nudgeMs = 0;
-  private nudgeTargetId = 0;
+  private idleQuestId: HeroQuestId | null = null;
   private wispActive = false;
   private wispMode: WispMode = 'hidden';
   private wispX = PAGE_W * 0.22;
@@ -208,11 +269,36 @@ export class Simulation implements SimulationPort, ActorHost {
   brush(): BrushId {
     return this.tool.brush;
   }
+  hasRelic(r: RelicId): boolean {
+    return this.ctx.relics.includes(r);
+  }
   collect(e: EffectRT): void {
     if (!e.pickup) return;
     this.emit({ type: 'gems', amount: e.pickup.gems, reason: e.pickup.reason });
     this.effects.remove(e);
     this.effects.spawn('starBurst', e.x, e.y, { durMs: 500 });
+  }
+  onBubblePop(a: ActorRT): void {
+    if (!this.page || !this.cov || !this.actors) return;
+    this.actors.removeActor(a);
+    const mat = normMat(a.bubbleMat || this.tool.materialId);
+    this.effects.spawn('bubblePop', a.view.x, a.view.y, { durMs: 650, materialId: mat });
+    this.emit({ type: 'itemFoley', kind: 'bubblePop' });
+    if (this.ctx.viewOnly) return;
+    const target =
+      this.nearestUnbloomed(a.view.x, a.view.y, true) || this.nearestUnbloomed(a.view.x, a.view.y, false);
+    if (target > 0) {
+      this.bonusFillUnpainted(target, mat, BUBBLE_SPLASH_FRACTION, a.view.x, a.view.y);
+      this.settle();
+    }
+  }
+  onActorPoked(_a: ActorRT): void {
+    if (!this.hasRelic('gravityFlipFlop')) return;
+    this.emit({ type: 'relic', relic: 'gravityFlipFlop', tag: RELIC_TAGS.gravityFlipFlop });
+    if (!this.gravityPokeAwarded && !this.ctx.viewOnly) {
+      this.gravityPokeAwarded = true;
+      this.emit({ type: 'gems', amount: GEM_REWARDS.gravityPokeBonus, reason: 'gravityPokeBonus' });
+    }
   }
 
   // ------------------------------------------------------------------ region helpers
@@ -235,13 +321,24 @@ export class Simulation implements SimulationPort, ActorHost {
   }
 
   private colourable(id: number): boolean {
-    if (id >= 1 && id <= 211) return this.colourableBase[id] === 1;
-    if (id >= 234 && id <= 254) return this.ghostRevealed[id] === 1 && this.cov!.total[id]! > 0;
+    if (id >= 1 && id <= DYNAMIC_MAX) return this.colourableBase[id] === 1;
+    if (id >= GHOST_MIN && id <= GHOST_MAX) return this.ghostRevealed[id] === 1 && this.cov!.total[id]! > 0;
     return false;
   }
 
-  private hasRelic(r: RunContext['relics'][number]): boolean {
-    return this.ctx.relics.includes(r);
+  private questThreshold(): number {
+    return this.hasRelic('constellationCrown') ? CROWN_QUEST_BLOOM_THRESHOLD : HERO_QUEST_BLOOM_THRESHOLD;
+  }
+
+  private spawnRelicCompanions(): void {
+    if (!this.page || !this.actors) return;
+    const f = this.page.focal;
+    if (this.hasRelic('sleepyMoonCat') && !this.ctx.viewOnly) {
+      this.actors.addRelicMoonCat(f.x - 110, f.y - 45);
+    }
+    if (this.hasRelic('chromaticButterfly')) {
+      this.actors.addRelicButterfly(f.x + 90, f.y - 45);
+    }
   }
 
   // ------------------------------------------------------------------ loading
@@ -270,10 +367,13 @@ export class Simulation implements SimulationPort, ActorHost {
     for (let id = 0; id < 256; id++) {
       const meta = p.regions[id];
       const canon = CANONICAL_REGIONS.find((c) => c.id === id);
-      this.kinds[id] = meta?.kind ?? canon?.kind ?? (id >= 212 && id <= 233 ? 'system' : id >= 234 && id <= 254 ? 'ghost' : 'prop');
+      this.kinds[id] =
+        meta?.kind ??
+        canon?.kind ??
+        (id >= SYSTEM_MIN && id <= SYSTEM_MAX ? 'system' : id >= GHOST_MIN && id <= GHOST_MAX ? 'ghost' : 'prop');
       const total = cov.total[id]!;
-      if (id >= 1 && id <= 211 && total > 0 && !meta?.coverageExcluded) this.colourableBase[id] = 1;
-      if (id >= 234 && id <= 254 && total > 0) this.ghostIds.push(id);
+      if (id >= 1 && id <= DYNAMIC_MAX && total > 0 && !meta?.coverageExcluded) this.colourableBase[id] = 1;
+      if (id >= GHOST_MIN && id <= GHOST_MAX && total > 0) this.ghostIds.push(id);
       if (total > 0 && id !== 0 && id !== 255) {
         const c = this.centroid(id);
         this.originX[id] = c.x;
@@ -281,6 +381,7 @@ export class Simulation implements SimulationPort, ActorHost {
       }
     }
     this.actors = new ActorSystem(this, p.actors, p.seed);
+    this.spawnRelicCompanions();
 
     for (const pc of p.preColored ?? []) {
       if (cov.total[pc.id]! === 0) continue;
@@ -288,9 +389,9 @@ export class Simulation implements SimulationPort, ActorHost {
     }
     cov.takeTouched();
     this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total, true);
+    this.buildHeroQuests(p);
+    this.refreshHeroQuests(false);
     this.recomputeCore();
-    this.buildStoryStars(p);
-    this.refreshStoryStars(false);
     if (ctx.playPrologue === true && !ctx.viewOnly && !this.pageComplete) {
       this.startPrologue();
     }
@@ -304,7 +405,10 @@ export class Simulation implements SimulationPort, ActorHost {
     this.bloomT.fill(0);
     this.ghostRevealed.fill(0);
     this.forcedWiggle.fill(0);
-    this.guideGlow.fill(0);
+    this.spotlight.fill(0);
+    this.idleGlow.fill(0);
+    this.stalledGlow.fill(0);
+    this.lightningZapped.fill(0);
     this.nudgeWiggleMs.fill(0);
     this.colourableBase.fill(0);
     this.originX.fill(0);
@@ -312,12 +416,30 @@ export class Simulation implements SimulationPort, ActorHost {
     this.bloomQueue = [];
     this.rippling = [];
     this.nudgedIds = [];
+    this.heroQuests = [];
+    this.questLastMat = [];
+    this.questPauseMs = [];
     this.storyStars = [];
+    this.finale.reset();
+    this.moonCatTimerMs = 0;
+    this.gravityPokeAwarded = false;
+    this.magnetTracked.clear();
     this.pageComplete = false;
     this.prismFired = false;
     this.coreAwake = 0;
     this.sparkDirty = true;
     this.resetWispState();
+  }
+
+  private resetHintFields(): void {
+    this.hintActive = false;
+    this.hintSource = 'none';
+    this.hintQuestId = null;
+    this.hintTargetRegionIds = [];
+    this.hintRemainingMs = 0;
+    this.hintDurationMs = HINT_SPOTLIGHT_MS;
+    this.hintDimAmount = 0;
+    this.hintElapsedMs = 0;
   }
 
   private resetWispState(): void {
@@ -332,8 +454,8 @@ export class Simulation implements SimulationPort, ActorHost {
     this.idleMs = 0;
     this.idleGuideActive = false;
     this.idleTargetId = 0;
-    this.nudgeMs = 0;
-    this.nudgeTargetId = 0;
+    this.idleQuestId = null;
+    this.resetHintFields();
     this.hideWisp();
   }
 
@@ -357,17 +479,49 @@ export class Simulation implements SimulationPort, ActorHost {
     return { x: sx / ids.length, y: sy / ids.length };
   }
 
-  private buildStoryStars(p: CompiledPage): void {
+  private buildHeroQuests(p: CompiledPage): void {
     const cov = this.cov!;
-    const out: StoryStarState[] = [];
-    if (p.storyMilestones && p.storyMilestones.length > 0) {
+    const out: HeroStoryQuest[] = [];
+    if (p.heroQuests && p.heroQuests.length > 0) {
+      for (const spec of p.heroQuests) {
+        const present = spec.regionIds.filter((id) => cov.total[id]! > 0);
+        if (present.length === 0) continue;
+        const fallback = this.meanCentroid(present);
+        const x = Number.isFinite(spec.centroid?.x) ? spec.centroid.x : fallback.x;
+        const y = Number.isFinite(spec.centroid?.y) ? spec.centroid.y : fallback.y;
+        out.push({
+          questId: spec.questId,
+          label: spec.label,
+          thumbnailSpriteId: spec.thumbnailSpriteId ?? (`quest_${spec.questId}` as UiSpriteId),
+          regionIds: present,
+          progress: 0,
+          completed: false,
+          stalled: false,
+          highlighted: false,
+          x,
+          y,
+        });
+      }
+    }
+    if (out.length === 0 && p.storyMilestones && p.storyMilestones.length > 0) {
       for (const m of p.storyMilestones) {
         const present = m.regionIds.filter((id) => cov.total[id]! > 0);
         if (present.length === 0) continue;
         const fallback = this.meanCentroid(present);
         const x = Number.isFinite(m.centroid?.x) ? m.centroid.x : fallback.x;
         const y = Number.isFinite(m.centroid?.y) ? m.centroid.y : fallback.y;
-        out.push({ id: m.id, kind: m.kind, label: m.label, lit: false, progress: 0, regionIds: present, x, y });
+        out.push({
+          questId: m.id,
+          label: m.label,
+          thumbnailSpriteId: m.thumbnailSpriteId ?? (`quest_${m.id}` as UiSpriteId),
+          regionIds: present,
+          progress: 0,
+          completed: false,
+          stalled: false,
+          highlighted: false,
+          x,
+          y,
+        });
       }
     }
     if (out.length === 0) {
@@ -375,26 +529,141 @@ export class Simulation implements SimulationPort, ActorHost {
         const present = def.ids.filter((id) => this.coreSet.has(id) && cov.total[id]! > 0);
         if (present.length === 0) continue;
         const c = this.meanCentroid(present);
-        out.push({ id: def.id, kind: def.id, label: def.label, lit: false, progress: 0, regionIds: present, x: c.x, y: c.y });
+        out.push({
+          questId: def.id,
+          label: def.label,
+          thumbnailSpriteId: `quest_${def.id}` as UiSpriteId,
+          regionIds: present,
+          progress: 0,
+          completed: false,
+          stalled: false,
+          highlighted: false,
+          x: c.x,
+          y: c.y,
+        });
       }
     }
-    this.storyStars = out;
+    this.heroQuests = out;
+    this.questLastMat = new Array<number>(out.length).fill(0);
+    this.questPauseMs = new Array<number>(out.length).fill(0);
+    this.syncStoryStars();
   }
 
-  private refreshStoryStars(emitEvents: boolean): void {
-    for (let i = 0; i < this.storyStars.length; i++) {
-      const star = this.storyStars[i]!;
-      const total = star.regionIds.length;
-      let done = 0;
-      for (const id of star.regionIds) if (this.bloomed[id]) done++;
-      const wasLit = star.lit;
-      const nowLit = total > 0 && done === total;
-      star.progress = total > 0 ? done / total : 0;
-      star.lit = nowLit;
-      if (emitEvents && !wasLit && nowLit) {
-        this.emit({ type: 'storyStarLit', milestoneId: star.id, index: i, x: star.x, y: star.y });
+  private syncStoryStars(): void {
+    this.storyStars = this.heroQuests.map((q) => ({
+      id: q.questId,
+      kind: q.questId,
+      label: q.label,
+      thumbnailSpriteId: q.thumbnailSpriteId,
+      lit: q.completed,
+      progress: q.progress,
+      regionIds: q.regionIds.slice(),
+      x: q.x,
+      y: q.y,
+    }));
+  }
+
+  private questWeightedProgress(q: HeroStoryQuest): number {
+    const cov = this.cov!;
+    let painted = 0;
+    let total = 0;
+    for (const id of q.regionIds) {
+      const t = cov.total[id]!;
+      total += t;
+      painted += this.bloomed[id] ? t : cov.painted[id]!;
+    }
+    return total > 0 ? painted / total : 0;
+  }
+
+  private refreshHeroQuests(live: boolean): void {
+    if (this.heroQuests.length === 0) return;
+    const threshold = this.questThreshold();
+    for (let i = 0; i < this.heroQuests.length; i++) {
+      const q = this.heroQuests[i]!;
+      if (q.completed) {
+        q.progress = 1;
+        continue;
+      }
+      const w = this.questWeightedProgress(q);
+      const allBloomed = q.regionIds.length > 0 && q.regionIds.every((id) => this.bloomed[id] === 1);
+      q.progress = allBloomed ? 1 : w;
+      if (!live) {
+        q.completed = allBloomed;
+        q.stalled = false;
+        q.highlighted = false;
+      } else if (allBloomed || w >= threshold) {
+        this.completeHeroQuest(i);
       }
     }
+    this.syncStoryStars();
+  }
+
+  private completeHeroQuest(index: number): void {
+    const q = this.heroQuests[index]!;
+    if (q.completed) return;
+    q.completed = true;
+    q.progress = 1;
+    q.stalled = false;
+    q.highlighted = false;
+    this.questPauseMs[index] = 0;
+
+    const cov = this.cov!;
+    const preferredMat = this.questLastMat[index] || normMat(this.tool.materialId);
+    const unbloomed = q.regionIds.filter((id) => !this.bloomed[id] && cov.total[id]! > 0);
+
+    for (const id of q.regionIds) {
+      this.stalledGlow[id] = 0;
+      this.idleGlow[id] = 0;
+      this.spotlight[id] = 0;
+      this.nudgeWiggleMs[id] = 0;
+    }
+    if (this.hintActive && this.hintQuestId === q.questId) {
+      this.clearHintState();
+    }
+    if (this.idleGuideActive && this.idleQuestId === q.questId) {
+      this.clearIdleGuide();
+    }
+
+    // Composite Auto-Bloom: fill all remaining unbloomed sub-regions WITHOUT double-awarding regionBloom/actorBloom
+    for (const id of unbloomed) {
+      const c = this.centroid(id);
+      const matchStamp =
+        Number.isFinite(this.stampX) && Number.isFinite(this.stampY) && this.regionAt(this.stampX, this.stampY) === id;
+      const ox = matchStamp ? this.stampX : c.x;
+      const oy = matchStamp ? this.stampY : c.y;
+      this.bloomRegion(id, ox, oy, true, preferredMat, true);
+    }
+
+    this.syncStoryStars();
+
+    this.emit({ type: 'gems', amount: GEM_REWARDS.questBloom, reason: 'questBloom' });
+    if (this.hasRelic('doubleMilkshake')) {
+      this.emit({ type: 'relic', relic: 'doubleMilkshake', tag: RELIC_TAGS.doubleMilkshake });
+      this.emit({ type: 'gems', amount: GEM_REWARDS.milkshakeBonus, reason: 'milkshakeBonus' });
+    }
+
+    this.emit({
+      type: 'heroQuestComplete',
+      questId: q.questId,
+      index,
+      total: this.heroQuests.length,
+      x: q.x,
+      y: q.y,
+    });
+    this.emit({
+      type: 'storyStarLit',
+      milestoneId: q.questId,
+      index,
+      x: q.x,
+      y: q.y,
+    });
+
+    if (this.hasRelic('constellationCrown')) {
+      this.emit({ type: 'relic', relic: 'constellationCrown', tag: RELIC_TAGS.constellationCrown });
+      this.effects.spawn('crownFireworks', q.x, q.y, { durMs: 2200, materialId: GOLD });
+    }
+
+    this.checkPageComplete();
   }
 
   private pickPrologueRegion(): number {
@@ -518,10 +787,28 @@ export class Simulation implements SimulationPort, ActorHost {
     this.emit({ type: 'prologueEnd' });
   }
 
-  private clearGuideGlow(): void {
+  private clearSpotlightFlags(): void {
     for (let id = 1; id < 255; id++) {
-      if (this.guideGlow[id]) {
-        this.guideGlow[id] = 0;
+      if (this.spotlight[id]) {
+        this.spotlight[id] = 0;
+        this.syncRegion(id);
+      }
+    }
+  }
+
+  private clearIdleGlowFlags(): void {
+    for (let id = 1; id < 255; id++) {
+      if (this.idleGlow[id]) {
+        this.idleGlow[id] = 0;
+        this.syncRegion(id);
+      }
+    }
+  }
+
+  private clearStalledGlowFlags(): void {
+    for (let id = 1; id < 255; id++) {
+      if (this.stalledGlow[id]) {
+        this.stalledGlow[id] = 0;
         this.syncRegion(id);
       }
     }
@@ -531,79 +818,180 @@ export class Simulation implements SimulationPort, ActorHost {
     if (this.nudgedIds.length === 0) return;
     for (const id of this.nudgedIds) {
       this.nudgeWiggleMs[id] = 0;
-      if (!this.idleGuideActive || this.idleTargetId !== id) this.guideGlow[id] = 0;
       this.syncRegion(id);
     }
     this.nudgedIds = [];
   }
 
+  private clearQuestHighlights(): void {
+    for (const q of this.heroQuests) q.highlighted = false;
+  }
+
+  private clearHintState(): void {
+    if (!this.hintActive && this.hintTargetRegionIds.length === 0) return;
+    this.clearSpotlightFlags();
+    this.clearNudgeWiggle();
+    this.clearQuestHighlights();
+    this.resetHintFields();
+    if (this.wispMode === 'hintBeam' || this.wispMode === 'nudge') this.hideWisp();
+  }
+
   private clearIdleGuide(): void {
     if (!this.idleGuideActive && this.idleTargetId === 0) return;
-    const prev = this.idleTargetId;
     this.idleGuideActive = false;
     this.idleTargetId = 0;
-    if (prev > 0 && this.nudgeWiggleMs[prev]! <= 0 && this.guideGlow[prev]) {
-      this.guideGlow[prev] = 0;
-      this.syncRegion(prev);
-    }
+    this.idleQuestId = null;
+    this.clearIdleGlowFlags();
+    if (!this.hintActive) this.clearQuestHighlights();
     if (this.wispMode === 'idleGuide') this.hideWisp();
   }
 
-  private pickIdleTarget(): number {
-    const cov = this.cov!;
-    for (const star of this.storyStars) {
-      if (star.lit) continue;
-      for (const id of star.regionIds) {
-        if (!this.bloomed[id] && cov.total[id]! > 0) return id;
-      }
-    }
-    for (const id of this.page!.coreRegionIds) {
-      if (!this.bloomed[id] && cov.total[id]! > 0) return id;
-    }
-    return 0;
+  private inactiveHint(): HintRequestState {
+    return {
+      active: false,
+      source: 'none',
+      questId: null,
+      targetRegionIds: [],
+      remainingMs: 0,
+      durationMs: HINT_SPOTLIGHT_MS,
+      dimAmount: 0,
+    };
   }
 
-  nudgeMilestone(milestoneId: StoryMilestoneKind): void {
-    if (!this.page || !this.cov || this.ctx.viewOnly || this.pageComplete) return;
-    const star = this.storyStars.find((s) => s.id === milestoneId);
-    if (!star || star.lit) return;
-    const uncolored = star.regionIds.filter((id) => !this.bloomed[id] && this.cov!.total[id]! > 0);
-    if (uncolored.length === 0) return;
+  private currentHintState(): HintRequestState {
+    return {
+      active: this.hintActive,
+      source: this.hintSource,
+      questId: this.hintQuestId,
+      targetRegionIds: this.hintTargetRegionIds.slice(),
+      remainingMs: this.hintRemainingMs,
+      durationMs: this.hintDurationMs,
+      dimAmount: this.hintDimAmount,
+    };
+  }
+
+  private pickIdleQuest(): { quest: HeroStoryQuest | null; targetId: number; unbloomed: number[] } {
+    const cov = this.cov!;
+    for (const q of this.heroQuests) {
+      if (q.completed) continue;
+      const unbloomed = q.regionIds.filter((id) => !this.bloomed[id] && cov.total[id]! > 0);
+      if (unbloomed.length > 0) return { quest: q, targetId: unbloomed[0]!, unbloomed };
+    }
+    for (const id of this.page!.coreRegionIds) {
+      if (!this.bloomed[id] && cov.total[id]! > 0) return { quest: null, targetId: id, unbloomed: [id] };
+    }
+    return { quest: null, targetId: 0, unbloomed: [] };
+  }
+
+  requestHint(questId?: HeroQuestId, source: 'lantern' | 'medallion' = 'lantern'): HintRequestState {
+    if (!this.page || !this.cov || this.ctx.viewOnly || this.pageComplete) return this.inactiveHint();
+    const cov = this.cov;
+    let quest: HeroStoryQuest | undefined;
+    if (questId !== undefined) {
+      quest = this.heroQuests.find((q) => q.questId === questId && !q.completed);
+    } else {
+      quest = this.heroQuests.find((q) => !q.completed && q.regionIds.some((id) => !this.bloomed[id] && cov.total[id]! > 0));
+    }
+    if (!quest) return this.inactiveHint();
+    const unbloomed = quest.regionIds.filter((id) => !this.bloomed[id] && cov.total[id]! > 0);
+    if (unbloomed.length === 0) return this.inactiveHint();
 
     if (this.prologueActive) this.dismissPrologue();
     this.idleMs = 0;
-    this.idleGuideActive = false;
-    this.idleTargetId = 0;
-    this.clearNudgeWiggle();
-    this.clearGuideGlow();
+    this.clearIdleGuide();
+    this.clearHintState();
 
-    this.nudgedIds = uncolored.slice();
-    for (const id of uncolored) {
-      this.nudgeWiggleMs[id] = SOCKET_WIGGLE_MS;
-      this.guideGlow[id] = 1;
+    // Spotlight + guideGlow on ALL unbloomed regions of that Hero Quest
+    for (const id of unbloomed) {
+      this.spotlight[id] = 1;
       this.syncRegion(id);
     }
+    quest.highlighted = true;
 
-    const targetId = uncolored[0]!;
-    const tc = this.centroid(targetId);
-    this.nudgeMs = SOCKET_WIGGLE_MS;
-    this.nudgeTargetId = targetId;
-    if (!this.wispActive || this.wispAlpha < 0.05) {
-      this.wispX = clamp(tc.x, 12, PAGE_W - 12);
-      this.wispY = clamp(tc.y - 20, 12, PAGE_H - 12);
+    // Pick largest unbloomed region of that quest for the looping rainbow Wisp ghost-stroke
+    let largestId = unbloomed[0]!;
+    let largestTotal = cov.total[largestId]!;
+    for (let i = 1; i < unbloomed.length; i++) {
+      const id = unbloomed[i]!;
+      const t = cov.total[id]!;
+      if (t > largestTotal) {
+        largestTotal = t;
+        largestId = id;
+      }
     }
+
+    this.hintActive = true;
+    this.hintSource = source;
+    this.hintQuestId = quest.questId;
+    this.hintTargetRegionIds = unbloomed.slice();
+    this.hintRemainingMs = HINT_SPOTLIGHT_MS;
+    this.hintDurationMs = HINT_SPOTLIGHT_MS;
+    this.hintDimAmount = 1;
+    this.hintElapsedMs = 0;
+
+    this.ghostPath = this.buildGhostPath(largestId);
+    this.ghostStrokeT = 0;
+    const startPt = samplePath(this.ghostPath, 0);
+    this.wispX = startPt.x;
+    this.wispY = startPt.y;
     this.wispActive = true;
-    this.wispMode = 'nudge';
-    this.wispTargetRegionId = targetId;
+    this.wispMode = 'hintBeam';
+    this.wispTargetRegionId = largestId;
     this.wispAlpha = 1;
-    this.emit({ type: 'wispGuide', regionId: targetId, mode: 'nudge' });
+
+    this.emit({ type: 'hintStarted', questId: quest.questId, regionIds: unbloomed.slice(), source });
+    this.emit({ type: 'wispGuide', regionId: largestId, mode: 'hintBeam' });
+    return this.currentHintState();
+  }
+
+  setStayAndDoodle(stay: boolean): void {
+    this.finale.setStayAndDoodle(stay);
+  }
+
+  nudgeMilestone(milestoneId: StoryMilestoneKind): void {
+    const res = this.requestHint(milestoneId, 'medallion');
+    if (!res.active) return;
+    this.nudgedIds = res.targetRegionIds.slice();
+    for (const id of res.targetRegionIds) {
+      this.nudgeWiggleMs[id] = SOCKET_WIGGLE_MS;
+      this.syncRegion(id);
+    }
   }
 
   private recomputeCore(): void {
     let n = 0;
     for (const id of this.coreSet) if (this.bloomed[id]) n++;
     this.coreAwake = n;
-    this.pageComplete = this.coreTotal > 0 && n === this.coreTotal;
+    this.pageComplete =
+      this.heroQuests.length > 0
+        ? this.heroQuests.every((q) => q.completed)
+        : this.coreTotal > 0 && n === this.coreTotal;
+  }
+
+  private checkPageComplete(): void {
+    if (this.pageComplete) return;
+    const done =
+      this.heroQuests.length > 0
+        ? this.heroQuests.every((q) => q.completed)
+        : this.coreTotal > 0 && this.coreAwake === this.coreTotal;
+    if (!done) return;
+    this.pageComplete = true;
+    if (this.prologueActive) this.dismissPrologue();
+    this.clearHintState();
+    this.clearIdleGuide();
+    this.clearNudgeWiggle();
+    this.clearStalledGlowFlags();
+    for (const q of this.heroQuests) {
+      q.stalled = false;
+      q.highlighted = false;
+    }
+    this.hideWisp();
+    this.emit({ type: 'gems', amount: GEM_REWARDS.pageComplete, reason: 'pageComplete' });
+    this.emit({ type: 'pageComplete' });
+    this.effects.spawn('constellationFireworks', PAGE_W / 2, PAGE_H / 3, { durMs: 4000 });
+    if (!this.ctx.viewOnly) {
+      this.finale.start();
+    }
   }
 
   /** Completes a region without events/gems (pre-coloured hub regions, restore). */
@@ -700,11 +1088,14 @@ export class Simulation implements SimulationPort, ActorHost {
 
   private newGesture(e: GestureEvent, mode: Gesture['mode'], lock: number): Gesture {
     const brush = this.tool.brush;
+    const baseRadius = BRUSH_RADIUS_PX[brush] ?? 6;
+    const radius = brush === 'moonbeamQuill' ? baseRadius * 1.4 : baseRadius;
     return {
       pointerId: e.pointerId,
       mode,
       lock,
-      radius: BRUSH_RADIUS_PX[brush] ?? 6,
+      brush,
+      radius,
       mat: normMat(this.tool.materialId),
       allow: new Uint8Array(256),
       allowIds: [],
@@ -716,6 +1107,8 @@ export class Simulation implements SimulationPort, ActorHost {
       carry: 0,
       lastT: e.timeMs,
       speed: 0,
+      fxAccum: 0,
+      bubbleSpawned: false,
     };
   }
 
@@ -775,12 +1168,6 @@ export class Simulation implements SimulationPort, ActorHost {
     if (mode === 'none') return;
 
     if (this.prologueActive) this.dismissPrologue();
-    if (this.nudgeMs > 0) {
-      this.nudgeMs = 0;
-      this.nudgeTargetId = 0;
-      this.clearNudgeWiggle();
-      if (this.wispMode === 'nudge') this.hideWisp();
-    }
 
     if (mode === 'doodle') {
       g.allow[255] = 1;
@@ -789,7 +1176,7 @@ export class Simulation implements SimulationPort, ActorHost {
     } else {
       g.allow[lock] = 1;
       g.allowIds = [lock];
-      if (this.tool.brush === 'twinTail') {
+      if (g.brush === 'twinTail') {
         const nbr = new Uint8Array(256);
         const set = new Set<number>(this.cov!.adjacent[lock]!);
         for (const n of this.page!.regions[lock]?.neighbors ?? []) set.add(n);
@@ -800,8 +1187,22 @@ export class Simulation implements SimulationPort, ActorHost {
           g.allowIds.push(n);
         }
         g.nbr = nbr;
+      } else if (g.brush === 'nebulaCloudPuff') {
+        const quest = this.heroQuests.find((q) => q.regionIds.includes(lock));
+        if (quest) {
+          for (const rid of quest.regionIds) {
+            if (rid === lock || this.bloomed[rid] || !this.colourable(rid)) continue;
+            if (g.allow[rid] === 0) {
+              g.allow[rid] = 1;
+              g.allowIds.push(rid);
+            }
+          }
+        }
       }
       g.allowKey = `p${g.allowIds.join(',')}`;
+      if (this.hintActive && g.allowIds.some((id) => this.hintTargetRegionIds.includes(id))) {
+        this.clearHintState();
+      }
     }
     this.emit({ type: 'stroke', active: true, speed: 0, materialId: g.mat });
     this.stamp(g, x, y, 0, 0);
@@ -828,6 +1229,7 @@ export class Simulation implements SimulationPort, ActorHost {
       const spacing = Math.max(0.5, STAMP_SPACING * g.radius);
       let t = spacing - g.carry;
       while (t <= d) {
+        g.fxAccum += spacing;
         this.stamp(g, g.lastX + ux * t, g.lastY + uy * t, ux, uy);
         t += spacing;
       }
@@ -874,6 +1276,71 @@ export class Simulation implements SimulationPort, ActorHost {
     }
     cov.stampDisc(x, y, g.radius, g.mat, allow, g.nbr);
     this.pushStamp(key, ids, s);
+
+    // Sprint 2 Active Magical Brush behaviors (all respect Smart Touch-Lock!)
+    if (g.brush === 'cometMeteor') {
+      if (dx !== 0 || dy !== 0) {
+        const fx = clamp(x + dx * g.radius * 1.15, 0, PAGE_W - 1);
+        const fy = clamp(y + dy * g.radius * 1.15, 0, PAGE_H - 1);
+        const fr = g.radius * 0.7;
+        cov.stampDisc(fx, fy, fr, g.mat, allow, null);
+        this.pushStamp(key, ids, { x: fx, y: fy, radius: fr, materialId: g.mat, dx, dy, strength: 1 });
+        if (g.speed >= 0.25 && g.fxAccum >= 14) {
+          g.fxAccum = 0;
+          this.effects.spawn('meteorStreak', x, y, {
+            x2: clamp(x + dx * 22, 0, PAGE_W),
+            y2: clamp(y + dy * 22, 0, PAGE_H),
+            durMs: 550,
+            materialId: g.mat,
+          });
+        }
+      }
+    } else if (g.brush === 'prismRoller') {
+      const c = this.centroid(g.lock);
+      const mx = clamp(2 * c.x - x, 0, PAGE_W - 1);
+      const my = clamp(2 * c.y - y, 0, PAGE_H - 1);
+      const mr = g.radius * 0.65;
+      cov.stampDisc(mx, my, mr, g.mat, allow, null);
+      this.pushStamp(key, ids, { x: mx, y: my, radius: mr, materialId: g.mat, dx: -dx, dy: -dy, strength: 1 });
+    } else if (g.brush === 'starlightBubble') {
+      if (!g.bubbleSpawned || g.fxAccum >= 36) {
+        g.bubbleSpawned = true;
+        g.fxAccum = 0;
+        this.actors!.addBubble(x, Math.max(16, y - 6), g.mat);
+      }
+    } else if (g.brush === 'moonbeamQuill') {
+      if ((dx === 0 && dy === 0) || g.fxAccum >= 14) {
+        if (g.fxAccum >= 14) g.fxAccum = 0;
+        this.effects.spawn('stardustTrail', x, y, {
+          x2: clamp(x - dx * 10, 0, PAGE_W),
+          y2: clamp(y - dy * 10, 0, PAGE_H),
+          durMs: 650,
+          materialId: g.mat,
+        });
+      }
+    } else if (
+      g.brush === 'lightningWhisker' &&
+      !this.bloomed[g.lock] &&
+      !this.lightningZapped[g.lock] &&
+      this.regionPercent(g.lock) > LIGHTNING_TRIGGER_PCT
+    ) {
+      this.lightningZapped[g.lock] = 1;
+      const res = cov.fillUnpaintedFraction(g.lock, x, y, g.mat, LIGHTNING_FILL_FRACTION);
+      if (res.newlyPainted > 0) {
+        this.pushStamp(`z${g.lock}`, [g.lock], {
+          x: res.x,
+          y: res.y,
+          radius: res.radius,
+          materialId: g.mat,
+          dx: 0,
+          dy: 0,
+          strength: 1,
+        });
+        this.effects.spawn('lightningZap', x, y, { x2: res.x, y2: res.y, durMs: 550, materialId: g.mat });
+        this.emit({ type: 'itemFoley', kind: 'crystalChime' });
+      }
+    }
+
     this.stampX = x;
     this.stampY = y;
     this.settle();
@@ -901,7 +1368,7 @@ export class Simulation implements SimulationPort, ActorHost {
         if (this.ghostRevealed[id]) continue;
         if (this.cov.regionWithin(id, p.x, p.y, UV_FLASHLIGHT_RADIUS)) {
           this.ghostRevealed[id] = 1;
-          this.emit({ type: 'relic', relic: 'uvFlashlight' });
+          this.emit({ type: 'relic', relic: 'uvFlashlight', tag: RELIC_TAGS.uvFlashlight });
           const c = this.centroid(id);
           this.effects.spawn('paperDust', c.x, c.y, { durMs: 900 });
           this.syncRegion(id);
@@ -921,12 +1388,34 @@ export class Simulation implements SimulationPort, ActorHost {
     return 0;
   }
 
+  private noteQuestPainted(id: number, mat: number): void {
+    for (let i = 0; i < this.heroQuests.length; i++) {
+      const q = this.heroQuests[i]!;
+      if (!q.regionIds.includes(id)) continue;
+      if (mat > 0) this.questLastMat[i] = mat;
+      this.questPauseMs[i] = 0;
+      if (q.stalled) {
+        q.stalled = false;
+        for (const rid of q.regionIds) {
+          if (this.stalledGlow[rid]) {
+            this.stalledGlow[rid] = 0;
+            this.syncRegion(rid);
+          }
+        }
+      }
+    }
+  }
+
   private afterPaint(id: number): void {
     if (id === 0 || id === 255 || this.bloomed[id]) {
       this.syncRegion(id);
       return;
     }
     const cov = this.cov!;
+    this.noteQuestPainted(id, cov.regionMat[id] || normMat(this.tool.materialId));
+    if (this.hintActive && this.hintTargetRegionIds.includes(id)) {
+      this.clearHintState();
+    }
     const st = this.stageFor(id);
     const cur = this.stageOf[id]!;
     if (st > cur) {
@@ -948,17 +1437,19 @@ export class Simulation implements SimulationPort, ActorHost {
     this.syncRegion(id);
   }
 
-  /** Flushes touched regions and the bloom queue until stable. */
+  /** Flushes touched regions, Composite Hero Quests, and the bloom queue until stable. */
   private settle(): void {
     const cov = this.cov!;
     for (let guard = 0; guard < 4096; guard++) {
       const touched = cov.takeTouched();
       for (const id of touched) this.afterPaint(id);
+      if (touched.length > 0) this.refreshHeroQuests(true);
       if (this.bloomQueue.length === 0 && touched.length === 0) break;
       while (this.bloomQueue.length > 0) {
         const b = this.bloomQueue.shift()!;
-        this.bloomRegion(b.id, b.x, b.y);
+        if (!this.bloomed[b.id]) this.bloomRegion(b.id, b.x, b.y);
       }
+      this.refreshHeroQuests(true);
     }
     if (this.actors) {
       for (const a of this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total)) {
@@ -968,10 +1459,17 @@ export class Simulation implements SimulationPort, ActorHost {
   }
 
   // ------------------------------------------------------------------ Auto-Bloom
-  private bloomRegion(id: number, ox: number, oy: number): void {
+  private bloomRegion(
+    id: number,
+    ox: number,
+    oy: number,
+    suppressGem = false,
+    preferredMat = 0,
+    fromCompositeQuest = false,
+  ): void {
     if (this.bloomed[id]) return;
     const cov = this.cov!;
-    const fallbackMat = normMat(this.tool.materialId);
+    const fallbackMat = preferredMat > 0 ? normMat(preferredMat) : normMat(this.tool.materialId);
     cov.fillRemaining(id, cov.regionMat[id] || fallbackMat);
     const mat = cov.regionMat[id] || fallbackMat;
     const kind = this.kindOf(id);
@@ -980,7 +1478,9 @@ export class Simulation implements SimulationPort, ActorHost {
     this.bloomT[id] = 0;
     this.stageOf[id] = 4;
     this.nudgeWiggleMs[id] = 0;
-    this.guideGlow[id] = 0;
+    this.spotlight[id] = 0;
+    this.idleGlow[id] = 0;
+    this.stalledGlow[id] = 0;
     this.originX[id] = ox;
     this.originY[id] = oy;
     this.rippling.push(id);
@@ -991,13 +1491,16 @@ export class Simulation implements SimulationPort, ActorHost {
     this.effects.spawn('chromaticRipple', ox, oy, { durMs: RIPPLE_MS, materialId: mat });
     this.effects.spawn('starBurst', c.x, c.y, { durMs: 900, materialId: mat });
 
-    // gems, exactly once per region
-    const actorRegion = this.page!.regions[id]?.actorInstanceId !== undefined || this.actors!.list.some((a) => a.regionIds.includes(id));
-    this.emit(
-      actorRegion
-        ? { type: 'gems', amount: GEM_REWARDS.actorBloom, reason: 'actorBloom' }
-        : { type: 'gems', amount: GEM_REWARDS.regionBloom, reason: 'regionBloom' },
-    );
+    // gems, exactly once per individually bloomed region (skipped for auto-filled quest micro-slivers)
+    if (!suppressGem) {
+      const actorRegion =
+        this.page!.regions[id]?.actorInstanceId !== undefined || this.actors!.list.some((a) => a.regionIds.includes(id));
+      this.emit(
+        actorRegion
+          ? { type: 'gems', amount: GEM_REWARDS.actorBloom, reason: 'actorBloom' }
+          : { type: 'gems', amount: GEM_REWARDS.regionBloom, reason: 'regionBloom' },
+      );
+    }
 
     // causality
     const effect = matchCausality(kind, mat);
@@ -1012,23 +1515,11 @@ export class Simulation implements SimulationPort, ActorHost {
       this.emit({ type: 'actorAwake', actor: a.kind });
     }
 
-    // story star milestones
-    this.refreshStoryStars(true);
-
     // page progress
     if (this.coreSet.has(id)) this.coreAwake++;
-    if (!this.pageComplete && this.coreTotal > 0 && this.coreAwake === this.coreTotal) {
-      this.pageComplete = true;
-      if (this.prologueActive) this.dismissPrologue();
-      this.clearIdleGuide();
-      this.nudgeMs = 0;
-      this.nudgeTargetId = 0;
-      this.clearNudgeWiggle();
-      this.clearGuideGlow();
-      this.hideWisp();
-      this.emit({ type: 'gems', amount: GEM_REWARDS.pageComplete, reason: 'pageComplete' });
-      this.emit({ type: 'pageComplete' });
-      this.effects.spawn('constellationFireworks', PAGE_W / 2, PAGE_H / 3, { durMs: 4000 });
+    if (!fromCompositeQuest) {
+      this.refreshHeroQuests(true);
+      this.checkPageComplete();
     }
 
     this.relicsOnBloom(id, kind);
@@ -1140,6 +1631,7 @@ export class Simulation implements SimulationPort, ActorHost {
     if (this.hasRelic('zoomiePaw') && (kind === 'star' || kind === 'comet')) this.zoomie(id);
     if (this.hasRelic('kaleidoSharpener')) this.kaleido(id);
     if (this.hasRelic('prismRibbon') && !this.prismFired) this.prism();
+    if (this.hasRelic('chromaticButterfly')) this.echoButterfly(id);
   }
 
   private candidates(from: number, onlyUntouched: boolean): number[] {
@@ -1156,6 +1648,41 @@ export class Simulation implements SimulationPort, ActorHost {
     return out.map((q) => q.id);
   }
 
+  private nearestUnbloomed(x: number, y: number, onlyUntouched: boolean, preferQuest = false): number {
+    const cov = this.cov!;
+    if (preferQuest) {
+      let bestId = 0;
+      let bestD = Infinity;
+      for (const q of this.heroQuests) {
+        if (q.completed) continue;
+        for (const id of q.regionIds) {
+          if (this.bloomed[id] || !this.colourable(id)) continue;
+          if (onlyUntouched && cov.painted[id]! > 0) continue;
+          const c = this.centroid(id);
+          const d = Math.hypot(c.x - x, c.y - y);
+          if (d < bestD || (d === bestD && id < bestId)) {
+            bestD = d;
+            bestId = id;
+          }
+        }
+      }
+      if (bestId > 0) return bestId;
+    }
+    let bestId = 0;
+    let bestD = Infinity;
+    for (let o = 1; o < 255; o++) {
+      if (this.bloomed[o] || !this.colourable(o)) continue;
+      if (onlyUntouched && cov.painted[o]! > 0) continue;
+      const oc = this.centroid(o);
+      const d = Math.hypot(oc.x - x, oc.y - y);
+      if (d < bestD || (d === bestD && o < bestId)) {
+        bestD = d;
+        bestId = o;
+      }
+    }
+    return bestId;
+  }
+
   private bonusFill(id: number, mat: number, fraction: number): void {
     const cov = this.cov!;
     if (this.bloomed[id] || cov.total[id]! === 0) return;
@@ -1164,10 +1691,19 @@ export class Simulation implements SimulationPort, ActorHost {
     this.pushStamp(`b${id}`, [id], { x: c.x, y: c.y, radius, materialId: mat, dx: 0, dy: 0, strength: 1 });
   }
 
+  private bonusFillUnpainted(id: number, mat: number, fraction: number, ax: number, ay: number): void {
+    const cov = this.cov!;
+    if (this.bloomed[id] || cov.total[id]! === 0) return;
+    const res = cov.fillUnpaintedFraction(id, ax, ay, mat, fraction);
+    if (res.newlyPainted > 0) {
+      this.pushStamp(`b${id}`, [id], { x: res.x, y: res.y, radius: res.radius, materialId: mat, dx: 0, dy: 0, strength: 1 });
+    }
+  }
+
   private zoomie(id: number): void {
     const list = this.candidates(id, true);
     const target = list[0] ?? this.candidates(id, false)[0];
-    this.emit({ type: 'relic', relic: 'zoomiePaw' });
+    this.emit({ type: 'relic', relic: 'zoomiePaw', tag: RELIC_TAGS.zoomiePaw });
     if (target === undefined) return;
     const tc = this.centroid(target);
     const arrive = (): void => {
@@ -1180,7 +1716,7 @@ export class Simulation implements SimulationPort, ActorHost {
   private kaleido(id: number): void {
     const targets = this.candidates(id, true).slice(0, KALEIDOSCOPE_TARGETS);
     if (targets.length === 0) return;
-    this.emit({ type: 'relic', relic: 'kaleidoSharpener' });
+    this.emit({ type: 'relic', relic: 'kaleidoSharpener', tag: RELIC_TAGS.kaleidoSharpener });
     const c = this.centroid(id);
     for (const t of targets) {
       const tc = this.centroid(t);
@@ -1194,6 +1730,40 @@ export class Simulation implements SimulationPort, ActorHost {
     }
   }
 
+  private echoButterfly(fromId: number): void {
+    if (!this.actors || this.actors.butterflyBusy()) return;
+    const cov = this.cov!;
+    let target = 0;
+    for (const onlyUntouched of [true, false]) {
+      for (const q of this.heroQuests) {
+        if (q.completed) continue;
+        for (const rid of q.regionIds) {
+          if (rid === fromId || this.bloomed[rid] || !this.colourable(rid)) continue;
+          if (onlyUntouched && cov.painted[rid]! > 0) continue;
+          target = rid;
+          break;
+        }
+        if (target > 0) break;
+      }
+      if (target > 0) break;
+    }
+    if (target === 0) target = this.candidates(fromId, false)[0] ?? 0;
+    if (target === 0) return;
+
+    const fc = this.centroid(fromId);
+    const tc = this.centroid(target);
+    const mat = cov.regionMat[fromId] || normMat(this.tool.materialId);
+    this.emit({ type: 'relic', relic: 'chromaticButterfly', tag: RELIC_TAGS.chromaticButterfly });
+    this.effects.spawn('echoTrail', fc.x, fc.y, { x2: tc.x, y2: tc.y, durMs: 900, materialId: mat });
+    const arrive = (): void => {
+      if (!this.bloomed[target]) {
+        this.bonusFillUnpainted(target, mat, BUTTERFLY_ECHO_FRACTION, tc.x, tc.y);
+        this.effects.spawn('starBurst', tc.x, tc.y, { durMs: 650, materialId: mat });
+      }
+    };
+    if (!this.actors.flutterButterfly(fc.x, fc.y, tc.x, tc.y, arrive)) arrive();
+  }
+
   private distinctBloomMaterials(): number {
     const seen = new Set<number>();
     for (let id = 1; id < 255; id++) if (this.bloomed[id]) seen.add(this.cov!.regionMat[id]!);
@@ -1204,7 +1774,7 @@ export class Simulation implements SimulationPort, ActorHost {
   private prism(): void {
     if (this.distinctBloomMaterials() < 3) return;
     this.prismFired = true;
-    this.emit({ type: 'relic', relic: 'prismRibbon' });
+    this.emit({ type: 'relic', relic: 'prismRibbon', tag: RELIC_TAGS.prismRibbon });
     const x0 = PAGE_W * 0.15;
     const x1 = PAGE_W * 0.85;
     const y = PAGE_H * 0.4;
@@ -1218,10 +1788,61 @@ export class Simulation implements SimulationPort, ActorHost {
     }
   }
 
+  private updateRelics(dt: number): void {
+    if (!this.page || !this.cov || this.ctx.viewOnly) return;
+    if (this.hasRelic('starlightMagnet')) {
+      const target = this.pointer() ?? { x: 24, y: 20 };
+      const step = (MAGNET_SPEED_PX_S * dt) / 1000;
+      for (const e of this.effects.list.slice()) {
+        if ((e.kind !== 'gemPickup' && e.kind !== 'hiddenStar') || !e.pickup) continue;
+        const dx = target.x - e.x;
+        const dy = target.y - e.y;
+        const d = Math.hypot(dx, dy);
+        if (d <= Math.max(14, step)) {
+          this.magnetTracked.delete(e.id);
+          this.emit({ type: 'relic', relic: 'starlightMagnet', tag: RELIC_TAGS.starlightMagnet });
+          this.emit({ type: 'itemFoley', kind: 'magnetHarp' });
+          this.effects.spawn('magnetArc', e.x, e.y, { x2: target.x, y2: target.y, durMs: 550, materialId: 5 });
+          this.collect(e);
+        } else {
+          if (!this.magnetTracked.has(e.id)) {
+            this.magnetTracked.add(e.id);
+            this.effects.spawn('magnetArc', e.x, e.y, { x2: target.x, y2: target.y, durMs: 550, materialId: 5 });
+          }
+          e.x += (dx / d) * step;
+          e.y += (dy / d) * step;
+        }
+      }
+    }
+    if (this.hasRelic('sleepyMoonCat') && !this.pageComplete && !this.prologueActive) {
+      this.moonCatTimerMs += dt;
+      if (this.moonCatTimerMs >= MOON_CAT_INTERVAL_MS) {
+        this.moonCatTimerMs -= MOON_CAT_INTERVAL_MS;
+        const cat = this.actors?.list.find((a) => a.relicHelper === 'moonCat');
+        const cx = cat ? cat.view.x : this.page.focal.x;
+        const cy = cat ? cat.view.y : this.page.focal.y;
+        const target =
+          this.nearestUnbloomed(cx, cy, true, true) ||
+          this.nearestUnbloomed(cx, cy, false, true) ||
+          this.nearestUnbloomed(cx, cy, false, false);
+        if (target > 0) {
+          const tc = this.centroid(target);
+          const mat = this.cov.regionMat[target] || normMat(this.tool.materialId);
+          this.actors?.setMoonCatTarget(tc.x, tc.y);
+          this.bonusFillUnpainted(target, mat, MOON_CAT_FILL_FRACTION, tc.x, tc.y);
+          this.effects.spawn('starBurst', tc.x, tc.y, { durMs: 650, materialId: mat });
+          this.emit({ type: 'relic', relic: 'sleepyMoonCat', tag: RELIC_TAGS.sleepyMoonCat });
+          this.emit({ type: 'itemFoley', kind: 'catPurr' });
+        }
+      }
+    }
+  }
+
   // ------------------------------------------------------------------ update
   update(dtMs: number, _timeMs: number): void {
     if (!this.page || !this.cov) return;
     const dt = clamp(Number.isFinite(dtMs) ? dtMs : 0, 0, 250);
+    const finaleWasActive = this.finale.state.active;
     this.effects.update(dt);
     if (this.rippling.length > 0) {
       const keep: number[] = [];
@@ -1233,11 +1854,52 @@ export class Simulation implements SimulationPort, ActorHost {
       }
       this.rippling = keep;
     }
+    this.updateRelics(dt);
     this.actors!.update(dt);
     this.actors!.refreshStatus(this.stageOf, this.bloomed, this.cov.total);
     this.settle();
+    this.updateStalledQuests(dt);
     this.updateWisp(dt);
+    if (finaleWasActive && this.finale.update(dt)) {
+      this.emit({ type: 'autoPageTurnReady' });
+    }
     if (this.sparkDirty) this.rebuildSparkles();
+  }
+
+  private updateStalledQuests(dt: number): void {
+    if (this.ctx.viewOnly || this.pageComplete || this.prologueActive) return;
+    const cov = this.cov!;
+    for (let i = 0; i < this.heroQuests.length; i++) {
+      const q = this.heroQuests[i]!;
+      if (q.completed || q.progress < STALLED_QUEST_THRESHOLD) {
+        this.questPauseMs[i] = 0;
+        if (q.stalled) {
+          q.stalled = false;
+          for (const id of q.regionIds) {
+            if (this.stalledGlow[id]) {
+              this.stalledGlow[id] = 0;
+              this.syncRegion(id);
+            }
+          }
+        }
+        continue;
+      }
+      const paintingThisQuest = this.g?.mode === 'paint' && q.regionIds.includes(this.g.lock);
+      if (paintingThisQuest) {
+        this.questPauseMs[i] = 0;
+        continue;
+      }
+      this.questPauseMs[i] = this.questPauseMs[i]! + dt;
+      if (this.questPauseMs[i]! >= STALLED_QUEST_DELAY_MS && !q.stalled) {
+        q.stalled = true;
+        for (const id of q.regionIds) {
+          if (!this.bloomed[id] && cov.total[id]! > 0) {
+            this.stalledGlow[id] = 1;
+            this.syncRegion(id);
+          }
+        }
+      }
+    }
   }
 
   private updateWisp(dt: number): void {
@@ -1250,7 +1912,6 @@ export class Simulation implements SimulationPort, ActorHost {
           keep.push(id);
         } else {
           this.nudgeWiggleMs[id] = 0;
-          if (!this.idleGuideActive || this.idleTargetId !== id) this.guideGlow[id] = 0;
           this.syncRegion(id);
         }
       }
@@ -1273,25 +1934,21 @@ export class Simulation implements SimulationPort, ActorHost {
         this.prologueDissolveMs > 0 ? this.prologueDissolveFrom * (this.prologueDissolveMs / PROLOGUE_DISSOLVE_MS) : 0;
     }
 
-    if (this.nudgeMs > 0) {
-      this.nudgeMs = Math.max(0, this.nudgeMs - dt);
-      if (this.nudgeMs <= 0 || this.pageComplete || (this.nudgeTargetId > 0 && this.bloomed[this.nudgeTargetId])) {
-        this.nudgeMs = 0;
-        this.nudgeTargetId = 0;
-        this.clearNudgeWiggle();
-        if (this.wispMode === 'nudge') this.hideWisp();
-      } else if (this.nudgeTargetId > 0) {
-        const tc = this.centroid(this.nudgeTargetId);
-        const bobT = (SOCKET_WIGGLE_MS - this.nudgeMs) / 1000;
-        const tx = tc.x + Math.sin(bobT * 5) * 6;
-        const ty = tc.y + Math.cos(bobT * 3.5) * 4;
-        const k = Math.min(1, dt / 180);
-        this.wispX += (tx - this.wispX) * k;
-        this.wispY += (ty - this.wispY) * k;
+    if (this.hintActive) {
+      this.hintRemainingMs = Math.max(0, this.hintRemainingMs - dt);
+      this.hintElapsedMs += dt;
+      const anyUnbloomed = this.hintTargetRegionIds.some((id) => !this.bloomed[id]);
+      if (this.hintRemainingMs <= 0 || this.pageComplete || !anyUnbloomed) {
+        this.clearHintState();
+      } else {
+        this.hintDimAmount = this.hintRemainingMs < HINT_FADE_MS ? clamp(this.hintRemainingMs / HINT_FADE_MS, 0, 1) : 1;
+        this.ghostStrokeT = (this.hintElapsedMs % PROLOGUE_STROKE_LOOP_MS) / PROLOGUE_STROKE_LOOP_MS;
+        const pt = samplePath(this.ghostPath, this.ghostStrokeT);
+        this.wispX = pt.x;
+        this.wispY = pt.y;
         this.wispActive = true;
-        this.wispMode = 'nudge';
-        this.wispTargetRegionId = this.nudgeTargetId;
-        this.wispAlpha = this.nudgeMs < 250 ? clamp(this.nudgeMs / 250, 0, 1) : 1;
+        this.wispMode = 'hintBeam';
+        this.wispAlpha = this.hintDimAmount;
       }
       return;
     }
@@ -1303,18 +1960,24 @@ export class Simulation implements SimulationPort, ActorHost {
 
     if (this.g === null) this.idleMs += dt;
     if (this.idleMs >= IDLE_WISP_DELAY_MS) {
-      const targetId = this.pickIdleTarget();
+      const picked = this.pickIdleQuest();
+      const targetId = picked.targetId;
       if (targetId <= 0) {
         this.clearIdleGuide();
         return;
       }
       const tc = this.centroid(targetId);
       if (!this.idleGuideActive || this.idleTargetId !== targetId) {
-        this.clearGuideGlow();
+        this.clearIdleGlowFlags();
+        this.clearQuestHighlights();
         this.idleGuideActive = true;
         this.idleTargetId = targetId;
-        this.guideGlow[targetId] = 1;
-        this.syncRegion(targetId);
+        this.idleQuestId = picked.quest?.questId ?? null;
+        if (picked.quest) picked.quest.highlighted = true;
+        for (const id of picked.unbloomed) {
+          this.idleGlow[id] = 1;
+          this.syncRegion(id);
+        }
         if (!this.wispActive || this.wispAlpha < 0.05) {
           this.wispX = clamp(tc.x - 32, 12, PAGE_W - 12);
           this.wispY = clamp(tc.y - 24, 12, PAGE_H - 12);
@@ -1369,8 +2032,9 @@ export class Simulation implements SimulationPort, ActorHost {
     const st = this.stageOf[id]!;
     if ((!bl && st >= 1 && st <= 3) || this.forcedWiggle[id] || (!bl && this.nudgeWiggleMs[id]! > 0)) flags |= REGION_FLAG.wiggle;
     if (bl && this.bloomT[id]! < 300) flags |= REGION_FLAG.flash;
-    if (id >= 234 && id <= 254 && !this.ghostRevealed[id]) flags |= REGION_FLAG.hidden;
-    if (!bl && this.guideGlow[id]) flags |= REGION_FLAG.guideGlow;
+    if (id >= GHOST_MIN && id <= GHOST_MAX && !this.ghostRevealed[id]) flags |= REGION_FLAG.hidden;
+    if (!bl && (this.spotlight[id] || this.idleGlow[id] || this.stalledGlow[id])) flags |= REGION_FLAG.guideGlow;
+    if (!bl && this.spotlight[id]) flags |= REGION_FLAG.spotlight;
     const o = id * 4;
     const o1 = REGION_STATE_ROW1_OFFSET + id * 4;
     const ox = clamp(Math.round((this.originX[id]! * 255) / PAGE_W), 0, 255);
@@ -1465,7 +2129,8 @@ export class Simulation implements SimulationPort, ActorHost {
       y: this.wispY,
       targetRegionId: this.wispTargetRegionId,
       ghostStrokeT: this.ghostStrokeT,
-      ghostPath: this.prologueActive ? this.ghostPath.slice() : [],
+      ghostPath:
+        this.prologueActive || (this.wispActive && this.wispMode === 'hintBeam') ? this.ghostPath.slice() : [],
       prologueMist: this.prologueMistVal,
       alpha: this.wispAlpha,
     };
@@ -1481,7 +2146,10 @@ export class Simulation implements SimulationPort, ActorHost {
       uvFlashlight: uv,
       sparkleSources: this.sparkles,
       hoveredRegionId,
+      heroQuests: this.heroQuests.map((q) => ({ ...q, regionIds: q.regionIds.slice() })),
       storyStars: this.storyStars.map((s) => ({ ...s, regionIds: s.regionIds.slice() })),
+      hintState: this.currentHintState(),
+      pageFinale: this.finale.state,
       wisp,
       wonderWhisper: this.computeWonderWhisper(hoveredRegionId),
       pokeInvites: this.computePokeInvites(),
@@ -1543,12 +2211,20 @@ export class Simulation implements SimulationPort, ActorHost {
     this.bloomT.fill(0);
     this.ghostRevealed.fill(0);
     this.forcedWiggle.fill(0);
-    this.guideGlow.fill(0);
+    this.spotlight.fill(0);
+    this.idleGlow.fill(0);
+    this.stalledGlow.fill(0);
+    this.lightningZapped.fill(0);
     this.nudgeWiggleMs.fill(0);
+    this.finale.reset();
+    this.moonCatTimerMs = 0;
+    this.gravityPokeAwarded = false;
+    this.magnetTracked.clear();
     this.resetWispState();
     this.pageComplete = false;
     this.prismFired = false;
     this.actors = new ActorSystem(this, p.actors, p.seed);
+    this.spawnRelicCompanions();
 
     for (const id of s.completedRegionIds) {
       if (id < 1 || id > 254 || cov.total[id]! === 0) continue;
@@ -1561,7 +2237,7 @@ export class Simulation implements SimulationPort, ActorHost {
     for (let id = 1; id < 255; id++) {
       if (cov.total[id]! === 0) continue;
       if (!this.bloomed[id]) this.stageOf[id] = Math.min(3, this.stageFor(id));
-      if (id >= 234 && cov.painted[id]! > 0) this.ghostRevealed[id] = 1;
+      if (id >= GHOST_MIN && cov.painted[id]! > 0) this.ghostRevealed[id] = 1;
     }
     // persistent causality / bridge effects return silently (no events, no gems)
     for (let id = 1; id < 255; id++) {
@@ -1573,8 +2249,9 @@ export class Simulation implements SimulationPort, ActorHost {
     }
     this.effects.update(0);
     this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total, true);
+    this.buildHeroQuests(p);
+    this.refreshHeroQuests(false);
     this.recomputeCore();
-    this.refreshStoryStars(false);
     this.prismFired = this.hasRelic('prismRibbon') && this.distinctBloomMaterials() >= 3;
     this.emitRestoreBatches();
     this.syncAll();

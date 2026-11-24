@@ -149,7 +149,7 @@ describe('Dual-star Story Star Sockets', () => {
     expect(restoredLumi.progress).toBe(1);
   });
 
-  it('nudgeMilestone wiggles uncolored regions, sets guideGlow, guides Wisp, and clears after SOCKET_WIGGLE_MS', () => {
+  it('nudgeMilestone routes through requestHint(id, medallion), spotlights + wiggles uncolored regions, launches Wisp ghostPath, and clears after SOCKET_WIGGLE_MS', () => {
     const sim = mkSim();
     // Pre-bloom region 5 so only region 6 of 'lumi' is uncolored
     paintRegion(sim, 5, 6, 2);
@@ -157,30 +157,38 @@ describe('Dual-star Story Star Sockets', () => {
 
     sim.nudgeMilestone!('lumi');
     const ev = sim.drainEvents();
-    expect(ev).toContainEqual({ type: 'wispGuide', regionId: 6, mode: 'nudge' });
+    expect(ev).toContainEqual({ type: 'hintStarted', questId: 'lumi', regionIds: [6], source: 'medallion' });
+    expect(ev).toContainEqual({ type: 'wispGuide', regionId: 6, mode: 'hintBeam' });
 
     const v0 = sim.view();
     expect(v0.wisp!.active).toBe(true);
-    expect(v0.wisp!.mode).toBe('nudge');
+    expect(v0.wisp!.mode).toBe('hintBeam');
     expect(v0.wisp!.targetRegionId).toBe(6);
+    expect(v0.wisp!.ghostPath.length).toBeGreaterThanOrEqual(2);
+    expect(v0.hintState).toMatchObject({ active: true, source: 'medallion', questId: 'lumi', targetRegionIds: [6], dimAmount: 1 });
     expect(v0.regionState[6 * 4 + 3]! & REGION_FLAG.wiggle).toBe(REGION_FLAG.wiggle);
     expect(v0.regionState[6 * 4 + 3]! & REGION_FLAG.guideGlow).toBe(REGION_FLAG.guideGlow);
-    // Already-bloomed region 5 does NOT get guideGlow
+    expect(v0.regionState[6 * 4 + 3]! & REGION_FLAG.spotlight).toBe(REGION_FLAG.spotlight);
+    // Already-bloomed region 5 does NOT get guideGlow or spotlight
     expect(v0.regionState[5 * 4 + 3]! & REGION_FLAG.guideGlow).toBe(0);
+    expect(v0.regionState[5 * 4 + 3]! & REGION_FLAG.spotlight).toBe(0);
 
     // Mid-nudge still active
     run(sim, Math.floor(SOCKET_WIGGLE_MS / 2));
     const vMid = sim.view();
     expect(vMid.wisp!.active).toBe(true);
-    expect(vMid.wisp!.mode).toBe('nudge');
+    expect(vMid.wisp!.mode).toBe('hintBeam');
+    expect(vMid.hintState!.active).toBe(true);
 
-    // After SOCKET_WIGGLE_MS, wiggle, guideGlow, and Wisp clear
+    // After SOCKET_WIGGLE_MS, wiggle, guideGlow, spotlight, and Wisp clear
     run(sim, SOCKET_WIGGLE_MS);
     const vEnd = sim.view();
     expect(vEnd.wisp!.active).toBe(false);
     expect(vEnd.wisp!.mode).toBe('hidden');
+    expect(vEnd.hintState!.active).toBe(false);
     expect(vEnd.regionState[6 * 4 + 3]! & REGION_FLAG.wiggle).toBe(0);
     expect(vEnd.regionState[6 * 4 + 3]! & REGION_FLAG.guideGlow).toBe(0);
+    expect(vEnd.regionState[6 * 4 + 3]! & REGION_FLAG.spotlight).toBe(0);
 
     // Nudging an already-lit milestone is a no-op
     paintRegion(sim, 6, 6, 2);

@@ -102,7 +102,7 @@ export function buildFixture(opts: { withActors?: boolean; rects?: Rect[] } = {}
       neighbors: [...adj[r.id]!].filter((o) => o !== 255).sort((a, b) => a - b),
       core: CORE_IDS.includes(r.id),
       ghost: r.id >= 234 && r.id <= 254,
-      coverageExcluded: r.id >= 212,
+      coverageExcluded: r.id >= 200,
     };
   }
   const actors: ActorSpawn[] = opts.withActors === false ? [] : [

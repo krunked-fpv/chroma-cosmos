@@ -154,10 +154,68 @@ describe('wispSprite', () => {
           else if (v === 0) ink++;
           else if (v === 255) transparent++;
         }
-        expect(core, `wisp.${name} core px`).toBeGreaterThan(20);
-        expect(aura, `wisp.${name} aura px`).toBeGreaterThan(20);
-        expect(ink, `wisp.${name} outline/eye px`).toBeGreaterThan(4);
+        expect(core, `wisp.${name} core px`).toBeGreaterThan(30);
+        expect(aura, `wisp.${name} aura px`).toBeGreaterThan(30);
+        expect(ink, `wisp.${name} indigo contour rim + eye px`).toBeGreaterThanOrEqual(35);
         expect(transparent, `wisp.${name} transparent px`).toBeGreaterThan(20);
+
+        // Main body+wings silhouette must be 100% framed by 1px deep-indigo (0) contour
+        // so bright 231/232 pixels never bleed raw against bright cream cotton paper (#fbf3e0).
+        const vis = new Uint8Array(f.w * f.h);
+        const startIdx = Math.floor(f.h / 2) * f.w + Math.floor(f.w / 2);
+        expect(f.pixels[startIdx], `wisp.${name} center pixel opaque`).not.toBe(255);
+        const queue: number[] = [startIdx];
+        vis[startIdx] = 1;
+        while (queue.length > 0) {
+          const i = queue.pop()!;
+          const x = i % f.w;
+          const y = (i / f.w) | 0;
+          for (const [dx, dy] of [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ] as const) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= f.w || ny < 0 || ny >= f.h) continue;
+            const j = ny * f.w + nx;
+            if (!vis[j] && f.pixels[j] !== 255) {
+              vis[j] = 1;
+              queue.push(j);
+            }
+          }
+        }
+        let bodyExposedBright = 0;
+        let detachedMotes = 0;
+        for (let y = 0; y < f.h; y++) {
+          for (let x = 0; x < f.w; x++) {
+            const i = y * f.w + x;
+            const v = f.pixels[i]!;
+            if (v === 255) continue;
+            if (!vis[i]) {
+              detachedMotes++;
+              continue;
+            }
+            if (v === 0) continue;
+            for (const [dx, dy] of [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+            ] as const) {
+              const nx = x + dx;
+              const ny = y + dy;
+              const nb = nx < 0 || nx >= f.w || ny < 0 || ny >= f.h ? 255 : f.pixels[ny * f.w + nx];
+              if (nb === 255) {
+                bodyExposedBright++;
+                break;
+              }
+            }
+          }
+        }
+        expect(bodyExposedBright, `wisp.${name} body/wing bright px exposed without indigo rim`).toBe(0);
+        expect(detachedMotes, `wisp.${name} floating lantern motes`).toBeGreaterThanOrEqual(3);
       }
       expect(sawEyeShine, `wisp.${name} eye_shine`).toBe(true);
 
@@ -191,14 +249,15 @@ describe('wonderSketch', () => {
     const dLater = art.wonderSketch!(effect, box, 360);
 
     expect(d0).toEqual(d0Again);
-    expect(d0.length).toBeGreaterThanOrEqual(15);
-    expect(dLater.length).toBeGreaterThanOrEqual(15);
+    expect(d0.length).toBeGreaterThanOrEqual(120);
+    expect(dLater.length).toBeGreaterThanOrEqual(120);
     expect(JSON.stringify(d0)).not.toBe(JSON.stringify(dLater));
 
     for (const dots of [d0, dLater]) {
       const seen = new Set<number>();
       let s1 = 0;
       let s2 = 0;
+      let outsideBox = 0;
       for (const p of dots) {
         expect(Number.isInteger(p.x)).toBe(true);
         expect(Number.isInteger(p.y)).toBe(true);
@@ -212,9 +271,25 @@ describe('wonderSketch', () => {
         seen.add(key);
         if (p.shade === 1) s1++;
         else s2++;
+        if (p.x < box.x0 || p.x > box.x1 || p.y < box.y0 || p.y > box.y1) outsideBox++;
       }
-      expect(s1).toBeGreaterThan(0);
-      expect(s2).toBeGreaterThan(0);
+      expect(s1).toBeGreaterThanOrEqual(35);
+      expect(s2).toBeGreaterThanOrEqual(35);
+      // Cleanly framed outside the target cream bbox so chalk dashes pop over dark indigo sky
+      expect(outsideBox / dots.length, `${effect} outside-bbox ratio`).toBeGreaterThanOrEqual(0.85);
+      // Crisp 2px chalk dashes & directional tips (not isolated 1x1 specks)
+      let connected = 0;
+      for (const p of dots) {
+        if (
+          seen.has(p.y * PAGE_W + (p.x + 1)) ||
+          seen.has(p.y * PAGE_W + (p.x - 1)) ||
+          seen.has((p.y + 1) * PAGE_W + p.x) ||
+          seen.has((p.y - 1) * PAGE_W + p.x)
+        ) {
+          connected++;
+        }
+      }
+      expect(connected / dots.length, `${effect} 2px chalk dash solidity`).toBeGreaterThanOrEqual(0.85);
     }
 
     // Extreme corner boxes stay strictly in-bounds and non-empty
@@ -223,12 +298,42 @@ describe('wonderSketch', () => {
       { x0: PAGE_W - 26, y0: PAGE_H - 22, x1: PAGE_W - 1, y1: PAGE_H - 1 },
     ]) {
       const edgeDots = art.wonderSketch!(effect, edgeBox, 180);
-      expect(edgeDots.length).toBeGreaterThan(5);
+      expect(edgeDots.length).toBeGreaterThan(20);
       for (const p of edgeDots) {
         expect(p.x).toBeGreaterThanOrEqual(0);
         expect(p.x).toBeLessThan(PAGE_W);
         expect(p.y).toBeGreaterThanOrEqual(0);
         expect(p.y).toBeLessThan(PAGE_H);
+      }
+    }
+  });
+
+  it('frames cleanly around real cloud and planet bboxes across all 8 chapters', () => {
+    for (const chapterId of CHAPTER_IDS) {
+      const page = art.compilePage(chapterId, 7, NONE);
+      const cloud = page.regions[14];
+      const planet = page.regions[12];
+      expect(cloud).toBeDefined();
+      expect(planet).toBeDefined();
+      if (cloud) {
+        for (const eff of ['rainbowSlide', 'starlightFlowerRain', 'zeroGTrampoline'] as const) {
+          const dots = art.wonderSketch!(eff, cloud.bbox, 420);
+          expect(dots.length, `${chapterId}.${eff}`).toBeGreaterThanOrEqual(100);
+          const outside = dots.filter(
+            (p) => p.x < cloud.bbox.x0 || p.x > cloud.bbox.x1 || p.y < cloud.bbox.y0 || p.y > cloud.bbox.y1,
+          ).length;
+          expect(outside / dots.length, `${chapterId}.${eff} outside cloud`).toBeGreaterThanOrEqual(0.85);
+        }
+      }
+      if (planet) {
+        for (const eff of ['cheetahRacetrack', 'discoMirage'] as const) {
+          const dots = art.wonderSketch!(eff, planet.bbox, 420);
+          expect(dots.length, `${chapterId}.${eff}`).toBeGreaterThanOrEqual(120);
+          const outside = dots.filter(
+            (p) => p.x < planet.bbox.x0 || p.x > planet.bbox.x1 || p.y < planet.bbox.y0 || p.y > planet.bbox.y1,
+          ).length;
+          expect(outside / dots.length, `${chapterId}.${eff} outside planet`).toBeGreaterThanOrEqual(0.85);
+        }
       }
     }
   });

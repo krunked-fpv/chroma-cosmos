@@ -1,17 +1,20 @@
 /**
  * Composition root: wires art, renderer, simulation, roguelike run manager,
- * audio, tri-tier vault, keepsake export, and sketchbook UI via src/contracts/ only.
+ * audio, tri-tier vault, keepsake export, and Midnight Cloisonne UI via src/contracts/ only.
  */
 import {
+  ACTIVE_BRUSH_IDS,
   APP_NAME,
   CHAPTERS,
   CONSTELLATION_MILESTONES,
   CORE_MATERIAL_IDS,
   GEM_REWARDS,
   MATERIALS,
+  MAX_MATERIAL_ID,
   WARDROBE_ITEMS,
 } from './contracts';
 import type {
+  ActiveBrushId,
   ActorKind,
   ActorRenderState,
   AppMode,
@@ -20,9 +23,14 @@ import type {
   CausalityKind,
   ChapterId,
   CompiledPage,
+  DraftCardId,
+  HeroQuestId,
+  HeroStoryQuest,
+  HintRequestState,
   HubState,
   HudState,
   MaterialId,
+  PageFinaleState,
   PokeInvite,
   RunCore,
   SpriteLibrary,
@@ -75,6 +83,12 @@ interface ChromaQaApi {
   setToolMode(mode: ToolMode): void;
   hoverRegion(id: number): boolean;
   storyStars(): StoryStarState[];
+  heroQuests(): HeroStoryQuest[];
+  hintState(): HintRequestState | null;
+  pageFinale(): PageFinaleState | null;
+  requestHint(questId?: HeroQuestId): HintRequestState | null;
+  setStayAndDoodle(stay: boolean): void;
+  addGems(amount: number): void;
   wisp(): WispRenderState | null;
   wonderWhisper(): WonderWhisperHint | null;
   pokeInvites(): PokeInvite[];
@@ -102,6 +116,8 @@ declare global {
   }
 }
 
+const ACTIVE_BRUSH_SET: ReadonlySet<string> = new Set<string>(ACTIVE_BRUSH_IDS);
+
 const CAUSALITY_TOAST: Record<CausalityKind, string | null> = {
   rainbowSlide: 'Whoosh! Rainbow Slide awake!',
   starlightFlowerRain: 'Starlight flowers are blooming!',
@@ -115,7 +131,7 @@ function renderWebglFallback(host: HTMLElement): void {
   const msg = document.createElement('div');
   msg.style.cssText =
     'display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;' +
-    'padding:24px;text-align:center;color:#fff6d8;background:#120d2b;font-family:system-ui,sans-serif;';
+    'padding:24px;text-align:center;color:#faf6ec;background:#0d1026;font-family:system-ui,sans-serif;';
   const title = document.createElement('h2');
   title.textContent = APP_NAME;
   const body = document.createElement('p');
@@ -130,6 +146,18 @@ function slugify(s: string): string {
 
 function clampCoord(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+function computeHasAffordableUnlock(v: Readonly<VaultState>): boolean {
+  const unlocked = new Set<MaterialId>(v.unlockedMaterials);
+  for (const m of MATERIALS) {
+    if (m.tier === 'unlockable' && !unlocked.has(m.id) && v.gems >= m.unlockCost) return true;
+  }
+  const owned = new Set(v.wardrobeOwned);
+  for (const w of WARDROBE_ITEMS) {
+    if (!owned.has(w.id) && v.gems >= w.cost) return true;
+  }
+  return false;
 }
 
 async function boot(): Promise<void> {
@@ -184,7 +212,10 @@ async function boot(): Promise<void> {
   let lastCoreTotal = 0;
   let lastPageComplete = false;
   let latestActors: ActorRenderState[] = [];
+  let lastHeroQuests: HeroStoryQuest[] = [];
   let lastStoryStars: StoryStarState[] = [];
+  let lastHintState: HintRequestState | null = null;
+  let lastPageFinale: PageFinaleState | null = null;
   let lastWisp: WispRenderState | null = null;
   let lastWonderWhisper: WonderWhisperHint | null = null;
   let lastPokeInvites: PokeInvite[] = [];
@@ -242,7 +273,7 @@ async function boot(): Promise<void> {
   };
 
   const currentTitle = (): string => {
-    if (currentMode === 'hub') return "Violet's Stargazer Bedroom";
+    if (currentMode === 'hub') return "Violet's Stargazer Studio";
     if (currentMode === 'book' && activeBook) return activeBook.title;
     const ch = run.core() ? CHAPTERS.find((c) => c.id === run.currentChapter()) : undefined;
     return ch?.title ?? currentPage?.title ?? APP_NAME;
@@ -270,12 +301,25 @@ async function boot(): Promise<void> {
     const brushes = c?.brushes ?? ['standard'];
     const relics = c?.relics ?? [];
     const toolMode: ToolMode = doodle ? 'wand' : 'pencil';
-    const starsSig = lastStoryStars.map((s) => `${s.id}:${s.lit ? 1 : 0}:${Math.round(s.progress * 100)}`).join(',');
+    const hasAffordableUnlock = computeHasAffordableUnlock(v);
+    const questsSig = lastHeroQuests
+      .map(
+        (q) =>
+          `${q.questId}:${q.completed ? 1 : 0}:${q.highlighted ? 1 : 0}:${q.stalled ? 1 : 0}:${Math.round(q.progress * 100)}`,
+      )
+      .join(',');
+    const hintSig = lastHintState
+      ? `${lastHintState.active ? 1 : 0}:${lastHintState.questId ?? ''}:${lastHintState.source}`
+      : '0';
+    const finaleSig = lastPageFinale
+      ? `${lastPageFinale.active ? 1 : 0}:${lastPageFinale.stayAndDoodle ? 1 : 0}:${Math.round(lastPageFinale.progress * 25)}`
+      : '0';
     const nextSig = [
       currentMode,
       currentTitle(),
       currentSlot(),
       v.gems,
+      hasAffordableUnlock ? 1 : 0,
       v.unlockedMaterials.join(','),
       selectedMaterial,
       brushes.join(','),
@@ -284,7 +328,9 @@ async function boot(): Promise<void> {
       relics.join(','),
       lastCoreAwake,
       lastCoreTotal,
-      starsSig,
+      questsSig,
+      hintSig,
+      finaleSig,
       lastWispPencilCue ? 1 : 0,
       lastPrologueActive ? 1 : 0,
       lastPageComplete ? 1 : 0,
@@ -297,6 +343,7 @@ async function boot(): Promise<void> {
       chapterTitle: currentTitle(),
       slot: currentSlot(),
       gems: v.gems,
+      hasAffordableUnlock,
       materials: materialEntries(),
       selectedMaterial,
       brushes,
@@ -306,7 +353,10 @@ async function boot(): Promise<void> {
       relics,
       coreAwake: lastCoreAwake,
       coreTotal: lastCoreTotal,
+      heroQuests: lastHeroQuests,
       storyStars: lastStoryStars,
+      hintState: lastHintState ?? undefined,
+      pageFinale: lastPageFinale ?? undefined,
       wispPencilCue: lastWispPencilCue,
       prologueActive: lastPrologueActive,
       pageComplete: lastPageComplete,
@@ -318,14 +368,17 @@ async function boot(): Promise<void> {
   const pushHub = async (): Promise<void> => {
     storybooksCache = await vault.listStorybooks();
     const v = vault.get();
+    const hasAffordableUnlock = computeHasAffordableUnlock(v);
     const hub: HubState = {
       gems: v.gems,
       badges: [...v.badges],
       materials: materialEntries(),
       wardrobeOwned: [...v.wardrobeOwned],
       wardrobe: { ...v.wardrobe },
+      discoveredCards: [...(v.discoveredCards ?? [])],
       storybooks: storybooksCache,
       hasRunInProgress: v.run !== null,
+      hasAffordableUnlock,
       audioLevel: audio.level(),
     };
     ui.updateHub(hub);
@@ -363,7 +416,10 @@ async function boot(): Promise<void> {
 
   const consumeViewAndRender = (dtMs: number, timeMs: number): boolean => {
     const view = sim.view();
+    const nextQuests = view.heroQuests ?? [];
     const nextStars = view.storyStars ?? [];
+    const nextHint = view.hintState ?? null;
+    const nextFinale = view.pageFinale ?? null;
     const nextWisp = view.wisp ?? null;
     const nextPencilCue = Boolean(nextWisp?.active && nextWisp.mode === 'prologueTapPencil');
     const nextPrologueActive = Boolean(
@@ -372,25 +428,41 @@ async function boot(): Promise<void> {
           nextWisp.mode === 'prologueTapPencil' ||
           nextWisp.mode === 'prologueStroke'),
     );
-    const starsChanged =
-      nextStars.length !== lastStoryStars.length ||
-      nextStars.some(
-        (s, i) =>
-          s.id !== lastStoryStars[i]?.id ||
-          s.lit !== lastStoryStars[i]?.lit ||
-          Math.abs(s.progress - (lastStoryStars[i]?.progress ?? -1)) > 0.01,
+    const questsChanged =
+      nextQuests.length !== lastHeroQuests.length ||
+      nextQuests.some(
+        (q, i) =>
+          q.questId !== lastHeroQuests[i]?.questId ||
+          q.completed !== lastHeroQuests[i]?.completed ||
+          q.highlighted !== lastHeroQuests[i]?.highlighted ||
+          q.stalled !== lastHeroQuests[i]?.stalled ||
+          Math.abs(q.progress - (lastHeroQuests[i]?.progress ?? -1)) > 0.01,
       );
+    const hintChanged =
+      Boolean(nextHint?.active) !== Boolean(lastHintState?.active) ||
+      nextHint?.questId !== lastHintState?.questId ||
+      nextHint?.source !== lastHintState?.source;
+    const finaleChanged =
+      Boolean(nextFinale?.active) !== Boolean(lastPageFinale?.active) ||
+      Boolean(nextFinale?.stayAndDoodle) !== Boolean(lastPageFinale?.stayAndDoodle) ||
+      Math.abs((nextFinale?.progress ?? 0) - (lastPageFinale?.progress ?? 0)) > 0.03;
     const changed =
       view.coreAwake !== lastCoreAwake ||
       view.pageComplete !== lastPageComplete ||
-      starsChanged ||
+      questsChanged ||
+      hintChanged ||
+      finaleChanged ||
       nextPencilCue !== lastWispPencilCue ||
       nextPrologueActive !== lastPrologueActive;
+
     lastCoreAwake = view.coreAwake;
     lastCoreTotal = view.coreTotal;
     lastPageComplete = view.pageComplete;
     latestActors = view.actors;
+    lastHeroQuests = nextQuests;
     lastStoryStars = nextStars;
+    lastHintState = nextHint;
+    lastPageFinale = nextFinale;
     lastWisp = nextWisp;
     lastWonderWhisper = view.wonderWhisper ?? null;
     lastPokeInvites = view.pokeInvites ?? [];
@@ -416,6 +488,7 @@ async function boot(): Promise<void> {
       toolMode: doodle ? 'wand' : 'pencil',
       hoverPos: latestHover,
       dogEarGlow: currentMode === 'chapter' && lastPageComplete ? 1 : 0,
+      hintDim: currentMode === 'chapter' ? (nextHint?.dimAmount ?? 0) : 0,
       wonderSketch: art.wonderSketch,
     });
     return changed;
@@ -498,6 +571,7 @@ async function boot(): Promise<void> {
         galaxyName: activeBook.galaxyName,
         createdAt: activeBook.createdAt,
         pageCount: activeBook.pages.length,
+        seed: activeBook.seed,
       },
       activeBookPage,
       activeBook.pages.length,
@@ -511,6 +585,16 @@ async function boot(): Promise<void> {
     const c = run.core();
     vault.update((d) => {
       d.run = c;
+    });
+    vault.healCheck();
+  };
+
+  const recordDiscoveredCard = (card: DraftCardId): void => {
+    vault.update((d) => {
+      const list = d.discoveredCards ?? [];
+      if (!list.includes(card)) {
+        d.discoveredCards = [...list, card];
+      }
     });
     vault.healCheck();
   };
@@ -598,9 +682,10 @@ async function boot(): Promise<void> {
         pushHud(true);
         const card = await ui.showDraft(opts);
         run.pickDraft(card);
-        if (card === 'turboCheetah' || card === 'twinTail' || card === 'supernovaSponge' || card === 'zeroGGel') {
-          selectedBrush = card;
+        if (ACTIVE_BRUSH_SET.has(card)) {
+          selectedBrush = card as ActiveBrushId;
         }
+        recordDiscoveredCard(card);
         persistRunCore();
       }
     }
@@ -697,8 +782,16 @@ async function boot(): Promise<void> {
         syncTool();
         pushHud(true);
       },
+      onRequestHint(questId) {
+        sim.requestHint?.(questId, questId ? 'medallion' : 'lantern');
+        pushHud(true);
+      },
       onHighlightMilestone(id) {
         sim.nudgeMilestone?.(id);
+        pushHud(true);
+      },
+      onStayAndDoodle(stay) {
+        sim.setStayAndDoodle?.(stay);
         pushHud(true);
       },
       onUiFoley(kind) {
@@ -937,6 +1030,8 @@ async function boot(): Promise<void> {
     let awakenedDelta = 0;
     let pokesDelta = 0;
     let stemsChanged = false;
+    let shouldAutoTurn = false;
+    const heroQuestsHandledThisTick = new Set<HeroQuestId>();
 
     for (const ev of evs) {
       seenEventsLog.push(ev.type);
@@ -997,14 +1092,38 @@ async function boot(): Promise<void> {
         case 'gems':
           gemsEarned += ev.amount;
           break;
-        case 'storyStarLit': {
-          audio.uiFoley?.('wispChime');
+        case 'heroQuestComplete': {
+          heroQuestsHandledThisTick.add(ev.questId);
+          audio.storyMedallion?.(ev.index, ev.total);
           const clientPt = renderer.internalToClient(ev.x, ev.y);
-          ui.animateStarThread?.(ev.milestoneId, clientPt.x, clientPt.y);
+          ui.animateStarThread?.(ev.questId, clientPt.x, clientPt.y);
+          break;
+        }
+        case 'storyStarLit': {
+          if (!heroQuestsHandledThisTick.has(ev.milestoneId)) {
+            audio.uiFoley?.('wispChime');
+            const clientPt = renderer.internalToClient(ev.x, ev.y);
+            ui.animateStarThread?.(ev.milestoneId, clientPt.x, clientPt.y);
+          }
+          break;
+        }
+        case 'hintStarted': {
+          if (ev.source === 'lantern' || ev.source === 'medallion') {
+            audio.hintLantern?.();
+            const q = lastHeroQuests.find((h) => h.questId === ev.questId);
+            const firstRegion = ev.regionIds[0];
+            const pt =
+              (firstRegion !== undefined ? currentPage?.regions[firstRegion]?.centroid : undefined) ??
+              (q ? { x: q.x, y: q.y } : { x: 240, y: 135 });
+            const clientPt = renderer.internalToClient(pt.x, pt.y);
+            ui.animateHintBeam?.(ev.questId, clientPt.x, clientPt.y);
+          }
           break;
         }
         case 'wispGuide':
-          audio.uiFoley?.('wispChime');
+          if (ev.mode === 'idleGuide') {
+            audio.uiFoley?.('wispChime');
+          }
           break;
         case 'prologueEnd':
           audio.uiFoley?.('paperRustle');
@@ -1018,11 +1137,18 @@ async function boot(): Promise<void> {
         case 'pageComplete':
           if (!pageCompleteNotified) {
             pageCompleteNotified = true;
-            audio.uiFoley?.('paperRustle');
-            ui.toast('Turn the golden corner!');
+            audio.pageFinale?.();
           }
           break;
+        case 'autoPageTurnReady':
+          shouldAutoTurn = true;
+          break;
         case 'relic':
+          ui.animateRelicPulse?.(ev.relic, ev.tag);
+          break;
+        case 'itemFoley':
+          audio.uiFoley?.(ev.kind);
+          break;
         case 'violetBounce':
           break;
       }
@@ -1052,6 +1178,10 @@ async function boot(): Promise<void> {
         ui.toast(`Constellation reward: ${mName}!`);
       }
     }
+
+    if (shouldAutoTurn && currentMode === 'chapter' && !transitioning) {
+      void handleTurnPage(false);
+    }
   };
 
   renderer.start((dtMs, timeMs) => {
@@ -1059,7 +1189,7 @@ async function boot(): Promise<void> {
     sim.update(dtMs, timeMs);
     processEvents();
     const changed = consumeViewAndRender(dtMs, timeMs);
-    if (timeMs - lastHudTime > 80 || changed) {
+    if (timeMs - lastHudTime > 64 || changed) {
       lastHudTime = timeMs;
       pushHud(false);
     }
@@ -1145,7 +1275,7 @@ async function boot(): Promise<void> {
       async paintRegion(id, materialId) {
         if (!currentPage) return false;
         doodle = false;
-        if (materialId !== undefined && Number.isInteger(materialId) && materialId >= 1 && materialId <= 12) {
+        if (materialId !== undefined && Number.isInteger(materialId) && materialId >= 1 && materialId <= MAX_MATERIAL_ID) {
           selectedMaterial = materialId;
         }
         sim.setTool({ materialId: selectedMaterial, brush: selectedBrush, doodle: false, toolMode: 'pencil' });
@@ -1169,7 +1299,7 @@ async function boot(): Promise<void> {
         dispatchPointer('pointerup', lastClient.x, lastClient.y, 77);
         await nextAnimFrame();
         await nextAnimFrame();
-        return sim.regionPercent(id) >= 0.93;
+        return sim.regionPercent(id) >= 0.82;
       },
       async poke(kind) {
         const actor = latestActors.find((a) => a.kind === kind);
@@ -1188,9 +1318,14 @@ async function boot(): Promise<void> {
       },
       async completePage() {
         if (!currentPage) return;
-        const ids = currentPage.coreRegionIds.slice();
+        const questRegionIds =
+          lastHeroQuests.length > 0
+            ? lastHeroQuests.flatMap((q) => q.regionIds)
+            : (currentPage.heroQuests?.flatMap((q) => q.regionIds) ?? currentPage.coreRegionIds);
+        const ids = Array.from(new Set(questRegionIds));
         const unlocked = vault.get().unlockedMaterials;
         for (let i = 0; i < ids.length; i++) {
+          if (lastPageComplete) break;
           const id = ids[i]!;
           if (sim.regionPercent(id) >= 1) continue;
           const meta = currentPage.regions[id];
@@ -1219,6 +1354,34 @@ async function boot(): Promise<void> {
       storyStars() {
         return lastStoryStars.map((s) => ({ ...s, regionIds: [...s.regionIds] }));
       },
+      heroQuests() {
+        return lastHeroQuests.map((q) => ({ ...q, regionIds: [...q.regionIds] }));
+      },
+      hintState() {
+        return lastHintState ? { ...lastHintState, targetRegionIds: [...lastHintState.targetRegionIds] } : null;
+      },
+      pageFinale() {
+        return lastPageFinale ? { ...lastPageFinale } : null;
+      },
+      requestHint(questId) {
+        const res = sim.requestHint?.(questId, questId ? 'medallion' : 'lantern') ?? null;
+        pushHud(true);
+        return res ? { ...res, targetRegionIds: [...res.targetRegionIds] } : null;
+      },
+      setStayAndDoodle(stay) {
+        sim.setStayAndDoodle?.(stay);
+        pushHud(true);
+      },
+      addGems(amount) {
+        const delta = Math.max(0, Math.floor(amount));
+        if (delta <= 0) return;
+        vault.update((d) => {
+          d.gems += delta;
+        });
+        vault.healCheck();
+        pushHud(true);
+        if (currentMode === 'hub') void pushHub();
+      },
       wisp() {
         return lastWisp ? { ...lastWisp, ghostPath: lastWisp.ghostPath.map((p) => ({ ...p })) } : null;
       },
@@ -1236,8 +1399,6 @@ async function boot(): Promise<void> {
   }
 
   window.__chroma = debugObj;
-
-  void WARDROBE_ITEMS;
 }
 
 void boot();

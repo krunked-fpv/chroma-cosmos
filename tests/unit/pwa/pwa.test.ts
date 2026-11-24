@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import vm from 'node:vm';
 import { execFileSync } from 'node:child_process';
 import { CACHE_VERSION } from '../../../src/contracts/constants';
 
@@ -172,7 +173,19 @@ describe('PWA & Pages CI Verification', () => {
 
       // Exact CACHE_VERSION equality with contracts constant
       expect(swContent).toContain(`const CACHE_VERSION = '${CACHE_VERSION}';`);
-      expect(CACHE_VERSION).toBe('chroma-cosmos-v1');
+      expect(CACHE_VERSION).toBe('chroma-cosmos-v2');
+
+      // Relative subpath-safe precache assets
+      for (const asset of [
+        './',
+        './index.html',
+        './manifest.json',
+        './icon-192.png',
+        './icon-512.png',
+        './apple-touch-icon.png',
+      ]) {
+        expect(swContent).toContain(`'${asset}'`);
+      }
 
       // Fetch event listener
       expect(swContent).toContain("addEventListener('fetch'");
@@ -193,6 +206,92 @@ describe('PWA & Pages CI Verification', () => {
       expect(swContent).toContain("addEventListener('activate'");
       expect(swContent).toContain('chroma-cosmos-');
       expect(swContent).toContain('caches.delete');
+    });
+
+    it('evicts older chroma-cosmos-* caches (including chroma-cosmos-v1) on activate while preserving CACHE_VERSION', async () => {
+      const swPath = path.join(publicDir, 'sw.js');
+      const swContent = fs.readFileSync(swPath, 'utf-8');
+
+      type SwEvent = { waitUntil: (p: Promise<unknown>) => void };
+      const listeners = new Map<string, (event: SwEvent) => void>();
+      const openedCaches: string[] = [];
+      const precachedUrls: string[] = [];
+      const deletedCaches: string[] = [];
+      let skipWaitingCalled = false;
+      let claimCalled = false;
+
+      const sandboxSelf = {
+        location: { origin: 'https://example.github.io' },
+        addEventListener: (type: string, handler: (event: SwEvent) => void) => {
+          listeners.set(type, handler);
+        },
+        skipWaiting: async () => {
+          skipWaitingCalled = true;
+        },
+        clients: {
+          claim: async () => {
+            claimCalled = true;
+          },
+        },
+      };
+
+      const sandboxCaches = {
+        open: async (name: string) => {
+          openedCaches.push(name);
+          return {
+            add: async (url: string) => {
+              precachedUrls.push(url);
+            },
+            put: async () => undefined,
+          };
+        },
+        keys: async () => ['chroma-cosmos-v1', 'chroma-cosmos-v0', CACHE_VERSION, 'unrelated-cache-v1'],
+        delete: async (name: string) => {
+          deletedCaches.push(name);
+          return true;
+        },
+        match: async () => undefined,
+      };
+
+      vm.runInNewContext(swContent, {
+        self: sandboxSelf,
+        caches: sandboxCaches,
+        URL,
+        fetch: async () => {
+          throw new Error('offline');
+        },
+      });
+
+      const installHandler = listeners.get('install');
+      const activateHandler = listeners.get('activate');
+      expect(installHandler).toBeDefined();
+      expect(activateHandler).toBeDefined();
+
+      let installPromise: Promise<unknown> | undefined;
+      installHandler!({
+        waitUntil: (p) => {
+          installPromise = p;
+        },
+      });
+      await installPromise;
+
+      expect(openedCaches).toEqual([CACHE_VERSION]);
+      expect(precachedUrls.every((u) => u.startsWith('./'))).toBe(true);
+      expect(precachedUrls).toContain('./index.html');
+      expect(skipWaitingCalled).toBe(true);
+
+      let activatePromise: Promise<unknown> | undefined;
+      activateHandler!({
+        waitUntil: (p) => {
+          activatePromise = p;
+        },
+      });
+      await activatePromise;
+
+      expect(deletedCaches).toEqual(['chroma-cosmos-v1', 'chroma-cosmos-v0']);
+      expect(deletedCaches).not.toContain(CACHE_VERSION);
+      expect(deletedCaches).not.toContain('unrelated-cache-v1');
+      expect(claimCalled).toBe(true);
     });
   });
 

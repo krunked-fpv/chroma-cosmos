@@ -89,7 +89,7 @@ export function buildBedroomHub(ctx: SceneCtx): void {
   // Warm wooden floorboards (y = 186..252; bottom 16px margin 254..269 stays clean!)
   const floorId = ctx.dyn('prop', 'Wooden Floorboards');
   r.rect(floorId, 0, 186, 480, 252);
-  ctx.preColor(floorId, MaterialId.SolarCheetahAmber);
+  ctx.preColor(floorId, MaterialId.SolarFlare24K);
   const plankYs = [196, 208, 222, 238];
   for (let i = 0; i < plankYs.length; i++) {
     const py = plankYs[i] as number;
@@ -240,7 +240,7 @@ export function buildBedroomHub(ctx: SceneCtx): void {
   // Carved inner arch & star detail
   inkArc(r, 25, 150, 7, 9, Math.PI, Math.PI * 2, 0, { only: [headboard] });
   inkStar(r, 25, 147, 2, headboard);
-  ctx.preColor(headboard, MaterialId.SolarCheetahAmber);
+  ctx.preColor(headboard, MaterialId.SolarFlare24K);
 
   // Fluffy cloud-like pillow propped cleanly against the headboard
   const pillow = ctx.dyn('prop', 'Fluffy Pillow');
@@ -283,7 +283,7 @@ export function buildBedroomHub(ctx: SceneCtx): void {
   const footboard = ctx.dyn('prop', 'Wooden Footboard');
   r.ellipse(footboard, 134, 180, 7, 8);
   r.rect(footboard, 127, 180, 141, 242);
-  ctx.preColor(footboard, MaterialId.SolarCheetahAmber);
+  ctx.preColor(footboard, MaterialId.SolarFlare24K);
 
   // =========================================================================
   // 6) BEDSIDE NIGHTSTAND & GLOWING MOON-LAMP (cleanly spaced from curtain -> 2 regions)
@@ -358,7 +358,7 @@ export function buildBedroomHub(ctx: SceneCtx): void {
   r.line(0, bx0 + 3, 144, bx1 - 3, 144, { only: [shelfFrame] });
   r.line(0, bx0 + 3, 190, bx1 - 3, 190, { only: [shelfFrame] });
   r.line(0, bx0 + 3, 218, bx1 - 3, 218, { only: [shelfFrame] }); // bottom plinth line
-  ctx.preColor(shelfFrame, MaterialId.SolarCheetahAmber);
+  ctx.preColor(shelfFrame, MaterialId.SolarFlare24K);
 
   // 6 chunky colour-banded book blocks with organic varied heights (2 per shelf across 3 shelves)
   const bookSpecs: Array<[string, number, number, number, number, MaterialId, boolean]> = [
@@ -443,8 +443,8 @@ export function buildBedroomHub(ctx: SceneCtx): void {
   // 10) VIOLET STANDING IN HER ROOM + PRE-COLORED REGIONS 1..4 + PATHS
   // =========================================================================
   ctx.actor('violet', 230, 238, { facing: 1, anim: 'idle' });
-  ctx.preColor(1, MaterialId.AuroraSherbet); // Violet's warm skin
-  ctx.preColor(2, MaterialId.SolarCheetahAmber); // Violet's sandy hair
+  ctx.preColor(1, MaterialId.CottonCandyChalk); // Violet's warm rosy skin (no green shift)
+  ctx.preColor(2, MaterialId.SolarFlare24K); // Violet's luminous sandy gold hair
   ctx.preColor(3, MaterialId.SupernovaGlitter); // Violet's pajama suit
   ctx.preColor(4, MaterialId.OpalPearl); // Starlight helmet
 

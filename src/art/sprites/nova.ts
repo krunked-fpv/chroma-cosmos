@@ -196,7 +196,8 @@ const NOVA_BOW = parseGrid(
 );
 
 // Cozy curled-up NAPPING Nova (napping atop the chimney on rooftop!)
-// Clear rounded feline ears, well-spaced oval spots (>=75px), lush curled tail (>=75px).
+// Tall perked feline ears with crisp valley, clear neck dip, sleek spotted back,
+// and long curled cheetah tail emerging from her hip, wrapping her flank & curling up in front.
 const NOVA_SLEEP = parseGrid(
   [
     '....................................................................', // 0
@@ -210,28 +211,28 @@ const NOVA_SLEEP = parseGrid(
     '....................................................................', // 8
     '....................................................................', // 9
     '....................................................................', // 10
-    '....................................................................', // 11
-    '........................BBBBBBBBBBBBBBBB............................', // 12 warm arched back
-    '....................BBBBBBBSSSSBBBBBBBBBBB..........................', // 13
-    '..................BBBBBBBBBSSSSBBBBBSSSSBBBB........BBB....BBB......', // 14 cute perked feline ears!
-    '................BBBBSSSSBBBBBBBBBBBBSSSSBBBBBB.....BBBBBBBBBBBB.....', // 15
-    '...............BBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBB...BBBBBBBBBBBBBB....', // 16
-    '..............BBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB...', // 17
-    '.............BBBBBBBBBBBBBBBSSSSBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBB..', // 18
-    '............BBBBSSSSBBBBBBBBBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBB..', // 19
-    '............BBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB..', // 20
-    '...........BBBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBB#BBBB#BBBBBBBB..', // 21 peaceful closed eye
-    '.........TTBBBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBB######BBBBBBBBB.', // 22
-    '.......TTTTTBBBBBBBBBBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBB#AAABBBBB#BBBB.', // 23 tear-mark + blush + nose
-    '......TTTTTTTBBBBSSSSBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.', // 24
-    '.....TTTT#TTTTBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB###BBBBBBBB..', // 25 happy sleepy smile
-    '....TTTTTTTTTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB###########........', // 26 chin resting on paws!
-    '....TTTTTTTTTTTTBBBBBBBBBBBBSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB......', // 27 tucked paws + flank spot
-    '.....TTTTTTTTTTTTBBBBBBBBBBBSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.....', // 28
-    '......TTTTTTTTTTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.....', // 29
-    '........TTTTTTTTTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB......', // 30
-    '...........TTTTTTTTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB........', // 31
-    '...............TTTTTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB...........', // 32
+    '............................................BB.....BB...............', // 11 tall upright feline ear tips!
+    '...........................................BBBB...BBBB..............', // 12 distinct feline ears + sky gap
+    '...........................................BBBBB.BBBBB..............', // 13 crisp ink valley between ears
+    '...........................................BBBBBBBBBBB..............', // 14 rounded feline crown
+    '..........................................BBBBBBBBBBBBB.............', // 15 forehead (head taller than back!)
+    '...................BBBBBBBBBBBBB.........BBBBBBBBBBBBBBB............', // 16 sleek back crest + wide neck dip
+    '...............BBBBBBBBBSSSSBBBBBB.......BBBBBBBBBBBBBBBB...........', // 17 clear valley separating back & head
+    '.............BBBBBBBBBBBSSSSBBBBBBBB.....BBBBBBBB#BB#BBBB...........', // 18 peaceful closed eye corners
+    '............BBBBBBSSSSBBBBBBBBBBSSSSB...BBBBBBBBBB##BBBBBB..........', // 19 neck dip + closed eye curve
+    '...........BBBBBBBSSSSBBBBBBBBBBSSSSBBBBBBBBBBBAAABBBBBBBB#.........', // 20 rosy blush + cute feline nose
+    '..........BBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBB#BB##BB.........', // 21 tear-mark + sweet sleepy smile
+    '..........BBBBSSSSBBBBBBSSSSBBBBBBBBBBSSSBBBBBBBBBBBBBBBB.....TT....', // 22 expressive curled tail tip!
+    '..........BBBBSSSSBBBBBBBBBBBBSSSSBBBBSSSBBBBBBBBBBBBBBB.....TTTT...', // 23 rounded curled tail hook
+    '..........BBBBBBBBBBBBBBBBBBBBSSSSBBBBBBBBBBBB########......TT#TTT..', // 24 chin line + ringed tail curl
+    '..........BBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB......TTTTT..', // 25 tucked paws + open gap inside curl
+    '..........BBBBBBBBBBSSSSBBBBBBBBBBSSSSBBBBBBBBBBBBBBBBBB.....TTTTT..', // 26 sleek curved rump -> tail base
+    '...........BBBBBBBBBBBBBBBBBBBBBBBSSSSBBBBBBBBBBBBBB#BBBB...TTTTT...', // 27 paw toe line + tail curling under
+    '...........TTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB..TTTTT....', // 28 tail emerges from hip & wraps front
+    '...........TTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBTTTTTT.....', // 29 continuous curled cheetah tail
+    '............TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT......', // 30 lush curled tail sweep
+    '..............TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT........', // 31
+    '..................TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT............', // 32 resting snugly on chimney cap
     '....................................................................', // 33
     '....................................................................', // 34
     '....................................................................', // 35
@@ -341,10 +342,10 @@ function buildFrame(
 export function buildNova(w: WardrobeState): SpriteSheet {
   const sleep = anim(
     [
-      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 11, scarfY: 16 }),
-      buildFrame(w, NOVA_SLEEP, { dy: 0, dx: -1, sleep: true, boosterY: 11, scarfY: 16 }),
-      buildFrame(w, NOVA_SLEEP, { dy: 1, sleep: true, boosterY: 11, scarfY: 16 }),
-      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 11, scarfY: 16 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 14, scarfY: 19 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 0, dx: -1, sleep: true, boosterY: 14, scarfY: 19 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 1, sleep: true, boosterY: 14, scarfY: 19 }),
+      buildFrame(w, NOVA_SLEEP, { dy: 0, sleep: true, boosterY: 14, scarfY: 19 }),
     ],
     340,
   );

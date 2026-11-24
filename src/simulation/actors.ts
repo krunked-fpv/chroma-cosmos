@@ -25,6 +25,8 @@ type Task =
   | { type: 'bounce'; fx: EffectRT; phase: 0 | 1; bt: number; bounces: number; baseY: number; amp: number };
 
 const FRAME_MS = 120;
+const FIRST_AWAKE_INVITE_MS = 10000;
+const FIRST_AWAKE_PERK_MS = 800;
 const DRIFTERS: readonly ActorKind[] = ['moonCat', 'comet', 'whale', 'gazelle', 'flower'];
 const PATH_ROLES: Partial<Record<ActorKind, PagePath['role'][]>> = {
   lumi: ['gallop'],
@@ -68,6 +70,10 @@ export class ActorRT {
   animStart = 0;
   driftVx = 0;
   driftVy = 0;
+  firstAwakeInvite = false;
+  firstAwakeInviteMs = 0;
+  firstAwakePoked = false;
+  perkUntil = 0;
   readonly seed: number;
 
   constructor(spawn: ActorSpawn) {
@@ -132,7 +138,7 @@ export class ActorSystem {
   }
 
   /** Recomputes stage / awake from region state. Returns actors that just became awake. */
-  refreshStatus(stageOf: Uint8Array, bloomed: Uint8Array, total: Uint32Array): ActorRT[] {
+  refreshStatus(stageOf: Uint8Array, bloomed: Uint8Array, total: Uint32Array, silent = false): ActorRT[] {
     const woke: ActorRT[] = [];
     for (const a of this.list) {
       if (a.regionIds.length === 0) continue;
@@ -146,12 +152,23 @@ export class ActorSystem {
         if (s > stage) stage = s;
         if (!bloomed[id]) all = false;
       }
+      const wasLive = a.view.live;
       a.stage = stage;
       if (!a.view.live && stage >= 2) a.view.live = true;
+      let justAwoke = false;
       if (real > 0 && all && !a.awake) {
         a.awake = true;
         a.view.live = true;
+        justAwoke = true;
         woke.push(a);
+      }
+      if (!silent && (a.kind === 'lumi' || a.kind === 'nova')) {
+        if ((!wasLive && a.view.live) || (justAwoke && !a.firstAwakePoked)) {
+          a.firstAwakeInvite = true;
+          a.firstAwakeInviteMs = FIRST_AWAKE_INVITE_MS;
+          a.perkUntil = this.simT + FIRST_AWAKE_PERK_MS;
+          this.setAnim(a, 'wiggle');
+        }
       }
     }
     return woke;
@@ -248,11 +265,11 @@ export class ActorSystem {
 
   // ---------------------------------------------------------------- interaction
 
-  hit(x: number, y: number, regionAt: number): ActorRT | null {
+  hit(x: number, y: number, regionAt: number, allowLive = false): ActorRT | null {
     let best: ActorRT | null = null;
     let bd = Infinity;
     for (const a of this.list) {
-      if (!a.awake || !a.shown) continue;
+      if ((!a.awake && !(allowLive && a.view.live)) || !a.shown) continue;
       if (a.kind === 'flower' || a.kind === 'gem') continue;
       const d = Math.hypot(a.view.x - x, a.view.y - y);
       const r = a.kind === 'lumi' ? 22 : 16;
@@ -268,6 +285,10 @@ export class ActorSystem {
 
   poke(a: ActorRT): void {
     const turbo = this.host.brush() === 'turboCheetah';
+    a.firstAwakeInvite = false;
+    a.firstAwakeInviteMs = 0;
+    a.firstAwakePoked = true;
+    a.perkUntil = 0;
     this.host.emit({ type: 'poke', actor: a.kind, instanceId: a.view.instanceId });
     const fx = this.host.effects;
     switch (a.kind) {
@@ -280,6 +301,7 @@ export class ActorSystem {
         });
         break;
       case 'nova':
+        a.lockAnim = null;
         a.chaseUntil = this.simT + POKE_CHASE_MS;
         break;
       case 'violet':
@@ -311,6 +333,10 @@ export class ActorSystem {
           a.shown = true;
           a.animStart = this.simT;
         } else continue;
+      }
+      if (a.firstAwakeInvite) {
+        a.firstAwakeInviteMs = Math.max(0, a.firstAwakeInviteMs - dtMs);
+        if (a.firstAwakeInviteMs <= 0) a.firstAwakeInvite = false;
       }
       this.updateActor(a, dtMs, turbo ? 2 : 1, gel);
       const v = a.view;
@@ -477,6 +503,9 @@ export class ActorSystem {
       default:
         this.setAnim(a, 'idle'); // ears flick etc.
     }
+    if (this.simT < a.perkUntil && (a.kind === 'lumi' || a.kind === 'nova')) {
+      this.setAnim(a, 'wiggle');
+    }
     // stage 3: lean toward the brush
     let lx = 0;
     let ly = 0;
@@ -514,8 +543,12 @@ export class ActorSystem {
           return;
         }
         this.follow(a, sp, dt);
+        if (this.simT < a.perkUntil) this.setAnim(a, 'wiggle');
         return;
       case 'lumi':
+        this.follow(a, sp, dt);
+        if (this.simT < a.perkUntil) this.setAnim(a, 'wiggle');
+        return;
       case 'gazelle':
       case 'cometCar':
       case 'whale':

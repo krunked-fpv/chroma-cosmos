@@ -7,19 +7,23 @@ import {
   BRUSH_RADIUS_PX,
   CANONICAL_REGIONS,
   GEM_REWARDS,
+  IDLE_WISP_DELAY_MS,
   KALEIDOSCOPE_PREFILL,
   KALEIDOSCOPE_TARGETS,
   MAX_STAMPS_PER_BATCH,
   PAGE_H,
   PAGE_PIXELS,
   PAGE_W,
+  PROLOGUE_DURATION_MS,
   REGION_FLAG,
   REGION_STATE_BYTES,
   REGION_STATE_ROW1_OFFSET,
   RIPPLE_MS,
+  SOCKET_WIGGLE_MS,
   STAGE_MIN,
   STAMP_SPACING,
   UV_FLASHLIGHT_RADIUS,
+  WAND_UV_PEEK_RADIUS,
 } from '../contracts';
 import type {
   BrushId,
@@ -30,13 +34,20 @@ import type {
   GpuStamp,
   GpuStampBatch,
   PagePath,
+  PokeInvite,
   RegionKind,
   RunContext,
   SimEvent,
   SimView,
   SimulationPort,
+  StoryMilestoneKind,
   StoryPageSnapshot,
+  StoryStarState,
+  ToolMode,
   ToolState,
+  WispMode,
+  WispRenderState,
+  WonderWhisperHint,
 } from '../contracts';
 import { ActorSystem } from './actors';
 import type { ActorHost } from './actors';
@@ -51,9 +62,39 @@ const ZOOMIE_FILL = 0.5;
 const GOLD = 11;
 const HOLO_FOIL = 2;
 const MIRAGE_RANGE = 260;
+const PROLOGUE_MIST_END_MS = 1800;
+const PROLOGUE_TAP_END_MS = 3100;
+const PROLOGUE_STROKE_LOOP_MS = 2200;
+const PROLOGUE_DISSOLVE_MS = 250;
+const PENCIL_TRAY_X = 165;
+const PENCIL_TRAY_Y = 256;
+
+const DEFAULT_MILESTONES: ReadonlyArray<{ id: StoryMilestoneKind; label: string; ids: readonly number[] }> = [
+  { id: 'violet', label: 'Violet', ids: [1, 2, 3, 4] },
+  { id: 'lumi', label: 'Lumi', ids: [5, 6, 7, 8] },
+  { id: 'nova', label: 'Nova', ids: [9, 10, 11] },
+  { id: 'planet', label: 'Ringed Planet', ids: [12, 13] },
+  { id: 'cloud', label: 'Space Clouds', ids: [14, 15] },
+];
 
 function normMat(m: number): number {
   return Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1;
+}
+
+function smoothstep(t: number): number {
+  const c = clamp(t, 0, 1);
+  return c * c * (3 - 2 * c);
+}
+
+function samplePath(pts: readonly { x: number; y: number }[], t: number): { x: number; y: number } {
+  if (pts.length === 0) return { x: PAGE_W / 2, y: PAGE_H / 2 };
+  if (pts.length === 1) return { x: pts[0]!.x, y: pts[0]!.y };
+  const u = clamp(t, 0, 1) * (pts.length - 1);
+  const i = Math.min(pts.length - 2, Math.floor(u));
+  const f = u - i;
+  const a = pts[i]!;
+  const b = pts[i + 1]!;
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
 }
 
 interface Gesture {
@@ -93,7 +134,7 @@ export class Simulation implements SimulationPort, ActorHost {
   private ctx: RunContext = { seed: 0, chapterIndex: 0, brushes: ['standard'], relics: [] };
   private cov: Coverage | null = null;
   private actors: ActorSystem | null = null;
-  private tool: ToolState = { materialId: 1, brush: 'standard', doodle: false };
+  private tool: ToolState = { materialId: 1, brush: 'standard', doodle: false, toolMode: 'pencil' };
 
   private events: SimEvent[] = [];
   private batches: GpuStampBatch[] = [];
@@ -106,6 +147,8 @@ export class Simulation implements SimulationPort, ActorHost {
   private readonly bloomT = new Float32Array(256);
   private readonly ghostRevealed = new Uint8Array(256);
   private readonly forcedWiggle = new Uint8Array(256);
+  private readonly guideGlow = new Uint8Array(256);
+  private readonly nudgeWiggleMs = new Float32Array(256);
   private readonly originX = new Float32Array(256);
   private readonly originY = new Float32Array(256);
   private readonly colourableBase = new Uint8Array(256);
@@ -118,10 +161,33 @@ export class Simulation implements SimulationPort, ActorHost {
   private prismFired = false;
   private bloomQueue: { id: number; x: number; y: number }[] = [];
   private rippling: number[] = [];
+  private nudgedIds: number[] = [];
   private sparkles: { x: number; y: number }[] = [];
   private sparkDirty = true;
 
+  private storyStars: StoryStarState[] = [];
+  private prologueActive = false;
+  private prologueMs = 0;
+  private prologueDissolveMs = 0;
+  private prologueDissolveFrom = 0;
+  private prologueMistVal = 0;
+  private prologueRegionId = 0;
+  private ghostPath: { x: number; y: number }[] = [];
+  private ghostStrokeT = 0;
+  private idleMs = 0;
+  private idleGuideActive = false;
+  private idleTargetId = 0;
+  private nudgeMs = 0;
+  private nudgeTargetId = 0;
+  private wispActive = false;
+  private wispMode: WispMode = 'hidden';
+  private wispX = PAGE_W * 0.22;
+  private wispY = PAGE_H * 0.32;
+  private wispTargetRegionId = 0;
+  private wispAlpha = 0;
+
   private hoverPt: { x: number; y: number } | null = null;
+  private lastHoverTrackPt: { x: number; y: number } | null = null;
   private brushPt: { x: number; y: number } | null = null;
   private lastPtr: { x: number; y: number } | null = null;
   private g: Gesture | null = null;
@@ -194,6 +260,7 @@ export class Simulation implements SimulationPort, ActorHost {
     this.g = null;
     this.brushPt = null;
     this.hoverPt = null;
+    this.lastHoverTrackPt = null;
     this.lastPtr = null;
     this.resetFlags();
 
@@ -220,8 +287,13 @@ export class Simulation implements SimulationPort, ActorHost {
       this.silentComplete(pc.id, normMat(pc.materialId));
     }
     cov.takeTouched();
-    this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total);
+    this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total, true);
     this.recomputeCore();
+    this.buildStoryStars(p);
+    this.refreshStoryStars(false);
+    if (ctx.playPrologue === true && !ctx.viewOnly && !this.pageComplete) {
+      this.startPrologue();
+    }
     this.syncAll();
   }
 
@@ -232,15 +304,299 @@ export class Simulation implements SimulationPort, ActorHost {
     this.bloomT.fill(0);
     this.ghostRevealed.fill(0);
     this.forcedWiggle.fill(0);
+    this.guideGlow.fill(0);
+    this.nudgeWiggleMs.fill(0);
     this.colourableBase.fill(0);
     this.originX.fill(0);
     this.originY.fill(0);
     this.bloomQueue = [];
     this.rippling = [];
+    this.nudgedIds = [];
+    this.storyStars = [];
     this.pageComplete = false;
     this.prismFired = false;
     this.coreAwake = 0;
     this.sparkDirty = true;
+    this.resetWispState();
+  }
+
+  private resetWispState(): void {
+    this.prologueActive = false;
+    this.prologueMs = 0;
+    this.prologueDissolveMs = 0;
+    this.prologueDissolveFrom = 0;
+    this.prologueMistVal = 0;
+    this.prologueRegionId = 0;
+    this.ghostPath = [];
+    this.ghostStrokeT = 0;
+    this.idleMs = 0;
+    this.idleGuideActive = false;
+    this.idleTargetId = 0;
+    this.nudgeMs = 0;
+    this.nudgeTargetId = 0;
+    this.hideWisp();
+  }
+
+  private hideWisp(): void {
+    this.wispActive = false;
+    this.wispMode = 'hidden';
+    this.wispTargetRegionId = 0;
+    this.wispAlpha = 0;
+    this.ghostStrokeT = 0;
+  }
+
+  private meanCentroid(ids: readonly number[]): { x: number; y: number } {
+    if (ids.length === 0) return { x: PAGE_W / 2, y: PAGE_H / 2 };
+    let sx = 0;
+    let sy = 0;
+    for (const id of ids) {
+      const c = this.centroid(id);
+      sx += c.x;
+      sy += c.y;
+    }
+    return { x: sx / ids.length, y: sy / ids.length };
+  }
+
+  private buildStoryStars(p: CompiledPage): void {
+    const cov = this.cov!;
+    const out: StoryStarState[] = [];
+    if (p.storyMilestones && p.storyMilestones.length > 0) {
+      for (const m of p.storyMilestones) {
+        const present = m.regionIds.filter((id) => cov.total[id]! > 0);
+        if (present.length === 0) continue;
+        const fallback = this.meanCentroid(present);
+        const x = Number.isFinite(m.centroid?.x) ? m.centroid.x : fallback.x;
+        const y = Number.isFinite(m.centroid?.y) ? m.centroid.y : fallback.y;
+        out.push({ id: m.id, kind: m.kind, label: m.label, lit: false, progress: 0, regionIds: present, x, y });
+      }
+    }
+    if (out.length === 0) {
+      for (const def of DEFAULT_MILESTONES) {
+        const present = def.ids.filter((id) => this.coreSet.has(id) && cov.total[id]! > 0);
+        if (present.length === 0) continue;
+        const c = this.meanCentroid(present);
+        out.push({ id: def.id, kind: def.id, label: def.label, lit: false, progress: 0, regionIds: present, x: c.x, y: c.y });
+      }
+    }
+    this.storyStars = out;
+  }
+
+  private refreshStoryStars(emitEvents: boolean): void {
+    for (let i = 0; i < this.storyStars.length; i++) {
+      const star = this.storyStars[i]!;
+      const total = star.regionIds.length;
+      let done = 0;
+      for (const id of star.regionIds) if (this.bloomed[id]) done++;
+      const wasLit = star.lit;
+      const nowLit = total > 0 && done === total;
+      star.progress = total > 0 ? done / total : 0;
+      star.lit = nowLit;
+      if (emitEvents && !wasLit && nowLit) {
+        this.emit({ type: 'storyStarLit', milestoneId: star.id, index: i, x: star.x, y: star.y });
+      }
+    }
+  }
+
+  private pickPrologueRegion(): number {
+    for (const id of [5, 3]) {
+      if (this.coreSet.has(id) && !this.bloomed[id] && this.cov!.total[id]! > 0) return id;
+    }
+    for (const id of this.page!.coreRegionIds) {
+      if (!this.bloomed[id] && this.cov!.total[id]! > 0) return id;
+    }
+    return 0;
+  }
+
+  private buildGhostPath(regionId: number): { x: number; y: number }[] {
+    const raw = this.qaStrokePath(regionId);
+    if (raw.length === 0) return [this.centroid(regionId)];
+    // group scanline points by row y so we can trace a smooth curved S-stroke strictly inside the region
+    const byRow = new Map<number, { x: number; y: number }[]>();
+    for (const pt of raw) {
+      let row = byRow.get(pt.y);
+      if (!row) {
+        row = [];
+        byRow.set(pt.y, row);
+      }
+      row.push(pt);
+    }
+    const rows = [...byRow.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, pts]) => pts.sort((a, b) => a.x - b.x));
+
+    if (rows.length >= 4) {
+      const targetCount = 12;
+      const curve: { x: number; y: number }[] = [];
+      for (let i = 0; i < targetCount; i++) {
+        const t = i / (targetCount - 1);
+        const rIdx = Math.round((0.15 + 0.7 * t) * (rows.length - 1));
+        const row = rows[rIdx]!;
+        const u = 0.5 + 0.35 * Math.sin(t * Math.PI * 2 - Math.PI * 0.5);
+        const cIdx = Math.round(clamp(u, 0, 1) * (row.length - 1));
+        const pt = row[cIdx]!;
+        const prev = curve[curve.length - 1];
+        if (!prev || prev.x !== pt.x || prev.y !== pt.y) curve.push({ x: pt.x, y: pt.y });
+      }
+      if (curve.length >= 8 && curve.length <= 14) return curve;
+    }
+    if (raw.length <= 14) return raw.map((pt) => ({ x: pt.x, y: pt.y }));
+    const count = 12;
+    const out: { x: number; y: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const idx = Math.round((i / (count - 1)) * (raw.length - 1));
+      const pt = raw[idx]!;
+      out.push({ x: pt.x, y: pt.y });
+    }
+    return out;
+  }
+
+  private startPrologue(): void {
+    const targetId = this.pickPrologueRegion();
+    if (targetId === 0) return;
+    this.prologueActive = true;
+    this.prologueMs = 0;
+    this.prologueDissolveMs = 0;
+    this.prologueDissolveFrom = 0;
+    this.prologueRegionId = targetId;
+    this.ghostPath = this.buildGhostPath(targetId);
+    this.ghostStrokeT = 0;
+    this.applyPrologueState();
+  }
+
+  private applyPrologueState(): void {
+    const ms = this.prologueMs;
+    if (ms < 600) {
+      this.prologueMistVal = 0.25 + 0.6 * smoothstep(ms / 600);
+    } else if (ms < PROLOGUE_MIST_END_MS) {
+      this.prologueMistVal = 0.85 - 0.5 * smoothstep((ms - 600) / (PROLOGUE_MIST_END_MS - 600));
+    } else if (ms < PROLOGUE_TAP_END_MS) {
+      this.prologueMistVal = 0.35 - 0.2 * smoothstep((ms - PROLOGUE_MIST_END_MS) / (PROLOGUE_TAP_END_MS - PROLOGUE_MIST_END_MS));
+    } else if (ms < PROLOGUE_DURATION_MS) {
+      this.prologueMistVal = 0.15 * (1 - smoothstep((ms - PROLOGUE_TAP_END_MS) / (PROLOGUE_DURATION_MS - PROLOGUE_TAP_END_MS)));
+    } else {
+      this.prologueMistVal = 0;
+    }
+
+    this.wispActive = true;
+    this.wispTargetRegionId = this.prologueRegionId;
+    if (ms < PROLOGUE_MIST_END_MS) {
+      const t = ms / PROLOGUE_MIST_END_MS;
+      const s = smoothstep(t);
+      this.wispMode = 'prologueMist';
+      this.wispX = PAGE_W * (0.22 + 0.3 * s);
+      this.wispY = PAGE_H * (0.32 + 0.13 * s) + Math.sin(t * Math.PI * 2) * 14;
+      this.ghostStrokeT = 0;
+      this.wispAlpha = 0.4 + 0.6 * smoothstep(ms / 400);
+    } else if (ms < PROLOGUE_TAP_END_MS) {
+      const t = (ms - PROLOGUE_MIST_END_MS) / (PROLOGUE_TAP_END_MS - PROLOGUE_MIST_END_MS);
+      const s = smoothstep(t);
+      const sx = PAGE_W * 0.52;
+      const sy = PAGE_H * 0.45;
+      const tapBob = t > 0.65 ? Math.abs(Math.sin(((t - 0.65) / 0.35) * Math.PI * 2)) * 5 : 0;
+      this.wispMode = 'prologueTapPencil';
+      this.wispX = sx + (PENCIL_TRAY_X - sx) * s + Math.sin(t * Math.PI) * 10;
+      this.wispY = sy + (PENCIL_TRAY_Y - sy) * s - tapBob;
+      this.ghostStrokeT = 0;
+      this.wispAlpha = 1;
+    } else {
+      const elapsed = ms - PROLOGUE_TAP_END_MS;
+      this.wispMode = 'prologueStroke';
+      this.ghostStrokeT = (elapsed % PROLOGUE_STROKE_LOOP_MS) / PROLOGUE_STROKE_LOOP_MS;
+      const pt = samplePath(this.ghostPath, this.ghostStrokeT);
+      this.wispX = pt.x;
+      this.wispY = pt.y;
+      this.wispAlpha = 1;
+    }
+  }
+
+  dismissPrologue(): void {
+    if (!this.prologueActive) return;
+    this.prologueActive = false;
+    this.prologueDissolveFrom = this.prologueMistVal;
+    this.prologueDissolveMs = this.prologueMistVal > 0 ? PROLOGUE_DISSOLVE_MS : 0;
+    this.hideWisp();
+    this.emit({ type: 'prologueEnd' });
+  }
+
+  private clearGuideGlow(): void {
+    for (let id = 1; id < 255; id++) {
+      if (this.guideGlow[id]) {
+        this.guideGlow[id] = 0;
+        this.syncRegion(id);
+      }
+    }
+  }
+
+  private clearNudgeWiggle(): void {
+    if (this.nudgedIds.length === 0) return;
+    for (const id of this.nudgedIds) {
+      this.nudgeWiggleMs[id] = 0;
+      if (!this.idleGuideActive || this.idleTargetId !== id) this.guideGlow[id] = 0;
+      this.syncRegion(id);
+    }
+    this.nudgedIds = [];
+  }
+
+  private clearIdleGuide(): void {
+    if (!this.idleGuideActive && this.idleTargetId === 0) return;
+    const prev = this.idleTargetId;
+    this.idleGuideActive = false;
+    this.idleTargetId = 0;
+    if (prev > 0 && this.nudgeWiggleMs[prev]! <= 0 && this.guideGlow[prev]) {
+      this.guideGlow[prev] = 0;
+      this.syncRegion(prev);
+    }
+    if (this.wispMode === 'idleGuide') this.hideWisp();
+  }
+
+  private pickIdleTarget(): number {
+    const cov = this.cov!;
+    for (const star of this.storyStars) {
+      if (star.lit) continue;
+      for (const id of star.regionIds) {
+        if (!this.bloomed[id] && cov.total[id]! > 0) return id;
+      }
+    }
+    for (const id of this.page!.coreRegionIds) {
+      if (!this.bloomed[id] && cov.total[id]! > 0) return id;
+    }
+    return 0;
+  }
+
+  nudgeMilestone(milestoneId: StoryMilestoneKind): void {
+    if (!this.page || !this.cov || this.ctx.viewOnly || this.pageComplete) return;
+    const star = this.storyStars.find((s) => s.id === milestoneId);
+    if (!star || star.lit) return;
+    const uncolored = star.regionIds.filter((id) => !this.bloomed[id] && this.cov!.total[id]! > 0);
+    if (uncolored.length === 0) return;
+
+    if (this.prologueActive) this.dismissPrologue();
+    this.idleMs = 0;
+    this.idleGuideActive = false;
+    this.idleTargetId = 0;
+    this.clearNudgeWiggle();
+    this.clearGuideGlow();
+
+    this.nudgedIds = uncolored.slice();
+    for (const id of uncolored) {
+      this.nudgeWiggleMs[id] = SOCKET_WIGGLE_MS;
+      this.guideGlow[id] = 1;
+      this.syncRegion(id);
+    }
+
+    const targetId = uncolored[0]!;
+    const tc = this.centroid(targetId);
+    this.nudgeMs = SOCKET_WIGGLE_MS;
+    this.nudgeTargetId = targetId;
+    if (!this.wispActive || this.wispAlpha < 0.05) {
+      this.wispX = clamp(tc.x, 12, PAGE_W - 12);
+      this.wispY = clamp(tc.y - 20, 12, PAGE_H - 12);
+    }
+    this.wispActive = true;
+    this.wispMode = 'nudge';
+    this.wispTargetRegionId = targetId;
+    this.wispAlpha = 1;
+    this.emit({ type: 'wispGuide', regionId: targetId, mode: 'nudge' });
   }
 
   private recomputeCore(): void {
@@ -265,7 +621,9 @@ export class Simulation implements SimulationPort, ActorHost {
   }
 
   setTool(t: ToolState): void {
-    this.tool = { materialId: t.materialId, brush: t.brush, doodle: t.doodle };
+    const isWand = t.toolMode !== undefined ? t.toolMode === 'wand' : Boolean(t.doodle);
+    const toolMode: ToolMode = isWand ? 'wand' : 'pencil';
+    this.tool = { materialId: t.materialId, brush: t.brush, doodle: isWand, toolMode };
   }
 
   // ------------------------------------------------------------------ GPU batches
@@ -298,6 +656,8 @@ export class Simulation implements SimulationPort, ActorHost {
   gesture(e: GestureEvent): void {
     if (!this.page || !this.cov) return;
     if (!Number.isFinite(e.x) || !Number.isFinite(e.y)) return;
+    this.idleMs = 0;
+    this.clearIdleGuide();
     switch (e.phase) {
       case 'start':
         this.gStart(e);
@@ -388,7 +748,7 @@ export class Simulation implements SimulationPort, ActorHost {
       }
     }
     const rid = this.regionAt(x, y);
-    const actor = this.actors!.hit(x, y, rid);
+    const actor = this.actors!.hit(x, y, rid, this.tool.doodle);
     if (actor) {
       this.actors!.poke(actor);
       this.g = this.newGesture(e, 'poke', 0);
@@ -413,6 +773,14 @@ export class Simulation implements SimulationPort, ActorHost {
     const g = this.newGesture(e, mode, lock);
     this.g = g;
     if (mode === 'none') return;
+
+    if (this.prologueActive) this.dismissPrologue();
+    if (this.nudgeMs > 0) {
+      this.nudgeMs = 0;
+      this.nudgeTargetId = 0;
+      this.clearNudgeWiggle();
+      if (this.wispMode === 'nudge') this.hideWisp();
+    }
 
     if (mode === 'doodle') {
       g.allow[255] = 1;
@@ -518,7 +886,13 @@ export class Simulation implements SimulationPort, ActorHost {
     if (!this.page || !this.cov) return;
     if (p === null || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
       this.hoverPt = null;
+      this.lastHoverTrackPt = null;
       return;
+    }
+    if (this.lastHoverTrackPt === null || Math.hypot(p.x - this.lastHoverTrackPt.x, p.y - this.lastHoverTrackPt.y) > 2) {
+      this.lastHoverTrackPt = { x: p.x, y: p.y };
+      this.idleMs = 0;
+      this.clearIdleGuide();
     }
     this.hoverPt = { x: p.x, y: p.y };
     this.lastPtr = this.hoverPt;
@@ -586,6 +960,11 @@ export class Simulation implements SimulationPort, ActorHost {
         this.bloomRegion(b.id, b.x, b.y);
       }
     }
+    if (this.actors) {
+      for (const a of this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total)) {
+        this.emit({ type: 'actorAwake', actor: a.kind });
+      }
+    }
   }
 
   // ------------------------------------------------------------------ Auto-Bloom
@@ -600,6 +979,8 @@ export class Simulation implements SimulationPort, ActorHost {
     this.bloomed[id] = 1;
     this.bloomT[id] = 0;
     this.stageOf[id] = 4;
+    this.nudgeWiggleMs[id] = 0;
+    this.guideGlow[id] = 0;
     this.originX[id] = ox;
     this.originY[id] = oy;
     this.rippling.push(id);
@@ -631,10 +1012,20 @@ export class Simulation implements SimulationPort, ActorHost {
       this.emit({ type: 'actorAwake', actor: a.kind });
     }
 
+    // story star milestones
+    this.refreshStoryStars(true);
+
     // page progress
     if (this.coreSet.has(id)) this.coreAwake++;
     if (!this.pageComplete && this.coreTotal > 0 && this.coreAwake === this.coreTotal) {
       this.pageComplete = true;
+      if (this.prologueActive) this.dismissPrologue();
+      this.clearIdleGuide();
+      this.nudgeMs = 0;
+      this.nudgeTargetId = 0;
+      this.clearNudgeWiggle();
+      this.clearGuideGlow();
+      this.hideWisp();
       this.emit({ type: 'gems', amount: GEM_REWARDS.pageComplete, reason: 'pageComplete' });
       this.emit({ type: 'pageComplete' });
       this.effects.spawn('constellationFireworks', PAGE_W / 2, PAGE_H / 3, { durMs: 4000 });
@@ -845,7 +1236,105 @@ export class Simulation implements SimulationPort, ActorHost {
     this.actors!.update(dt);
     this.actors!.refreshStatus(this.stageOf, this.bloomed, this.cov.total);
     this.settle();
+    this.updateWisp(dt);
     if (this.sparkDirty) this.rebuildSparkles();
+  }
+
+  private updateWisp(dt: number): void {
+    if (this.nudgedIds.length > 0) {
+      const keep: number[] = [];
+      for (const id of this.nudgedIds) {
+        const next = Math.max(0, this.nudgeWiggleMs[id]! - dt);
+        this.nudgeWiggleMs[id] = next;
+        if (next > 0 && !this.bloomed[id] && !this.pageComplete) {
+          keep.push(id);
+        } else {
+          this.nudgeWiggleMs[id] = 0;
+          if (!this.idleGuideActive || this.idleTargetId !== id) this.guideGlow[id] = 0;
+          this.syncRegion(id);
+        }
+      }
+      this.nudgedIds = keep;
+    }
+
+    if (this.prologueActive) {
+      if (this.pageComplete) {
+        this.dismissPrologue();
+      } else {
+        this.prologueMs += dt;
+        this.applyPrologueState();
+      }
+      return;
+    }
+
+    if (this.prologueDissolveMs > 0) {
+      this.prologueDissolveMs = Math.max(0, this.prologueDissolveMs - dt);
+      this.prologueMistVal =
+        this.prologueDissolveMs > 0 ? this.prologueDissolveFrom * (this.prologueDissolveMs / PROLOGUE_DISSOLVE_MS) : 0;
+    }
+
+    if (this.nudgeMs > 0) {
+      this.nudgeMs = Math.max(0, this.nudgeMs - dt);
+      if (this.nudgeMs <= 0 || this.pageComplete || (this.nudgeTargetId > 0 && this.bloomed[this.nudgeTargetId])) {
+        this.nudgeMs = 0;
+        this.nudgeTargetId = 0;
+        this.clearNudgeWiggle();
+        if (this.wispMode === 'nudge') this.hideWisp();
+      } else if (this.nudgeTargetId > 0) {
+        const tc = this.centroid(this.nudgeTargetId);
+        const bobT = (SOCKET_WIGGLE_MS - this.nudgeMs) / 1000;
+        const tx = tc.x + Math.sin(bobT * 5) * 6;
+        const ty = tc.y + Math.cos(bobT * 3.5) * 4;
+        const k = Math.min(1, dt / 180);
+        this.wispX += (tx - this.wispX) * k;
+        this.wispY += (ty - this.wispY) * k;
+        this.wispActive = true;
+        this.wispMode = 'nudge';
+        this.wispTargetRegionId = this.nudgeTargetId;
+        this.wispAlpha = this.nudgeMs < 250 ? clamp(this.nudgeMs / 250, 0, 1) : 1;
+      }
+      return;
+    }
+
+    if (this.ctx.viewOnly || this.pageComplete) {
+      this.clearIdleGuide();
+      return;
+    }
+
+    if (this.g === null) this.idleMs += dt;
+    if (this.idleMs >= IDLE_WISP_DELAY_MS) {
+      const targetId = this.pickIdleTarget();
+      if (targetId <= 0) {
+        this.clearIdleGuide();
+        return;
+      }
+      const tc = this.centroid(targetId);
+      if (!this.idleGuideActive || this.idleTargetId !== targetId) {
+        this.clearGuideGlow();
+        this.idleGuideActive = true;
+        this.idleTargetId = targetId;
+        this.guideGlow[targetId] = 1;
+        this.syncRegion(targetId);
+        if (!this.wispActive || this.wispAlpha < 0.05) {
+          this.wispX = clamp(tc.x - 32, 12, PAGE_W - 12);
+          this.wispY = clamp(tc.y - 24, 12, PAGE_H - 12);
+        }
+        this.wispActive = true;
+        this.wispMode = 'idleGuide';
+        this.wispTargetRegionId = targetId;
+        this.emit({ type: 'wispGuide', regionId: targetId, mode: 'idleGuide' });
+      }
+      const bobT = (this.idleMs - IDLE_WISP_DELAY_MS) / 1000;
+      const tx = tc.x + Math.sin(bobT * 1.6) * 10;
+      const ty = tc.y + Math.sin(bobT * 3.2) * 5;
+      const k = Math.min(1, dt / 260);
+      this.wispX += (tx - this.wispX) * k;
+      this.wispY += (ty - this.wispY) * k;
+      this.wispActive = true;
+      this.wispMode = 'idleGuide';
+      this.wispTargetRegionId = targetId;
+      this.wispAlpha = Math.min(1, this.wispAlpha + Math.max(dt, 16) / 320);
+    }
   }
 
   private rebuildSparkles(): void {
@@ -878,9 +1367,10 @@ export class Simulation implements SimulationPort, ActorHost {
     if (bl) flags |= REGION_FLAG.complete;
     if (this.ghostRevealed[id]) flags |= REGION_FLAG.ghostRevealed;
     const st = this.stageOf[id]!;
-    if ((!bl && st >= 1 && st <= 3) || this.forcedWiggle[id]) flags |= REGION_FLAG.wiggle;
+    if ((!bl && st >= 1 && st <= 3) || this.forcedWiggle[id] || (!bl && this.nudgeWiggleMs[id]! > 0)) flags |= REGION_FLAG.wiggle;
     if (bl && this.bloomT[id]! < 300) flags |= REGION_FLAG.flash;
     if (id >= 234 && id <= 254 && !this.ghostRevealed[id]) flags |= REGION_FLAG.hidden;
+    if (!bl && this.guideGlow[id]) flags |= REGION_FLAG.guideGlow;
     const o = id * 4;
     const o1 = REGION_STATE_ROW1_OFFSET + id * 4;
     const ox = clamp(Math.round((this.originX[id]! * 255) / PAGE_W), 0, 255);
@@ -902,10 +1392,83 @@ export class Simulation implements SimulationPort, ActorHost {
     }
   }
 
+  private computeHoveredRegionId(): number {
+    if (!this.page || !this.cov || this.ctx.viewOnly || this.tool.doodle) return 0;
+    const pt = this.brushPt ?? this.hoverPt;
+    if (!pt) return 0;
+    let id = this.regionAt(pt.x, pt.y);
+    if (id === 0) id = this.snapToNearby(pt.x, pt.y);
+    if (id >= 1 && id <= 254 && this.colourable(id) && !this.bloomed[id]) return id;
+    return 0;
+  }
+
+  private computeWandGlow(): { x: number; y: number; r: number } | null {
+    if (!this.page || !this.cov || this.ctx.viewOnly || !this.tool.doodle) return null;
+    const pt = this.brushPt ?? this.hoverPt;
+    if (!pt) return null;
+    return { x: pt.x, y: pt.y, r: WAND_UV_PEEK_RADIUS };
+  }
+
+  private computeWonderWhisper(hoveredRegionId: number): WonderWhisperHint | null {
+    if (!this.page || !this.cov || this.ctx.viewOnly || this.tool.doodle) return null;
+    const id = this.g?.mode === 'paint' ? this.g.lock : hoveredRegionId;
+    if (id < 1 || id > 254 || this.bloomed[id] || !this.colourable(id)) return null;
+    const effect = matchCausality(this.kindOf(id), normMat(this.tool.materialId));
+    if (effect === null || effect === 'gentleSparkle') return null;
+    const c = this.centroid(id);
+    const b = this.bbox(id);
+    return { regionId: id, effect, x: c.x, y: c.y, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 };
+  }
+
+  private computePokeInvites(): PokeInvite[] {
+    if (!this.page || !this.cov) return [];
+    const out: PokeInvite[] = [];
+    const seen = new Set<string>();
+    if (this.actors) {
+      for (const a of this.actors.list) {
+        if (!a.shown || !a.firstAwakeInvite) continue;
+        out.push({ instanceId: a.view.instanceId, kind: a.kind, x: a.view.x, y: a.view.y, firstAwake: true });
+        seen.add(a.view.instanceId);
+      }
+      if (this.tool.doodle && !this.ctx.viewOnly) {
+        for (const a of this.actors.list) {
+          if (!a.shown || !a.view.live) continue;
+          if (a.kind !== 'lumi' && a.kind !== 'nova' && a.kind !== 'violet') continue;
+          if (seen.has(a.view.instanceId)) continue;
+          out.push({ instanceId: a.view.instanceId, kind: a.kind, x: a.view.x, y: a.view.y, firstAwake: false });
+          seen.add(a.view.instanceId);
+        }
+      }
+    }
+    if (this.tool.doodle && !this.ctx.viewOnly) {
+      for (let id = 1; id < 255; id++) {
+        if (!this.bloomed[id] || this.cov.total[id]! === 0) continue;
+        const k = this.kindOf(id);
+        if (k !== 'cloud' && k !== 'planet' && k !== 'rings') continue;
+        const c = this.centroid(id);
+        const kind: 'cloud' | 'planet' = k === 'cloud' ? 'cloud' : 'planet';
+        out.push({ instanceId: `${kind}-${id}`, kind, x: c.x, y: c.y, firstAwake: false });
+      }
+    }
+    return out;
+  }
+
   view(): SimView {
     const dirty = this.dirty;
     this.dirty = false;
     const uv = this.hasRelic('uvFlashlight') && this.hoverPt ? { x: this.hoverPt.x, y: this.hoverPt.y, r: UV_FLASHLIGHT_RADIUS } : null;
+    const hoveredRegionId = this.computeHoveredRegionId();
+    const wisp: WispRenderState = {
+      active: this.wispActive,
+      mode: this.wispMode,
+      x: this.wispX,
+      y: this.wispY,
+      targetRegionId: this.wispTargetRegionId,
+      ghostStrokeT: this.ghostStrokeT,
+      ghostPath: this.prologueActive ? this.ghostPath.slice() : [],
+      prologueMist: this.prologueMistVal,
+      alpha: this.wispAlpha,
+    };
     return {
       regionState: this.regionState,
       regionStateDirty: dirty,
@@ -917,6 +1480,12 @@ export class Simulation implements SimulationPort, ActorHost {
       pageComplete: this.pageComplete,
       uvFlashlight: uv,
       sparkleSources: this.sparkles,
+      hoveredRegionId,
+      storyStars: this.storyStars.map((s) => ({ ...s, regionIds: s.regionIds.slice() })),
+      wisp,
+      wonderWhisper: this.computeWonderWhisper(hoveredRegionId),
+      pokeInvites: this.computePokeInvites(),
+      wandGlow: this.computeWandGlow(),
     };
   }
 
@@ -965,13 +1534,18 @@ export class Simulation implements SimulationPort, ActorHost {
     this.effects.clear();
     this.g = null;
     this.brushPt = null;
+    this.lastHoverTrackPt = null;
     this.bloomQueue = [];
     this.rippling = [];
+    this.nudgedIds = [];
     this.stageOf.fill(0);
     this.bloomed.fill(0);
     this.bloomT.fill(0);
     this.ghostRevealed.fill(0);
     this.forcedWiggle.fill(0);
+    this.guideGlow.fill(0);
+    this.nudgeWiggleMs.fill(0);
+    this.resetWispState();
     this.pageComplete = false;
     this.prismFired = false;
     this.actors = new ActorSystem(this, p.actors, p.seed);
@@ -998,8 +1572,9 @@ export class Simulation implements SimulationPort, ActorHost {
       if (kind === 'asteroid') this.bridgeAsteroids(id, false);
     }
     this.effects.update(0);
-    this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total);
+    this.actors.refreshStatus(this.stageOf, this.bloomed, cov.total, true);
     this.recomputeCore();
+    this.refreshStoryStars(false);
     this.prismFired = this.hasRelic('prismRibbon') && this.distinctBloomMaterials() >= 3;
     this.emitRestoreBatches();
     this.syncAll();

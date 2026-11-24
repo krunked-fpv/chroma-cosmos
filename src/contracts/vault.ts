@@ -1,8 +1,8 @@
-/** Vault and export contracts. */
+/** Vault and export contracts (lossless Sprint 1 -> Sprint 2 migration across LS, IDB, and krunked-cookie-vault-v1). */
 import type { AudioLevel } from './audio';
 import type { MaterialId } from './materials';
 import type { BadgeId, WardrobeItemId, WardrobeState } from './progression';
-import type { RunCore } from './roguelike';
+import type { DraftCardId, RunCore } from './roguelike';
 import type { StoryPageSnapshot } from './simulation';
 
 export interface VaultState {
@@ -12,6 +12,8 @@ export interface VaultState {
   unlockedMaterials: MaterialId[];
   wardrobeOwned: WardrobeItemId[];
   wardrobe: WardrobeState;
+  /** Astral Pencil Tin upgrades discovered across voyages (optional for Sprint 1 compat). */
+  discoveredCards?: DraftCardId[];
   audioLevel: AudioLevel;
   run: RunCore | null;
   stats: { runsCompleted: number; regionsAwakened: number; pokes: number };
@@ -22,7 +24,8 @@ export interface VaultState {
 
 /**
  * Shadow-cookie payload. Cookie value = base64url(JSON(CompactCookieV1)) + '.' + fnv1a32 hex of the base64url body.
- * Must stay < 1500 chars. b/m/o/w are bitfields (badge index in BADGE_ORDER, material id-1, wardrobe index in WARDROBE_ITEMS).
+ * Must stay < 1500 chars.
+ * b/m/o/w/d are 31-bit bitfields (badge index in BADGE_ORDER, material id-1, wardrobe index in WARDROBE_ITEMS, discovered card index in DRAFT_CARDS).
  * r = [seed, chapterIndex, pathCodes (CHAPTERS code chars), brushBits, relicBits, phaseCode] or 0 when no run.
  */
 export interface CompactCookieV1 {
@@ -32,9 +35,13 @@ export interface CompactCookieV1 {
   m: number;
   o: number;
   w: number;
+  /** Optional bitfield of discovered Astral Pencil Tin cards (indices in DRAFT_CARDS, 20 bits). */
+  d?: number;
   a: AudioLevel;
   r: [number, number, string, number, number, number] | 0;
   s: [number, number];
+  /** Optional prologueSeen flag (0|1). */
+  p?: 0 | 1;
   t: number;
 }
 

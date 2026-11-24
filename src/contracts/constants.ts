@@ -4,7 +4,7 @@ export const PAGE_W = 480;
 export const PAGE_H = 270;
 export const PAGE_PIXELS = 129600;
 export const STROKE_SCALE = 4;
-export const CACHE_VERSION = 'chroma-cosmos-v2';
+export const CACHE_VERSION = 'chroma-cosmos-v3';
 export const VAULT_COOKIE_NAME = 'krunked-cookie-vault-v1';
 export const VAULT_COOKIE_ATTRS = 'SameSite=Lax; path=/; max-age=31536000';
 export const VAULT_LS_KEY = 'chroma-cosmos:vault:v1';
@@ -16,18 +16,29 @@ export const IDB_RUN_KEY = 'current';
 /** stage s = highest s with pct >= STAGE_MIN[s]; stage 1 also requires pct > 0 */
 export const STAGE_MIN = [0, 0.01, 0.26, 0.66, 0.93] as const;
 export const AUTO_BLOOM_THRESHOLD = 0.93;
+/** Forgiving composite Hero Story Quest Auto-Bloom coverage threshold (82%). */
+export const HERO_QUEST_BLOOM_THRESHOLD = 0.82;
+/** Lowered composite Auto-Bloom threshold when Constellation Crown Seal relic is active (74%). */
+export const CROWN_QUEST_BLOOM_THRESHOLD = 0.74;
+/** Partial-progress threshold where a stalled Hero Quest begins sliver-rescue twinkling (65%). */
+export const STALLED_QUEST_THRESHOLD = 0.65;
+export const STALLED_QUEST_DELAY_MS = 3000;
 export const BPM = 96;
 /** F4 G4 A4 B4 C5 D5 E5 */
 export const F_LYDIAN_HZ = [349.23, 392.0, 440.0, 493.88, 523.25, 587.33, 659.25] as const;
 /** level 0 = muted; tap cycles 3 -> 2 -> 1 -> 0 -> 3 */
 export const AUDIO_LEVEL_GAIN = [0, 0.3, 0.6, 0.9] as const;
+/** Rebalanced Sprint 2 smooth progression gem rewards (~12+ gems in Chapter 1, ~28-35+ per voyage). */
 export const GEM_REWARDS = {
-  regionBloom: 3,
-  actorBloom: 5,
-  pageComplete: 10,
-  runComplete: 25,
+  regionBloom: 1,
+  actorBloom: 2,
+  questBloom: 4,
+  pageComplete: 8,
+  runComplete: 20,
   harmonyGem: 1,
   hiddenStar: 2,
+  milkshakeBonus: 2,
+  gravityPokeBonus: 2,
 } as const;
 export const BRUSH_RADIUS_PX = {
   standard: 6,
@@ -35,6 +46,12 @@ export const BRUSH_RADIUS_PX = {
   twinTail: 6,
   supernovaSponge: 28,
   zeroGGel: 5,
+  cometMeteor: 9,
+  prismRoller: 13,
+  starlightBubble: 8,
+  nebulaCloudPuff: 18,
+  lightningWhisker: 7,
+  moonbeamQuill: 6,
 } as const;
 export const STAMP_SPACING = 0.35;
 export const MAX_STAMPS_PER_BATCH = 64;
@@ -45,11 +62,14 @@ export const UV_FLASHLIGHT_RADIUS = 40;
 export const POKE_CHASE_MS = 4000;
 export const RIPPLE_MS = 900;
 export const PAGE_TURN_MS = 1400;
+export const PAGE_FINALE_MS = 2800;
 export const PROLOGUE_DURATION_MS = 5600;
-export const IDLE_WISP_DELAY_MS = 7000;
+export const IDLE_WISP_DELAY_MS = 4500;
+export const HINT_SPOTLIGHT_MS = 2500;
 export const TOOL_TAG_DURATION_MS = 2500;
-export const SOCKET_WIGGLE_MS = 1600;
+export const SOCKET_WIGGLE_MS = 2500;
 export const WAND_UV_PEEK_RADIUS = 38;
 export const INK_HEX = '#231942';
-export const BG_HEX = '#120d2b';
-export const PAPER_HEX = '#fbf3e0';
+export const BG_HEX = '#0d1026';
+export const PAPER_HEX = '#faf6ec';
+export const GOLD_HEX = '#eac46f';

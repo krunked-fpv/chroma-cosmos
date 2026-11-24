@@ -7,16 +7,16 @@ Zero-backend PWA. Static build (`vite build`, `base: './'`) deployed to GitHub P
 
 ```
 src/contracts/   types + `as const` data only (no logic, no imports outside contracts)
-src/art/         ArtPort        procedural pixel-art + region rasterizer
-src/scenes/      scene generators used by src/art
-src/renderer/    RendererPort   PixiJS v8 / WebGL2 4-layer compositor
-src/shaders/     GLSL ES 3.00 sources as TS string modules
-src/simulation/  SimulationPort coverage, awakening, causality, actors, relics
-src/roguelike/   RunManagerPort 5-chapter run, doors, drafting
-src/audio/       AudioPort      Web Audio synth (F-Lydian)
-src/vault/       VaultPort      localStorage + IndexedDB + shadow cookie
+src/art/         ArtPort        procedural pixel-art, region rasterizer, Hi-Bit UI sprite atlas
+src/scenes/      scene generators + composite HeroStoryQuest definitions used by src/art
+src/renderer/    RendererPort   PixiJS v8 / WebGL2 4-layer compositor + Hint Spotlight pass
+src/shaders/     GLSL ES 3.00 sources as TS string modules (15 pigment programs)
+src/simulation/  SimulationPort HeroStoryQuest 82% bloom, PageFinaleController, Hint system, 20-item toybox
+src/roguelike/   RunManagerPort 5-chapter run, doors, 20-card Astral Pencil Tin drafting
+src/audio/       AudioPort      Web Audio synth (F-Lydian), ascending medallion cadence, ASMR foley
+src/vault/       VaultPort      localStorage + IndexedDB + shadow cookie (Sprint 1 -> 2 lossless migration)
 src/export/      KeepsakePort   PNG postcard + JSON download
-src/ui/          UiPort         sketchbook DOM chrome, hub, modals, pointer input
+src/ui/          UiPort         Midnight Cloisonne DOM chrome, Hi-Bit pixel HUD, Stargazer Hub, modals
 src/main.ts      composition root (only file that imports module factories)
 ```
 
@@ -30,110 +30,59 @@ Factories: `createArt`, `createRenderer`, `createSimulation`, `createRunManager`
 
 PixiJS v8 `Application`: `preference:'webgl'`, `preferWebGLVersion:2`, `antialias:false`, `autoDensity:true`,
 `resolution = min(devicePixelRatio, 2)` (adaptive downshift to 1.5 / 1 when median frame > 18 ms for 2 s),
-background `#fbf3e0` (cotton sketchbook paper). If WebGL2 is unavailable a friendly DOM message is shown.
+background `#faf6ec` (warm ivory cotton sketchbook paper). If WebGL2 is unavailable a friendly DOM message is shown.
 
 Canvas sizing: canvas fills `ui.canvasHost` (16:9). `s = floor(min(hostW*dpr/480, hostH*dpr/270))`;
 if `s >= 2` use an exact integer scale centred, else a fractional aspect-locked scale. Out-of-page pixels render
-seamless warm cotton paper with a crisp 1 px `#231942` + 3 px `#d9ae5b` plate frame (`uClean=1` keepsake capture
+warm cotton paper (`#faf6ec`) framed by a crisp 1 px `#231942` + 1 px burnished gold `#eac46f` hairline (`uClean=1` keepsake capture
 uses exact 480×270 bounds). All pixel-art lookups use NEAREST + `texelFetch`.
 
-### Data textures (`BufferImageSource`, `format:'rgba8unorm'`, `scaleMode:'nearest'`, `alphaMode:'no-premultiply-alpha'`, `source.update()` after mutation)
+### Data textures (`BufferImageSource`, `format:'rgba8unorm'`, `scaleMode:'nearest'`, `alphaMode:'no-premultiply-alpha'`)
 | Texture | Size | Contents |
 |---|---|---|
-| `uRegionTex` | 480x270 | R regionMap id, G baseRegionMap id (actors removed), B actorSlot (0 none, 1..15 incl. ink of actor resting pose), A 255. Uploaded once per page. |
-| `uActorTex` | 480x270 | R region id (0 ink, 231..233 Wisp/Wonder-Chalk), G FX variant/shade, A 255 where an actor/FX pixel exists else 0. CPU-blitted each frame from sprite frames + FX pixels. |
-| `uRegionStateTex` | 256x2 | bytes straight from `SimView.regionState` (layout in SPEC §REGION_STATE). |
-| `uAllowedTex` | 256x1 | 1 = region id allowed for the current stamp batch. |
-| `uPalTex` | 8x16 | RGBA8 material palette table (`texelFetch` indexed by materialId & stop, avoiding large GLSL const arrays for fast ANGLE compile). |
-| `uStrokeTex` | 1920x1080 ×2 | ping-pong RenderTextures, RGBA8 LINEAR: R coverage, G materialId/255 (texelFetch), B/A flow dx/dy (0.5-centred). |
+| `uRegionTex` | 480×270 | R regionMap id, G baseRegionMap id, B actorSlot (0..15), A 255. Uploaded once per page. |
+| `uActorTex` | 480×270 | R region id (0 ink, 200..233 system/FX/Wisp/Wonder-Chalk), G FX variant, A 255/0. CPU-blitted each frame. |
+| `uRegionStateTex` | 256×2 | bytes straight from `SimView.regionState` (including bit 7 `FLAG_SPOTLIGHT = 128`). |
+| `uAllowedTex` | 256×1 | 1 = region id allowed for current stamp batch. |
+| `uPalTex` | 8×32 | RGBA8 material palette table (`texelFetch` indexed by materialId `1..17` & stop). |
+| `uStrokeTex` | 1920×1080 ×2 | ping-pong RenderTextures, RGBA8 LINEAR: R coverage, G materialId/255, B/A flow dx/dy. |
 
-### Layers (single-exit composite pass is full-screen at native resolution)
-- **Layer 0 — Paper & Parallax Space.** Region 1..254 uncoloured: warm cream cotton paper tooth + faint compass/grid
-  markings; hovered uncolored region (`uHoverRegion`) in Pencil mode pulses warm cream-gold shimmer, and idle-guided
-  regions (`REGION_FLAG.guideGlow`) breathe stardust glow. Region 255: 3 parallax star planes, Sleepy Hush mist
-  `#6b5b8a`, Wand sky stardust shimmer + soft UV ghost peek (`uWandGlow`), plus Free-Starlight doodle strokes.
-- **Layer 1 — Dual-Buffer Stay-In-The-Lines masking.** CPU: `Uint8Array(480*270)` region map drives touch-lock in
-  simulation. GPU: the stamp pass reads the previous stroke RT plus `uAllowedTex` and writes coverage only where the
-  NEAREST-sampled internal region id is allowed. Output = max coverage; material/flow replaced where the new stamp dominates.
-  One full-RT quad per batch, ≤64 stamps per batch.
-- **Layer 2 — GLSL Pigment Materials.** One unified single-exit fragment shader (deduplicated `snoise`, `skyColor`,
-  `edgeAmount`, and `applyPageOverlays` for ~3 s cold boot) branching on `program` (1..10) for the 12 material
-  ids (24K Solar Flare = program 4 + gold palette; Aurora Sherbet = program 1 + sherbet palette). Smooth gradients
-  stay razor-sharp inside integer ink borders because the region id is sampled NEAREST.
-- **Layer 3 — Ink, Sel-Out, Living Sprites, Wisp & Wonder Whispers.** Ink `#231942` while uncompleted. A completed
-  region flashes golden-white then ink pixels adjacent to it become sel-out. Actors carry their painted GLSL coat.
-  Indigo-rimmed Luminous Starlight Wisp (`231`/`232`), looping prologue rainbow ghost-stroke, luminous chalk Wonder
-  Whispers (`233`), pulsing concentric poke rings, Sleepy Hush prologue veil (`uPrologueMist`), and feathered corner
-  dog-ear glow (`uDogEarGlow`) layer cleanly and are suppressed on `uClean=1` keepsake capture. Particles:
-  `ParticleContainer` of a 3×3 pixel star snapped to internal pixels × scale.
+### Layers (single-exit composite pass at native resolution)
+- **Layer 0 — Paper, Hint Spotlight Dimming & Parallax Space.** Uncolored paper (`#faf6ec`) shows subtle cotton tooth.
+  When `uHintDim > 0` (`HintRequestState.active`), non-target uncolored paper softly dims by 12% while every region with
+  `FLAG_SPOTLIGHT` illuminates with a warm breathing golden-aurora interior pulse and crisp shimmering outline halo.
+- **Layer 1 — Dual-Buffer Stay-In-The-Lines masking.** Unchanged Smart Touch-Lock masking (`uAllowedTex` + CPU `Uint8Array`).
+- **Layer 2 — 15 GLSL Pigment Programs (17 Materials).** Single-exit `shadeMaterial()` sharing 2 `snoise()` call sites for
+  fast ANGLE cold-boot compile, spanning 7 Core Crayons + 10 Unlockable Exotic Mediums (including Strawberry Supernova Glaze,
+  Crystal Glacier Mint, Cosmic Cotton-Candy Swirl, Enchanted Dragonfly Iridescence, Royal Astral Velvet Gold).
+- **Layer 3 — Ink, Sel-Out, Living Sprites (including 14 Wardrobe Overlays, Butterfly & Bubbles), Wisp & Auto-Turn Curl.**
 
-Id resolution per pixel: if `uActorTex.a>0` use its id; else if B>0 and bit B of `uLiveSlots` is set use G (base map) and suppress stale actor stroke pixels in `uStrokeTex` (`vacatedSlot`);
-else R. Ink (`id == 0`) adjacent only to unrevealed ghosts (`234..254`, outside `uFlashlight`) falls back to sky. Id decode `int(floor(texelFetch(t,p,0).r*255.0+0.5))`.
+Id classes: `0` ink; `1..199` colourable (canonical `1..31`, dynamic `32..199`); `200..233` system (fixed material);
+`234..254` ghosts; `255` sky.
 
-Id classes: 0 ink; 1..211 colourable (canonical 1..31, dynamic 32..211); 212..233 system (fixed material);
-234..254 ghosts (hidden until revealed or inside the UV flashlight); 255 sky.
+## 3. Midnight Cloisonne & Hi-Bit Pixel UI Architecture
+- Deep Midnight-Velvet Stargazer Backdrop (`#0D1026` -> `#1A1436`), crisp `#FAF6EC` stacked cotton paper spread (>=78% viewport),
+  `1px` Burnished Celestial Gold (`#EAC46F`) astrolabe hairlines, and translucent Frosted Midnight-Plum Glass-Enamel Docks
+  (`rgba(19, 16, 42, 0.86)`, `backdrop-filter: blur(12px)`).
+- **Zero brown/tan/beige wrappers, zero dashed stitching borders, zero blobby inline SVG tool/character paths.** All HUD,
+  medallion, brush, relic, medium, and wardrobe icons come from `ArtPort`'s deterministic integer-scaled Hi-Bit Pixel-Art Sprite Atlas (`image-rendering: pixelated`).
+- **Layout:** Top Spine 5-Chapter Constellation Voyage Ribbon, Top-Left Prism Crystal Pill (with pulsing `"New Gift!"` dot when an unlock is affordable),
+  Right Margin Firefly Hint Lantern + 3–4 Circular Cloisonne Story Medallions with 360° liquid-gold radial progress rings + bottom-right Auto-Turning Page Ribbon (`Stay & Doodle` pause toggle),
+  Left Margin Equipped Brush & Sticker Relic Charm Strip, Bottom Floating Midnight-Enamel Art Dock.
 
-### Page-turn curl
-Capture the old composite into a pooled RenderTexture, load the next page, run the curl shader for `PAGE_TURN_MS`
-(cylinder fold, cream paper back side), release the RT to the pool.
+## 4. Simulation & Smooth Progression
+- Composite `HeroStoryQuest` tracking computes weighted pixel coverage across grouped `regionIds`; reaching `82%` (`74%` with
+  `constellationCrown`) triggers Composite Auto-Bloom (100% fill across all sub-regions + `+4` gems + ascending F-Lydian cadence).
+- Completing all 3–4 Story Medallions triggers `PageFinaleController` (2.8s Ensemble Finale + `+8` bonus gems -> automatic page curl into Draft -> Doors -> Next Chapter unless paused via `Stay & Doodle`).
+- Zero-cooldown `requestHint(questId?)`, 4.5s idle lockstep pulse, and 3s >=65% sliver-rescue keep flow effortless.
 
-### Lifecycle
-All RenderTextures come from a pool with explicit `destroy(true)` on unload; `stats()` exposes live counts.
-`webglcontextlost` → `preventDefault`; on restore rebuild textures from CPU state and reseed the stroke RT by stamping
-completed regions.
+## 5. Audio, Vault & PWA
+- F-Lydian Web Audio synth + ascending Story Medallion cadence (`Fmaj9 -> G6 -> Am11`), Page Awakened Ensemble Fanfare,
+  Firefly Hint Lantern music-box chime, and expanded item foley. Strictly ZERO `speechSynthesis`.
+- Tri-tier `krunked-cookie-vault-v1` (`localStorage` + IndexedDB + <1500-char signed shadow cookie) with lossless Sprint 1 -> 2 migration.
+- Standalone PWA with `CACHE_VERSION = 'chroma-cosmos-v3'`, `#0d1026` theme/bg, relative `./` paths, and offline `@fontsource` typography.
 
-## 3. CPU / GPU Region-ID synchronisation
-1. `art.compilePage` produces `CompiledPage` (regionMap, baseRegionMap, actorSlotMap, totals, metas).
-2. `renderer.loadPage` uploads `uRegionTex`; `simulation.loadPage` keeps the same map as a CPU mirror and builds a CSR
-   pixel index per region.
-3. Pointer → `ui` converts client→internal via `renderer.clientToInternal` → `simulation.gesture`.
-4. Simulation locks `lockedRegionId` on start, emits `GpuStampBatch` (allowed ids + stamps) and updates
-   `paintedMask`/`regionPaintedPixels` in O(brushArea). Coverage % is O(1): `regionPaintedPixels[id] / regionTotalPixels[id]`.
-5. Renderer drains batches into the stroke RT and uploads `SimView.regionState` when dirty.
-
-Frame loop (in `main.ts`): `sim.update(dt)` → route `sim.drainEvents()` to audio/vault/ui → `renderer.render({view, stampBatches, ...})` → telemetry ring buffer.
-
-## 4. Simulation
-Awakening stages per region: 1 (1–25%) Stirring, 2 (26–65%) Half-Awake, 3 (66–92%) Building Magic,
-4 (≥93%) Auto-Bloom: exactly-once radial Chromatic Ripple fills the remaining pixels, flash flag, gems, causality
-(`CAUSALITY_MATRIX`), actor awakening. No timers, no fail states.
-
-## 5. F-Lydian audio graph & Cozy Tabletop ASMR Foley
-```
-voices (brush noise, stems, plucks, chimes, tabletop UI ASMR foley) → master gain(level) → DynamicsCompressor (limiter) → destination
-```
-Brush: looped pink-noise buffer → filter per family (grain: lowpass+crackle, sweep: bandpass with LFO, bell: sine grains).
-UI ASMR foley (`uiFoley`): low-pass procedural `paperRustle`, `woodTap`, `jarClink` (F-Lydian 5ths), `stickerPeel`, `wispChime`, `tinSnap`. Strictly ZERO spoken voices (`speechSynthesis` prohibited).
-96-BPM look-ahead scheduler (25 ms tick, 100 ms horizon) for stems: pad, marimba, harp, celesta.
-Scale: F4 G4 A4 B4 C5 D5 E5 + octaves. Every transient node disconnects on `onended`.
-AudioContext is created/resumed on the first pointerdown. Audio is a safe no-op without a context.
-
-## 6. Vault tiers (`krunked-cookie-vault-v1`)
-```mermaid
-flowchart LR
-  A[update] --> LS[localStorage]
-  A --> CK[shadow cookie krunked-cookie-vault-v1]
-  A -->|debounced 250ms| IDB[(IndexedDB chroma-cosmos-db)]
-  H[hydrate] -->|read all three, validate checksum| P{newest valid updatedAt}
-  P --> W[write back to stale/missing tiers = heal]
-```
-- Hydration picks the newest valid tier, then writes it back to any missing/stale tier and reports `healed`.
-- `healCheck()` regenerates a missing cookie/localStorage from memory (called on focus/visibility and after updates).
-- IDB uses `onversionchange → db.close()` so external `deleteDatabase` is never blocked.
-- Cookie: `base64url(JSON) + '.' + fnv1a32hex`, `SameSite=Lax; path=/; max-age=31536000`, < 1500 chars.
-- Portable JSON export/import: `{format:'chroma-cosmos-vault', version:1, exportedAt, vault, storybooks}`.
-
-## 7. PWA / Service Worker & Offline Typography
-- `public/manifest.json`, `public/sw.js`, 3 raster PNG icons generated by `scripts/generate-pwa-icons.mjs`.
-- Self-hosted offline Latin `@fontsource/fraunces`, `@fontsource/quicksand`, and `@fontsource/patrick-hand` bundled into `dist/assets/` (zero external CDN requests).
-- All URLs relative (`./`). SW registered from `main.ts` in production only with `{ scope: './' }`.
-- `sw.js`: `CACHE_VERSION = 'chroma-cosmos-v2'` (== `src/contracts/constants.ts`); install precache + skipWaiting;
-  activate deletes older `chroma-cosmos-*` caches + clients.claim; fetch is network-first for same-origin GET with
-  cache fallback (navigations fall back to `./index.html`).
-- `beforeinstallprompt` → dismissible "Install Sketchbook" star-charm inside the Brass Desk-Corner Trinket Dish when not in standalone display mode.
-- CI: `.github/workflows/deploy-pages.yml` (Node 22, typecheck + test + build, upload-pages-artifact, deploy-pages).
-
-## 8. File ownership
+## 6. File ownership
 | Owner | Files |
 |---|---|
 | Clara Vance | ARCHITECTURE.md, SPEC.md, HANDOFF.md, package.json, tsconfig.json, vite.config.ts, .gitignore, src/contracts/**, src/main.ts |
@@ -145,7 +94,3 @@ flowchart LR
 | Mateo Silva | index.html, src/styles/**, src/ui/**, tests/unit/ui/** |
 | Tessa Lindqvist | public/**, scripts/generate-pwa-icons.mjs, .github/workflows/deploy-pages.yml, tests/unit/pwa/** |
 | Devon Brooks | tests/redteam/**, tests/e2e/** |
-
-## 9. QA hook (`window.__chroma`)
-Always: `telemetry()`, `resetTelemetry()`, `stats()` (`{renderer, audio, mode, gems, vaultReport, effects, events}`). With `?qa=1`: `qa.regions()`, `qa.clientPointOf(id)`,
-`qa.paintRegion(id, materialId)`, `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`, `qa.setToolMode(mode)`, `qa.hoverRegion(id)`, `qa.storyStars()`, `qa.wisp()`, `qa.wonderWhisper()`, `qa.pokeInvites()`, `qa.nudgeMilestone(id)`.

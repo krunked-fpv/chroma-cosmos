@@ -25,8 +25,10 @@ export interface FrameInput {
   mode: AppMode;
   toolMode?: ToolMode;
   hoverPos?: { x: number; y: number } | null;
-  /** 0..1 warm Star-Door light peeking under the bottom-right curled dog-ear once Story Stars fill. */
+  /** 0..1 warm Star-Door light peeking under the bottom-right corner once Story Medallions complete. */
   dogEarGlow?: number;
+  /** 0..1 Hint Spotlight dim factor (softly dims non-target uncolored paper by 12% while highlighting FLAG_SPOTLIGHT regions). */
+  hintDim?: number;
   /** Optional procedural Wonder Whisper sketch dots provided by ArtPort.wonderSketch. */
   wonderSketch?: (effect: CausalityKind, box: { x0: number; y0: number; x1: number; y1: number }, timeMs: number) => WonderSketchDot[];
 }

@@ -14,11 +14,11 @@ export interface CausalityRule {
 
 /** First match wins; otherwise 'gentleSparkle'. */
 export const CAUSALITY_MATRIX: readonly CausalityRule[] = [
-  { target: 'cloud', materials: [6, 1, 12], effect: 'rainbowSlide' },
-  { target: 'cloud', materials: [3, 10], effect: 'starlightFlowerRain' },
-  { target: 'cloud', materials: [7, 8], effect: 'zeroGTrampoline' },
-  { target: 'planet', materials: [4, 11], effect: 'cheetahRacetrack' },
-  { target: 'planet', materials: [2, 9], effect: 'discoMirage' },
+  { target: 'cloud', materials: [6, 1, 12, 15], effect: 'rainbowSlide' },
+  { target: 'cloud', materials: [3, 10, 14], effect: 'starlightFlowerRain' },
+  { target: 'cloud', materials: [7, 8, 13], effect: 'zeroGTrampoline' },
+  { target: 'planet', materials: [4, 11, 17], effect: 'cheetahRacetrack' },
+  { target: 'planet', materials: [2, 9, 16], effect: 'discoMirage' },
 ] as const;
 
 export const CAUSALITY_TARGET_KINDS: Readonly<Record<'cloud' | 'planet', readonly RegionKind[]>> = {

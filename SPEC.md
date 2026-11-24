@@ -1,4 +1,4 @@
-# SPEC — Chroma Cosmos
+# SPEC — Chroma Cosmos (Sprint 2: Midnight Cloisonne & Item Expansion)
 
 Source of truth for data contracts. TypeScript sources live in `src/contracts/` and MUST match this file.
 
@@ -6,142 +6,88 @@ Source of truth for data contracts. TypeScript sources live in `src/contracts/` 
 | Name | Value |
 |---|---|
 | `PAGE_W × PAGE_H` | 480 × 270 (`PAGE_PIXELS` 129600), `STROKE_SCALE` 4 |
-| `CACHE_VERSION` | `chroma-cosmos-v2` |
+| `CACHE_VERSION` | `chroma-cosmos-v3` |
 | `VAULT_COOKIE_NAME` | `krunked-cookie-vault-v1` |
 | `VAULT_COOKIE_ATTRS` | `SameSite=Lax; path=/; max-age=31536000` |
 | `VAULT_LS_KEY` | `chroma-cosmos:vault:v1` |
 | IndexedDB | name `chroma-cosmos-db`, version 1, stores `storybooks` (keyPath `id`) and `run_state` (key `current`) |
-| `STAGE_MIN` | `[0, 0.01, 0.26, 0.66, 0.93]` — stage = highest s with pct ≥ STAGE_MIN[s]; stage 1 also needs pct > 0 |
-| `AUTO_BLOOM_THRESHOLD` | 0.93 |
+| `STAGE_MIN` | `[0, 0.01, 0.26, 0.66, 0.93]` — individual region stages |
+| `AUTO_BLOOM_THRESHOLD` | 0.93 (individual non-quest region) |
+| `HERO_QUEST_BLOOM_THRESHOLD` | 0.82 (composite Hero Story Quest Auto-Bloom; `CROWN_QUEST_BLOOM_THRESHOLD` 0.74 with `constellationCrown`) |
+| `STALLED_QUEST_THRESHOLD` / `DELAY_MS` | 0.65 / 3000 ms (sliver-rescue twinkle on paused partial Hero Quest) |
 | `BPM` | 96 |
 | `F_LYDIAN_HZ` | 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25 (F4 G4 A4 B4 C5 D5 E5) |
 | `AUDIO_LEVEL_GAIN` | `[0, 0.3, 0.6, 0.9]`; tap cycles 3→2→1→0→3 |
-| `GEM_REWARDS` | regionBloom 3, actorBloom 5, pageComplete 10, runComplete 25, harmonyGem 1, hiddenStar 2 |
-| `BRUSH_RADIUS_PX` | standard 6, turboCheetah 10, twinTail 6, supernovaSponge 28, zeroGGel 5 |
+| `GEM_REWARDS` | regionBloom 1, actorBloom 2, questBloom 4, pageComplete 8, runComplete 20, harmonyGem 1, hiddenStar 2, milkshakeBonus 2, gravityPokeBonus 2 |
+| `BRUSH_RADIUS_PX` | standard 6, turboCheetah 10, twinTail 6, supernovaSponge 28, zeroGGel 5, cometMeteor 9, prismRoller 13, starlightBubble 8, nebulaCloudPuff 18, lightningWhisker 7, moonbeamQuill 6 |
 | Stamping | `STAMP_SPACING` 0.35 × radius; `MAX_STAMPS_PER_BATCH` 64 |
-| Relic tuning | `TWIN_TAIL_NEIGHBOR_CHANCE` 0.4, `KALEIDOSCOPE_PREFILL` 0.35, `KALEIDOSCOPE_TARGETS` 3, `UV_FLASHLIGHT_RADIUS` 40 |
-| Timing | `POKE_CHASE_MS` 4000, `RIPPLE_MS` 900, `PAGE_TURN_MS` 1400, `PROLOGUE_DURATION_MS` 5600, `IDLE_WISP_DELAY_MS` 7000, `TOOL_TAG_DURATION_MS` 2500, `SOCKET_WIGGLE_MS` 1600 |
-| Wand UV peek | `WAND_UV_PEEK_RADIUS` 38 |
-| Colours | ink `#231942`, bg `#120d2b`, paper `#fbf3e0` |
+| Timing | `POKE_CHASE_MS` 4000, `RIPPLE_MS` 900, `PAGE_TURN_MS` 1400, `PAGE_FINALE_MS` 2800, `PROLOGUE_DURATION_MS` 5600, `IDLE_WISP_DELAY_MS` 4500, `HINT_SPOTLIGHT_MS` 2500, `TOOL_TAG_DURATION_MS` 2500, `SOCKET_WIGGLE_MS` 2500 |
+| Palette | `INK_HEX` `#231942`, `BG_HEX` `#0d1026`, `PAPER_HEX` `#faf6ec`, `GOLD_HEX` `#eac46f` |
 
 ## 2. Region ID lookup table (`regions.ts`)
-- `0` ink, `255` sky. Ranges: canonical 1–31, dynamic 32–211, system 212–233, ghost 234–254.
+- `0` ink, `255` sky. Ranges: canonical `1..31`, dynamic `32..199`, system `200..233`, ghost `234..254`.
 - System and ghost ids are excluded from coverage and core. Ghosts become colourable when revealed.
-- Core regions = canonical 1–15 when present on a page.
-
-| id | key | kind | core |
-|---|---|---|---|
-| 1 | violet_skin | violet | ✔ |
-| 2 | violet_sandy_hair | violet | ✔ |
-| 3 | violet_suit | violet | ✔ |
-| 4 | violet_helmet | violet | ✔ |
-| 5 | lumi_body | lumi | ✔ |
-| 6 | lumi_mane | lumi | ✔ |
-| 7 | lumi_horn | lumi | ✔ |
-| 8 | lumi_tail | lumi | ✔ |
-| 9 | nova_body | nova | ✔ |
-| 10 | nova_spots | nova | ✔ |
-| 11 | nova_tail | nova | ✔ |
-| 12 | ringed_planet_core | planet | ✔ |
-| 13 | planet_rings | rings | ✔ |
-| 14 | space_cloud_a | cloud | ✔ |
-| 15 | space_cloud_b | cloud | ✔ |
-| 16 | rainbow_comet | comet | |
-| 17 | sleepy_moon_cat | moonCat | |
-| 18 | cosmic_milkshake | milkshake | |
-| 19 | star_whale | whale | |
-| 20 | crystal_asteroid | asteroid | |
-| 21 | paper_rocket | rocket | |
-
-System regions (fixed material):
-212 eye_shine (`eyeShine`), 213 cheek_blush (`blush`), 214 violet_star_clips (`selected` = current brush pigment),
-215 violet_galaxy_pins (5), 216 violet_cape (2), 217 lumi_wings (8), 218 lumi_crown (11), 219 nova_boosters (9),
-220 nova_scarf (6), 221 fx_rainbow (6), 222 fx_prism_beam (2), 223 fx_droplet (3), 224 fx_flower (10),
-225 fx_comet_car (4), 226 fx_gem (5), 227 fx_gold_doodle (11), 228 fx_trampoline (7), 229 fx_constellation (1),
-230 fx_slide_cloud (12), 231 fx_wisp_core (`wispCore`), 232 fx_wisp_aura (`wispAura`), 233 fx_wonder_chalk (`wonderChalk`). Dynamic `cometCar` FX actors remap `24->225, 25->222`; dynamic `flower` FX actors remap `26->224, 27->227, 28->224`.
+- System regions `200..233`:
+  - `200..203` relic/brush companion FX: `200` `fx_starlight_bubble` (mat 14), `201` `fx_echo_butterfly` (mat 16), `202` `fx_relic_mooncat` (mat 8), `203` `fx_constellation_crown` (mat 11).
+  - `204..211` Sprint 2 wardrobe overlays: `204` `violet_cat_headphones` (13), `205` `violet_moon_hoodie` (3), `206` `violet_saturn_halo` (17), `207` `violet_prism_ribbons` (15), `208` `lumi_nebula_garland` (14), `209` `lumi_celestial_saddle` (17), `210` `nova_star_goggles` (16), `211` `nova_galaxy_bowtie` (5).
+  - `212..233` Sprint 1 system regions preserved identically (`212` eyeShine, `213` blush, `214` selected, `215..220` original 6 wardrobe items, `221..233` FX/Wisp/WonderChalk).
 
 ### REGION_STATE layout (`SimView.regionState`, 256×2 RGBA8 = 2048 bytes)
 - Row 0, offset `id*4`: R materialId (0 none), G coverage 0–255, B bloom progress 0–255, A flags.
 - Row 1, offset `1024 + id*4`: R originX·255/480, G originY·255/270, B stage 0–4, A reserved.
-- Flags: complete 1, ghostRevealed 4, wiggle 8, flash 16, hidden 32, guideGlow 64.
+- Flags: `complete: 1`, `ghostRevealed: 4`, `wiggle: 8`, `flash: 16`, `hidden: 32`, `guideGlow: 64`, `spotlight: 128`.
 
-### Tool Modes, Dual-Star Economy, Wisp Onboarding & Wonder Whispers
-- **ToolMode (`'pencil' | 'wand'`)**: Mirrors `doodle` (`'pencil'` = stay-in-the-lines awaken with hovered uncolored region paper shimmer `hoveredRegionId`; `'wand'` = sky constellation doodle + `wandGlow` UV peek + concentric starlight poke rings `pokeInvites`). Tool switches show a <=4-word illustrated parchment micro-tag auto-fading after `TOOL_TAG_DURATION_MS` (2500 ms).
-- **Dual Star Economy**:
-  - **Bookmark Story Star Sockets (`StoryStarState[]`, 3–5 per chapter)**: Derived from `CompiledPage.storyMilestones` (`violet`, `lumi`, `nova`, `planet`, `cloud`). When all `regionIds` of a milestone reach Auto-Bloom (>=93%), `storyStarLit` fires and animates a golden starlight thread up to the stitched top linen bookmark; tapping an unlit socket calls `sim.nudgeMilestone(id)` to wiggle its uncolored shapes for `SOCKET_WIGGLE_MS` (1600 ms). When all Story Stars light (`pageComplete`), the bottom-right parchment dog-ear curls and glows warmly (tapping/swiping turns the page); a tiny unlit top-right dog-ear enables optional early turns.
-  - **Prism Stardust Crystals (`VaultState.gems`)**: Faceted colorful crystal shards accumulating inside a corked glass apothecary jar on the desk corner; tapping opens/returns to Violet's Stargazer Desk Hub.
-- **Wordless Visual Prologue & 7s Idle Wisp**: On Chapter 1 start (`RunContext.playPrologue`), plays a 5.6s interactive/skippable Sleepy Hush mist veil (`wisp.prologueMist`) + Luminous Starlight Wisp cueing the Enchanted Pencil (`wisp.mode = 'prologueTapPencil'`) and tracing a looping translucent rainbow ghost-stroke (`wisp.ghostPath`, `wisp.ghostStrokeT`) inside the first key uncolored core region — dissolving immediately on first pointer stroke. After `IDLE_WISP_DELAY_MS` (7000 ms) of pointer inactivity on an unfinished page, Wisp glides to the next unawakened core region (`wisp.mode = 'idleGuide'`), setting `REGION_FLAG.guideGlow`.
-- **Causality "Wonder Whispers"**: Hovering or starting to color an uncompleted `cloud` or `planet`/`rings` with a matching causality-reactive material exposes `SimView.wonderWhisper` to draw faint dotted charcoal sketch previews (`fx_wonder_chalk`).
-- **First-Awakening Poke Invite**: First time `lumi` or `nova` wakes in a run, `SimView.pokeInvites` pulses concentric starlight rings + ear/tail wiggle until poked.
-- **Cozy Tabletop UI ASMR Foley (`AudioPort.uiFoley`)**: Strictly zero voices (`speechSynthesis` banned). Procedural F-Lydian-harmonized low-pass foley: `paperRustle`, `woodTap`, `jarClink`, `stickerPeel`, `wispChime`, `tinSnap`.
+## 3. HeroStoryQuest, Auto-Page Finale & Firefly Hint System
+- **`HeroStoryQuest` (3–4 per chapter across ALL 8 chapters)**:
+  - `rooftop`: `violet` (Violet), `lumi` (Lumi), `nova` (Nova), `rocket` (Paper Rocket).
+  - `milkshakeNebula`: `violet` (Violet), `milkshake` (Milkshake), `planet` (Ringed Planet), `cloud` (Cream Clouds).
+  - `asteroidGarden`: `lumi` (Lumi), `asteroid` (Crystals), `planet` (Ringed Planet), `moonCat` (Moon-Cat).
+  - `cheetahSavannah`: `nova` (Nova), `suns` (Twin Suns), `planet` (Ringed Planet), `cloud` (Orion Clouds).
+  - `saturnRings`: `lumi` (Lumi), `planet` (Saturn), `cloud` (Dream Clouds), `comet` (Star Comet).
+  - `bubbleTea`: `violet` (Violet), `boba` (Boba Cup), `planet` (Ringed Planet), `moonCat` (Moon-Cat).
+  - `whaleSea`: `whale` (Star Whale), `planet` (Ringed Planet), `cloud` (Sea Clouds).
+  - `heartOfUniverse`: `heart` (Star Heart), `violet` (Violet), `lumi` (Lumi), `nova` (Nova).
+  - Weighted pixel coverage across `quest.regionIds` triggers **Composite Auto-Bloom** at **82%** (`74%` with `constellationCrown`), rippling 100% fill across all attached sub-regions, awarding **+4 Stardust Gems**, and firing `heroQuestComplete` + ascending F-Lydian Story Medallion chord.
+- **`PageFinaleController` (2.8s Automatic Page-Turn Finale)**:
+  - Triggered immediately when all 3–4 `HeroStoryQuest` medallions complete (`pageComplete === true`).
+  - Plays Page Awakened Ensemble Fanfare, showers **+8 Page Finale Bonus Gems**, and counts down `PAGE_FINALE_MS` (2800 ms) on a celebratory bottom-right Auto-Turning Page Ribbon before emitting `autoPageTurnReady` to automatically curl/turn into Astral Pencil Tin Draft -> Illustrated Star-Door Route Choice -> Next Chapter.
+  - Tapping `Stay & Doodle` sets `stayAndDoodle = true` to pause auto-turn and reveals a luminous 1-tap `Turn Page ->` button. `Skip Page` is tucked inside a quiet top-right settings popover.
+- **`HintRequestState` (Firefly Hint Lantern + Medallion Tap + 4.5s Idle + 65% Sliver-Rescue)**:
+  - Zero-cooldown `requestHint(questId?, source)` flies the Starlight Wisp onto the target quest's uncolored pixels, sets `REGION_FLAG.spotlight` on all uncompleted `regionIds` of that quest, dims non-target uncolored paper by 12% (`uHintDim`) for `HINT_SPOTLIGHT_MS` (2500 ms), and traces a looping rainbow ghost-stroke inside it.
+  - After 4.5s idle, gently pulses the next unlit right-side Story Medallion in lockstep with its canvas shape; after 3s paused with a quest >=65% covered, twinkles the remaining uncolored patch.
 
-## 3. Shader materials (`materials.ts`)
-| id | key | tier / cost | program | asmr | palette |
-|---|---|---|---|---|---|
-| 1 | LiquidAurora | core | 1 | sweep | `#7fe7f0 #b69cff #ff9ecf #fff1c9` |
-| 2 | HoloFoil | core | 2 | bell | pastel spectrum + white specular |
-| 3 | VelvetNebula | core | 3 | sweep | `#2d2a7a #7b3fa0 #e35d9b`, stars `#fff6d8` |
-| 4 | SolarCheetahAmber | core | 4 | grain | `#ffcf5a #ff9a3c`, spots `#8a3b12`, swirl `#5b2a86` |
-| 5 | SupernovaGlitter | core | 5 | bell | `#6c5ce7 #a29bfe` + white sparkles |
-| 6 | RainbowPrismWax | core | 6 | grain | `#ff6b6b #ffa94d #ffd43b #69db7c #4dabf7 #9775fa` |
-| 7 | CottonCandyChalk | core | 7 | grain | `#ffb3d9 #a5d8ff` |
-| 8 | OpalPearl | unlock 30 | 8 | bell | `#f5f0ff #ffd6e8 #d6f5ff #e8ffd6` |
-| 9 | NeonCyberCheetah | unlock 40 | 9 | bell | `#ff2bd6 #b6ff3b` on `#1a0b2e` |
-| 10 | DeepSpaceBiolum | unlock 80 | 10 | sweep | `#04364a #2ee6c9 #8a5cff` |
-| 11 | SolarFlare24K | unlock 60 | 4 | bell | `#fff3b0 #ffd700 #ff8c00` |
-| 12 | AuroraSherbet | unlock 50 | 1 | sweep | `#ffd1a6 #ffb5c5 #b5f2d0` |
+## 4. Shader materials (`materials.ts`) — 7 Core + 10 Unlockable Exotic = 17 Total
+| id | key | name | tier / cost | program | asmr | palette |
+|---|---|---|---|---|---|---|
+| 1..7 | Core mediums | (unchanged) | core / 0 | 1..7 | varied | (unchanged) |
+| 8 | OpalPearl | Opal Unicorn Pearl | unlock 15 | 8 | bell | `#f5f0ff #ffd6e8 #d6f5ff #e8ffd6` |
+| 9 | NeonCyberCheetah | Neon Cyber-Cheetah | unlock 25 | 9 | bell | `#ff2bd6 #b6ff3b #1a0b2e` |
+| 10 | DeepSpaceBiolum | Deep-Space Bioluminescence | unlock 45 | 10 | sweep | `#04364a #2ee6c9 #8a5cff` |
+| 11 | SolarFlare24K | 24K Solar Flare | unlock 35 | 4 | bell | `#fff3b0 #ffd700 #ff8c00` |
+| 12 | AuroraSherbet | Aurora Sherbet | unlock 20 | 1 | sweep | `#ffd1a6 #ffb5c5 #b5f2d0` |
+| 13 | StrawberrySupernova | Strawberry Supernova Glaze | unlock 10 | 11 | bell | `#ff5e8e #ff9ec2 #ffd6e8 #fff5b8` |
+| 14 | CrystalGlacierMint | Crystal Glacier Mint | unlock 15 | 12 | bell | `#4ae0cb #a8fff0 #7cc8ff #eefcff` |
+| 15 | CosmicCottonSwirl | Cosmic Cotton-Candy Swirl | unlock 25 | 13 | sweep | `#ff8fd8 #9be2ff #d6a8ff #fff0fa` |
+| 16 | DragonflyIridescence | Enchanted Dragonfly Iridescence | unlock 35 | 14 | bell | `#18c9b8 #4287f5 #9d5cff #7bffb8` |
+| 17 | RoyalAstralGold | Royal Astral Velvet Gold | unlock 50 | 15 | sweep | `#1c1142 #3f2278 #eac46f #fff3c4` |
 
-## 4. Pigment-Causality matrix (`causality.ts`)
-First match wins; otherwise `gentleSparkle`. Planet rules match kind `planet` OR `rings`.
-| target | materials | effect |
-|---|---|---|
-| cloud | RainbowPrismWax, LiquidAurora, AuroraSherbet | rainbowSlide (Nova sprints down it) |
-| cloud | VelvetNebula, DeepSpaceBiolum | starlightFlowerRain (crystal flowers along the bottom margin) |
-| cloud | CottonCandyChalk, OpalPearl | zeroGTrampoline (Violet bounces to hidden stars) |
-| planet | SolarCheetahAmber, SolarFlare24K | cheetahRacetrack (comet-cars + Nova race) |
-| planet | HoloFoil, NeonCyberCheetah | discoMirage (prism beams wake nearby comets) |
+## 5. Expanded Astral Pencil Tin (`roguelike.ts`) — 20 Total Run Upgrades
+- **10 Active Magical Brushes** (+ starter `standard`): `turboCheetah`, `twinTail`, `supernovaSponge`, `zeroGGel`, `cometMeteor`, `prismRoller`, `starlightBubble`, `nebulaCloudPuff`, `lightningWhisker`, `moonbeamQuill`.
+- **10 Passive Holographic Sticker Relics**: `zoomiePaw`, `prismRibbon`, `uvFlashlight`, `kaleidoSharpener`, `sleepyMoonCat`, `gravityFlipFlop`, `doubleMilkshake`, `starlightMagnet`, `chromaticButterfly`, `constellationCrown`.
 
-## 5. Roguelike (`roguelike.ts`)
-Chapters: slot 1 `rooftop` (R); slot 2 `milkshakeNebula` (M) | `asteroidGarden` (A); slot 3 `cheetahSavannah` (S) |
-`saturnRings` (U); slot 4 `bubbleTea` (B) | `whaleSea` (W); slot 5 `heartOfUniverse` (H). Hub scene: `bedroomHub`.
-Doors after slots 1–3 (2 choices each); after slot 4 a single finale door.
-Draft after slots 1–4: 3 distinct un-owned cards, seeded. Brushes: turboCheetah, twinTail, supernovaSponge, zeroGGel.
-Relics: zoomiePaw, prismRibbon, uvFlashlight, kaleidoSharpener.
-`RunCore {seed, chapterIndex 0..4, path, brushes, relics, phase 'chapter'|'draft'|'doors'|'finale'}`.
-Galaxy name seeded from word lists plus drafted items (e.g. "The Sparkle-Paws Aurora Spiral").
+## 6. Expanded Wardrobe (`progression.ts`) — 14 Toggleable Pixel-Art Accessories
+- Indices `0..5` (Sprint 1 preserved): `violetPins` (10/215), `violetCape` (20/216), `lumiWings` (25/217), `lumiCrown` (30/218), `novaBoosters` (30/219), `novaScarf` (15/220).
+- Indices `6..13` (Sprint 2 new): `violetHeadphones` (15/204), `violetMoonHoodie` (25/205), `violetSaturnHalo` (35/206), `violetPrismRibbons` (10/207), `lumiNebulaGarland` (15/208), `lumiCelestialSaddle` (35/209), `novaStarGoggles` (20/210), `novaGalaxyBowtie` (10/211).
 
-## 6. Progression (`progression.ts`)
-Badges (order): firstBloom, lumiFriend, novaFriend, causalityExplorer, rainbowMaster, firstRun, threeRuns, fiveRuns.
-Constellation milestones: firstRun→OpalPearl, threeRuns→AuroraSherbet, fiveRuns→DeepSpaceBiolum, rainbowMaster→NeonCyberCheetah.
-Wardrobe (cost, system region): violetPins 20/215, violetCape 25/216, lumiWings 25/217, lumiCrown 30/218, novaBoosters 30/219, novaScarf 20/220.
+## 7. Hi-Bit UI Pixel-Sprite Atlas & Midnight Cloisonne UI Mandate
+- `UiPixelSpriteAtlas` / `IllustrationKind` (`uiSprite`, `brushIcon`, `questMedallion`, `relicSticker`, `wardrobe`, `material`, `card`, `door`, `portrait`, `bookCover`) exports deterministic integer-scaled Hi-Bit pixel-art sprites (`24x24`, `32x32`, `48x48`, etc., `image-rendering: pixelated`) from `src/art/`.
+- Strictly ZERO muddy brown/tan/beige CSS wrappers, ZERO dashed CSS stitching borders, ZERO blobby hand-coded inline SVG tool/character paths, and ZERO `speechSynthesis`.
 
-## 7. Vault schema (`vault.ts`)
-`VaultState {v:1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats{runsCompleted,regionsAwakened,pokes}, prologueSeen?, updatedAt}`.
+## 8. Vault Schema & Migration (`vault.ts`)
+- `VaultState` stays `v: 1` with optional `discoveredCards?: DraftCardId[]` and `prologueSeen?: boolean`.
+- `CompactCookieV1` keeps original Sprint 1 bit positions for `b`, `m` (17 bits), `o`/`w` (14 bits), `brushBits` (11 bits), `relicBits` (10 bits), plus optional `d` (20-bit discovered cards) and `p` (`0|1`), staying strictly `< 1500` chars with lossless migration of Sprint 1 saves.
 
-Shadow cookie `krunked-cookie-vault-v1`:
-`value = base64url(JSON(CompactCookieV1)) + '.' + fnv1a32hex(base64urlBody)`, attrs `SameSite=Lax; path=/; max-age=31536000`, < 1500 chars.
-`CompactCookieV1 {v:1, g gems, b badge bits, m material bits (id-1), o owned wardrobe bits, w equipped wardrobe bits, a audioLevel, r [seed, chapterIndex, pathCodes, brushBits, relicBits, phaseCode] | 0, s [runsCompleted, regionsAwakened], p? 0|1, t updatedAt}`.
-
-Hydration: read localStorage, IndexedDB `run_state/current`, cookie; validate (checksum + schema); newest valid `updatedAt` wins;
-write back to missing/stale tiers; report `{source, healed[]}`.
-Export JSON: `{format:'chroma-cosmos-vault', version:1, exportedAt, vault, storybooks}` (typed arrays as base64).
-Storybook: `{id, title, galaxyName, createdAt, seed, pages: StoryPageSnapshot[]}`; `StorybookSummary` includes deterministic `seed?`.
-
-## 8. Component boundaries
-See ARCHITECTURE.md §1 and §8. Port interfaces: `ArtPort`, `RendererPort`, `SimulationPort`, `RunManagerPort`, `AudioPort`,
-`VaultPort` (`createVault(b?, { idbTimeoutMs })`), `KeepsakePort`, `UiPort` (all in `src/contracts/`), with `GestureEvent` as the single input event type (`chapter`, `hub`, and `book` modes forward canvas pointer input).
-Sprites use region ids as pixel values; 255 = transparent. Page generators guarantee ≥1 cloud and ≥1 ringed planet per chapter.
-
-## 9. PWA constants
-`CACHE_VERSION = 'chroma-cosmos-v2'` in `public/sw.js` MUST equal the contracts constant.
-Manifest: name "Chroma Cosmos: Violet's Living Sketchbook", short_name "Chroma Cosmos",
-description "Interactive Hi-Bit Cosmic Coloring Book Roguelike starring Violet, Lumi & Nova", display standalone,
-orientation landscape, background/theme `#120d2b`, start_url `./`, scope `./`,
-icons `icon-192.png` (192²), `icon-512.png` (512²), `apple-touch-icon.png` (180²) with purpose `any maskable`.
-
-## 10. QA hook API (`window.__chroma`)
-- Always: `telemetry() → {frameMsMedian, frameMsP95, fps, samples, longFrames}`, `resetTelemetry()`, `stats() → {renderer, audio, mode, gems, vaultReport, effects, events}`.
-- `?qa=1` only: `qa.regions()`, `qa.clientPointOf(id)`, `qa.paintRegion(id, materialId)` (real PointerEvents), `qa.poke(kind)`, `qa.startRun(seed)`, `qa.completePage()`, `qa.mode()`, `qa.setToolMode(mode)`, `qa.hoverRegion(id)`, `qa.storyStars()`, `qa.wisp()`, `qa.wonderWhisper()`, `qa.pokeInvites()`, `qa.nudgeMilestone(id)`.
-
-## 11. Acceptance gates
-`npm run typecheck`, `npm test`, `npm run build` clean; zero `speechSynthesis` anywhere in `src/**`; headed `/browser` e2e: zero console errors/page errors/4xx, cold boot ≤ 10 s, spread breathing room ≥ 78%, zero HUD overlaps, median frame ≤ 16.7 ms, vault self-heals after localStorage + IndexedDB wipe, shadow cookie regenerates after cookie wipe, PNG icons have magic `89 50 4E 47 0D 0A 1A 0A` and exact IHDR sizes.
+## 9. PWA Constants & Acceptance Gates
+- `CACHE_VERSION = 'chroma-cosmos-v3'` in `public/sw.js` MUST equal `src/contracts/constants.ts`.
+- `public/manifest.json` uses `background_color: "#0d1026"`, `theme_color: "#0d1026"`, binary-valid PNG icons (`89 50 4E 47 0D 0A 1A 0A`).
+- Acceptance: `npm run typecheck`, `npm test`, `npm run build`, zero `speechSynthesis`, 6-state headed `/browser` anti-lunch-tray + 60fps + auto-page-turn + Firefly Hint + `krunked-cookie-vault-v1` self-healing gate.

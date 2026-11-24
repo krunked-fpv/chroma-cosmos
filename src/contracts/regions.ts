@@ -5,8 +5,8 @@ export const REGION_INK = 0;
 export const REGION_SKY = 255;
 export const REGION_RANGES = {
   canonical: [1, 31],
-  dynamic: [32, 211],
-  system: [212, 233],
+  dynamic: [32, 199],
+  system: [200, 233],
   ghost: [234, 254],
 } as const;
 
@@ -18,7 +18,7 @@ export interface CanonicalRegion {
   id: number;
   key: string;
   kind: RegionKind;
-  /** core regions (1..15) count toward page awakening when present on a page */
+  /** core regions (1..15) */
   core: boolean;
 }
 
@@ -56,6 +56,18 @@ export interface SystemRegion {
 }
 
 export const SYSTEM_REGIONS: readonly SystemRegion[] = [
+  { id: 200, key: 'fx_starlight_bubble', fixed: 14 },
+  { id: 201, key: 'fx_echo_butterfly', fixed: 16 },
+  { id: 202, key: 'fx_relic_mooncat', fixed: 8 },
+  { id: 203, key: 'fx_constellation_crown', fixed: 11 },
+  { id: 204, key: 'violet_cat_headphones', fixed: 13 },
+  { id: 205, key: 'violet_moon_hoodie', fixed: 3 },
+  { id: 206, key: 'violet_saturn_halo', fixed: 17 },
+  { id: 207, key: 'violet_prism_ribbons', fixed: 15 },
+  { id: 208, key: 'lumi_nebula_garland', fixed: 14 },
+  { id: 209, key: 'lumi_celestial_saddle', fixed: 17 },
+  { id: 210, key: 'nova_star_goggles', fixed: 16 },
+  { id: 211, key: 'nova_galaxy_bowtie', fixed: 5 },
   { id: 212, key: 'eye_shine', fixed: 'eyeShine' },
   { id: 213, key: 'cheek_blush', fixed: 'blush' },
   { id: 214, key: 'violet_star_clips', fixed: 'selected' },
@@ -102,5 +114,13 @@ export const REGION_STATE_BYTES = 2048;
  * Row 0, offset id*4: R materialId (0 none), G coverage 0..255, B bloom progress 0..255, A flags.
  * Row 1, offset 1024 + id*4: R originX*255/480, G originY*255/270, B stage 0..4, A reserved.
  */
-export const REGION_FLAG = { complete: 1, ghostRevealed: 4, wiggle: 8, flash: 16, hidden: 32, guideGlow: 64 } as const;
+export const REGION_FLAG = {
+  complete: 1,
+  ghostRevealed: 4,
+  wiggle: 8,
+  flash: 16,
+  hidden: 32,
+  guideGlow: 64,
+  spotlight: 128,
+} as const;
 export const REGION_STATE_ROW1_OFFSET = 1024;

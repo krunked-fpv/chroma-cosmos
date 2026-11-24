@@ -1,11 +1,11 @@
-/** UI contracts. */
-import type { IllustrationKind, PixelImage, StoryMilestoneKind } from './art';
+/** UI contracts: Midnight Cloisonne Storybook Frame, Right-Side Story Medallions, Firefly Hint Lantern & Auto-Turn Ribbon. */
+import type { HeroQuestId, IllustrationKind, PixelImage, StoryMilestoneKind } from './art';
 import type { AudioLevel, UiFoleyKind } from './audio';
 import type { GestureEvent } from './input';
 import type { MaterialDef, MaterialId } from './materials';
 import type { BadgeId, WardrobeItemId, WardrobeState } from './progression';
 import type { BrushId, ChapterId, DraftCardId, RelicId } from './roguelike';
-import type { StoryStarState, ToolMode } from './simulation';
+import type { HeroStoryQuest, HintRequestState, PageFinaleState, StoryStarState, ToolMode } from './simulation';
 import type { StorybookSummary } from './vault';
 
 export type AppMode = 'boot' | 'hub' | 'chapter' | 'draft' | 'doors' | 'turning' | 'finale' | 'book';
@@ -18,8 +18,11 @@ export interface MaterialEntry {
 export interface HudState {
   mode: AppMode;
   chapterTitle: string;
+  /** 1..5 current chapter position on the Top Spine 5-Chapter Constellation Voyage Ribbon. */
   slot: number;
   gems: number;
+  /** True whenever player's gem balance can afford an unowned Exotic Medium or Wardrobe item in Violet's Hub. */
+  hasAffordableUnlock?: boolean;
   materials: MaterialEntry[];
   selectedMaterial: MaterialId;
   brushes: BrushId[];
@@ -30,9 +33,15 @@ export interface HudState {
   relics: RelicId[];
   coreAwake: number;
   coreTotal: number;
-  /** 3..5 Storyboard Bookmark Star Sockets on the stitched top linen ribbon. */
+  /** 3..4 Composite Hero Story Quests rendered as Circular Cloisonne Story Medallions on the Right Margin. */
+  heroQuests?: HeroStoryQuest[];
+  /** Synchronized alias for compatibility. */
   storyStars?: StoryStarState[];
-  /** True while the Chapter 1 Starlight Wisp is tapping/cueing the Enchanted Pencil in the wooden groove. */
+  /** Active Firefly Hint Lantern / Medallion spotlight state. */
+  hintState?: HintRequestState;
+  /** Automatic 2.8s Page Awakened Finale & Auto-Page-Turn countdown state. */
+  pageFinale?: PageFinaleState;
+  /** True while the Chapter 1 Starlight Wisp is tapping/cueing the Enchanted Pencil. */
   wispPencilCue?: boolean;
   /** True while the Sleepy Hush visual prologue is active. */
   prologueActive?: boolean;
@@ -46,9 +55,10 @@ export interface HubState {
   materials: MaterialEntry[];
   wardrobeOwned: WardrobeItemId[];
   wardrobe: WardrobeState;
+  discoveredCards?: DraftCardId[];
   storybooks: StorybookSummary[];
   hasRunInProgress: boolean;
-  /** Audio level surfaced in the Brass Desk-Corner Trinket Tray. */
+  hasAffordableUnlock?: boolean;
   audioLevel?: AudioLevel;
 }
 
@@ -59,7 +69,11 @@ export interface UiCallbacks {
   onSelectBrush(id: BrushId): void;
   onToggleDoodle(): void;
   onSelectToolMode?(mode: ToolMode): void;
+  /** Trigger zero-cooldown Firefly Hint Lantern (questId omitted -> next incomplete Hero Quest) or tap a specific Story Medallion. */
+  onRequestHint?(questId?: HeroQuestId): void;
   onHighlightMilestone?(id: StoryMilestoneKind): void;
+  /** Pause or resume automatic 2.8s page-turn finale so Violet can Stay & Doodle. */
+  onStayAndDoodle?(stay: boolean): void;
   onUiFoley?(kind: UiFoleyKind): void;
   onTurnPage(early: boolean): void;
   onAudioCycle(): void;
@@ -96,8 +110,12 @@ export interface UiPort {
   showFinale(name: string): Promise<void>;
   showBook(b: StorybookSummary, page: number, count: number): void;
   toast(msg: string): void;
-  /** Fires a golden starlight thread arc from an awakened page coordinate up into its Bookmark socket. */
+  /** Fires a golden starlight arc from an awakened page coordinate to its Right-Side Story Medallion. */
   animateStarThread?(milestoneId: StoryMilestoneKind, fromClientX: number, fromClientY: number): void;
-  /** Drops glowing faceted Prism Stardust Crystal shards into the corked apothecary jar. */
+  /** Fires a sparkling Firefly Hint Wisp arc from the Right-Side Story Medallion / Lantern onto the target canvas coordinate. */
+  animateHintBeam?(questId: HeroQuestId, toClientX: number, toClientY: number): void;
+  /** Pulses a Left-Margin Relic Charm with gold sparkles and a <=2-word whisper tag when it triggers. */
+  animateRelicPulse?(relic: RelicId, tag?: string): void;
+  /** Drops glowing faceted Prism Stardust Crystal shards into the top-left Crystal Pill. */
   animateCrystalDrop?(amount: number): void;
 }

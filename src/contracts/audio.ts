@@ -1,4 +1,4 @@
-/** Audio contracts. */
+/** Audio contracts (F-Lydian generative synth + cozy ASMR foley; strictly ZERO speechSynthesis). */
 import type { ActorKind } from './art';
 import type { CausalityKind } from './causality';
 import type { MaterialId } from './materials';
@@ -13,7 +13,14 @@ export type UiFoleyKind =
   | 'jarClink'
   | 'stickerPeel'
   | 'wispChime'
-  | 'tinSnap';
+  | 'tinSnap'
+  | 'lanternChime'
+  | 'bubblePop'
+  | 'catPurr'
+  | 'crystalChime'
+  | 'magnetHarp'
+  | 'medallionStep'
+  | 'pageFinale';
 
 export interface AudioPort {
   unlock(): Promise<void>;
@@ -26,6 +33,12 @@ export interface AudioPort {
   actorAwake(actor: ActorKind): void;
   causality(k: CausalityKind): void;
   pageTurn(): void;
+  /** Ascending F-Lydian harmonic step (Fmaj9 -> G6 -> Am11) as each Story Medallion completes. */
+  storyMedallion?(stepIndex: number, total: number): void;
+  /** Lush Page Awakened Ensemble Fanfare when all Story Medallions complete. */
+  pageFinale?(): void;
+  /** Warm crystalline music-box bell + fairy-dust flutter for the Firefly Hint Lantern. */
+  hintLantern?(): void;
   /** Warm low-pass procedural tabletop ASMR foley (strictly zero voices). */
   uiFoley?(kind: UiFoleyKind): void;
   setStems(s: StemId[]): void;

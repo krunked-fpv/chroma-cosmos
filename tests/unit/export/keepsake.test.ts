@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GOLD_HEX, INK_HEX, PAPER_HEX } from '../../../src/contracts/constants';
 import { createKeepsake } from '../../../src/export';
 import { POSTCARD_H, POSTCARD_W, renderPostcard, savePng, saveText } from '../../../src/export/postcard';
 import type { KeepsakeMeta } from '../../../src/contracts/vault';
@@ -9,11 +10,13 @@ const meta: KeepsakeMeta = { title: "Violet's Rooftop", galaxyName: 'The Glimmer
 interface Recorder {
   calls: Array<[string, ...unknown[]]>;
   props: Record<string, unknown>;
+  fills: unknown[];
+  strokes: unknown[];
 }
 
 /** Minimal recording 2D context so layout code runs without a canvas implementation. */
 function fakeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], props: {} };
+  const rec: Recorder = { calls: [], props: {}, fills: [], strokes: [] };
   const target: Record<string, unknown> = {};
   const ctx = new Proxy(target, {
     get(_t, k: string) {
@@ -25,6 +28,8 @@ function fakeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     set(t, k: string, v) {
       t[k] = v;
       rec.props[k] = v;
+      if (k === 'fillStyle') rec.fills.push(v);
+      if (k === 'strokeStyle') rec.strokes.push(v);
       if (k === 'imageSmoothingEnabled') rec.calls.push(['set:imageSmoothingEnabled', v]);
       return true;
     },
@@ -83,11 +88,22 @@ describe('keepsake postcard', () => {
     expect(rec.calls.some((c) => c[0] === 'fillText' && c[1] === 'x'.repeat(400))).toBe(true);
   });
 
-  it('renders Wanderlings cream-linen matte, gilded corner flourishes, and non-clipped header/footer bounds', () => {
+  it('renders Midnight Cloisonne gold/ivory matte, gilded corner flourishes, and non-clipped header/footer bounds', () => {
     const page = document.createElement('canvas');
     page.width = 480;
     page.height = 270;
     renderPostcard(page, meta);
+
+    // Midnight Cloisonne palette accents: #faf6ec ivory matte, #eac46f gold hairline/stars, #231942 ink
+    expect(PAPER_HEX).toBe('#faf6ec');
+    expect(GOLD_HEX).toBe('#eac46f');
+    expect(INK_HEX).toBe('#231942');
+    expect(rec.fills).toContain(PAPER_HEX);
+    expect(rec.fills).toContain(INK_HEX);
+    expect(rec.fills).toContain(GOLD_HEX);
+    expect(rec.strokes).toContain(GOLD_HEX);
+    expect(rec.fills).not.toContain('#6b4b32');
+    expect(rec.fills).not.toContain('#876b47');
 
     // Gilded corner flourishes use smooth bezier & quadratic scroll curves
     expect(rec.calls.some((c) => c[0] === 'bezierCurveTo')).toBe(true);

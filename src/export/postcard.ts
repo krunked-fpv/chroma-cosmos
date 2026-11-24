@@ -1,5 +1,5 @@
 /** PNG keepsake postcard + browser download helpers. DOM-only parts are guarded. */
-import { INK_HEX, PAGE_H, PAGE_W, PAPER_HEX } from '../contracts/constants';
+import { GOLD_HEX, INK_HEX, PAGE_H, PAGE_W, PAPER_HEX } from '../contracts/constants';
 import type { KeepsakeMeta } from '../contracts/vault';
 
 export const POSTCARD_W = 1920;
@@ -16,14 +16,14 @@ const PAGE_H_SCALED = PAGE_H * PAGE_SCALE;
 const PAGE_X = (POSTCARD_W - PAGE_W_SCALED) / 2; // 240
 const PAGE_Y = 148;
 
-const GILT_DARK = '#b8883b';
-const GILT_MID = '#cca052';
-const GILT_LIGHT = '#e6c989';
-const COTTON_TOP = '#fcf6e8';
-const COTTON_MID = PAPER_HEX; // #fbf3e0
-const COTTON_BOT = '#f2e3c5';
-const MAT_BEVEL_SHADOW = 'rgba(116, 86, 48, 0.24)';
-const MAT_BEVEL_LIGHT = 'rgba(255, 253, 246, 0.85)';
+const GILT_DARK = '#b88f3d';
+const GILT_MID = GOLD_HEX; // #eac46f — Midnight Cloisonne celestial gold hairline
+const GILT_LIGHT = '#f4dc9c';
+const COTTON_TOP = '#fdfbf5';
+const COTTON_MID = PAPER_HEX; // #faf6ec — Midnight Cloisonne archival ivory matte
+const COTTON_BOT = '#f2ebdc';
+const MAT_BEVEL_SHADOW = 'rgba(35, 25, 66, 0.16)';
+const MAT_BEVEL_LIGHT = 'rgba(255, 253, 248, 0.9)';
 
 function hasDom(): boolean {
   return typeof document !== 'undefined' && typeof document.createElement === 'function';
@@ -76,7 +76,7 @@ function drawCottonLinenTexture(ctx: CanvasRenderingContext2D): void {
   // Soft woven linen horizontal threads
   ctx.lineWidth = 1;
   for (let y = 6; y < POSTCARD_H; y += 7) {
-    ctx.strokeStyle = y % 14 === 6 ? 'rgba(156, 126, 86, 0.045)' : 'rgba(255, 253, 246, 0.09)';
+    ctx.strokeStyle = y % 14 === 6 ? 'rgba(184, 143, 61, 0.045)' : 'rgba(255, 253, 248, 0.09)';
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(POSTCARD_W, y);
@@ -84,7 +84,7 @@ function drawCottonLinenTexture(ctx: CanvasRenderingContext2D): void {
   }
   // Soft woven linen vertical threads
   for (let x = 8; x < POSTCARD_W; x += 9) {
-    ctx.strokeStyle = x % 18 === 8 ? 'rgba(156, 126, 86, 0.038)' : 'rgba(255, 253, 246, 0.075)';
+    ctx.strokeStyle = x % 18 === 8 ? 'rgba(184, 143, 61, 0.038)' : 'rgba(255, 253, 248, 0.075)';
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, POSTCARD_H);
@@ -96,7 +96,7 @@ function drawCottonLinenTexture(ctx: CanvasRenderingContext2D): void {
     const y = rnd() * POSTCARD_H;
     const inPage = x > PAGE_X - 14 && x < PAGE_X + PAGE_W_SCALED + 14 && y > PAGE_Y - 14 && y < PAGE_Y + PAGE_H_SCALED + 14;
     if (inPage) continue;
-    ctx.fillStyle = i % 3 === 0 ? 'rgba(164, 132, 90, 0.11)' : 'rgba(255, 252, 244, 0.25)';
+    ctx.fillStyle = i % 3 === 0 ? 'rgba(184, 143, 61, 0.095)' : 'rgba(255, 253, 248, 0.28)';
     ctx.fillRect(x, y, 1.5 + rnd() * 2.5, 1.2 + rnd() * 1.4);
   }
   ctx.restore();
@@ -267,12 +267,12 @@ export function renderPostcard(page: HTMLCanvasElement, meta: KeepsakeMeta): HTM
   ctx.fillRect(0, 0, POSTCARD_W, POSTCARD_H);
   drawCottonLinenTexture(ctx);
 
-  // Subtle warm deckle outer edge trim
-  ctx.strokeStyle = '#e5d1ac';
+  // Subtle ivory-gold deckle outer edge trim
+  ctx.strokeStyle = '#e8dec8';
   ctx.lineWidth = 8;
   ctx.strokeRect(4, 4, POSTCARD_W - 8, POSTCARD_H - 8);
 
-  // Outer & inner gilded heirloom hairline rules
+  // Outer & inner Midnight Cloisonne gilded hairline rules
   ctx.strokeStyle = GILT_MID;
   ctx.lineWidth = 2.2;
   roundRect(ctx, FRAME, FRAME, POSTCARD_W - FRAME * 2, POSTCARD_H - FRAME * 2, 14);
@@ -296,10 +296,10 @@ export function renderPostcard(page: HTMLCanvasElement, meta: KeepsakeMeta): HTM
   drawSideMedallion(ctx, sideMarginCenter, midY);
   drawSideMedallion(ctx, POSTCARD_W - sideMarginCenter, midY);
 
-  // Recessed beveled cotton mat window + gilded fillet + crisp ink frame around the artwork
+  // Recessed beveled archival ivory mat window + gilded fillet + crisp ink frame around the artwork
   const bevelPad = 12;
   ctx.save();
-  ctx.fillStyle = '#efe0c2';
+  ctx.fillStyle = '#f1e9d8';
   roundRect(ctx, PAGE_X - bevelPad, PAGE_Y - bevelPad, PAGE_W_SCALED + bevelPad * 2, PAGE_H_SCALED + bevelPad * 2, 8);
   ctx.fill();
   // Inner mat top/left shadow and bottom/right highlight for cut-mat depth
@@ -338,14 +338,14 @@ export function renderPostcard(page: HTMLCanvasElement, meta: KeepsakeMeta): HTM
   // Clean heirloom typography (strictly within horizontal & vertical matte margins, zero clipping)
   const cx = POSTCARD_W / 2;
   drawLabel(ctx, meta.title, cx, 82, 40, PAGE_W_SCALED, INK_HEX, 700, true);
-  const galaxyW = drawLabel(ctx, meta.galaxyName, cx, 120, 24, 1280, '#6b4b32', 600);
+  const galaxyW = drawLabel(ctx, meta.galaxyName, cx, 120, 24, 1280, '#4a3568', 600);
   if (meta.galaxyName && galaxyW > 0 && galaxyW < 1200) {
     const ornamentOffset = galaxyW / 2 + 22;
     fourPointStar(ctx, cx - ornamentOffset, 112, 6, GILT_MID);
     fourPointStar(ctx, cx + ornamentOffset, 112, 6, GILT_MID);
   }
-  drawLabel(ctx, meta.chapterTitle, cx, 1005, 26, PAGE_W_SCALED, '#4a3568', 600);
-  drawLabel(ctx, formatDate(meta.dateIso), cx, 1037, 19, 960, '#876b47', 500);
+  drawLabel(ctx, meta.chapterTitle, cx, 1005, 26, PAGE_W_SCALED, INK_HEX, 600);
+  drawLabel(ctx, formatDate(meta.dateIso), cx, 1037, 19, 960, '#6d5a87', 500);
   return canvas;
 }
 

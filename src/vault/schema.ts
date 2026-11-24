@@ -2,11 +2,23 @@
 import type { AudioLevel } from '../contracts/audio';
 import { CORE_MATERIAL_IDS, MATERIALS, type MaterialId } from '../contracts/materials';
 import { BADGE_ORDER, WARDROBE_ITEMS, type BadgeId, type WardrobeItemId, type WardrobeState } from '../contracts/progression';
-import { CHAPTERS, DRAFT_CARDS, type BrushId, type ChapterId, type RelicId, type RunCore, type RunPhase } from '../contracts/roguelike';
+import {
+  ACTIVE_BRUSH_IDS,
+  CHAPTERS,
+  DRAFT_CARDS,
+  RELIC_IDS,
+  type BrushId,
+  type ChapterId,
+  type DraftCardId,
+  type RelicId,
+  type RunCore,
+  type RunPhase,
+} from '../contracts/roguelike';
 import type { VaultState } from '../contracts/vault';
 
-export const BRUSH_ORDER: readonly BrushId[] = ['standard', 'turboCheetah', 'twinTail', 'supernovaSponge', 'zeroGGel'];
-export const RELIC_ORDER: readonly RelicId[] = DRAFT_CARDS.filter((c) => c.type === 'relic').map((c) => c.id as RelicId);
+export const BRUSH_ORDER: readonly BrushId[] = ['standard', ...ACTIVE_BRUSH_IDS];
+export const RELIC_ORDER: readonly RelicId[] = [...RELIC_IDS];
+export const DRAFT_CARD_ORDER: readonly DraftCardId[] = DRAFT_CARDS.map((c) => c.id);
 export const PHASE_ORDER: readonly RunPhase[] = ['chapter', 'draft', 'doors', 'finale'];
 
 const MATERIAL_IDS: ReadonlySet<number> = new Set(MATERIALS.map((m) => m.id));
@@ -36,6 +48,7 @@ export function defaultVaultState(updatedAt = 0): VaultState {
     unlockedMaterials: [...CORE_MATERIAL_IDS],
     wardrobeOwned: [],
     wardrobe: emptyWardrobe(),
+    discoveredCards: [],
     audioLevel: 2,
     run: null,
     stats: { runsCompleted: 0, regionsAwakened: 0, pokes: 0 },
@@ -71,6 +84,7 @@ const BADGE_SET: ReadonlySet<BadgeId> = new Set(BADGE_ORDER);
 const WARDROBE_SET: ReadonlySet<WardrobeItemId> = new Set(WARDROBE_ITEMS.map((w) => w.id));
 const BRUSH_SET: ReadonlySet<BrushId> = new Set(BRUSH_ORDER);
 const RELIC_SET: ReadonlySet<RelicId> = new Set(RELIC_ORDER);
+const DRAFT_CARD_SET: ReadonlySet<DraftCardId> = new Set(DRAFT_CARD_ORDER);
 const PHASE_SET: ReadonlySet<RunPhase> = new Set(PHASE_ORDER);
 
 export function parseRunCore(raw: unknown): RunCore | null {
@@ -97,7 +111,8 @@ export function parseRunCore(raw: unknown): RunCore | null {
 /**
  * Validates + normalises an untrusted object into a VaultState (null when invalid).
  * strict=false (storage tiers): missing optional fields fall back to defaults, wrong-typed fields are invalid.
- * strict=true (import): every required v1 field must be present and valid; backward-compat optional fields (e.g. prologueSeen) default when omitted.
+ * strict=true (import): every required v1 field must be present and valid; Sprint 1->2 backward-compat fields
+ * (newly added wardrobe keys, discoveredCards, prologueSeen) default gracefully when omitted.
  */
 export function parseVaultState(raw: unknown, strict = false): VaultState | null {
   if (!isRecord(raw) || raw.v !== 1) return null;
@@ -139,15 +154,21 @@ export function parseVaultState(raw: unknown, strict = false): VaultState | null
   const wardrobe = emptyWardrobe();
   if (has('wardrobe')) {
     if (!isRecord(raw.wardrobe)) return null;
+    for (const val of Object.values(raw.wardrobe)) {
+      if (val !== undefined && typeof val !== 'boolean') return null;
+    }
     for (const it of WARDROBE_ITEMS) {
       const val = raw.wardrobe[it.id];
-      if (val === undefined) {
-        if (strict) return null;
-        continue;
-      }
-      if (typeof val !== 'boolean') return null;
-      wardrobe[it.id] = val;
+      if (val === undefined) continue;
+      wardrobe[it.id] = val as boolean;
     }
+  }
+
+  let discoveredCards: DraftCardId[] = [...(def.discoveredCards ?? [])];
+  if (has('discoveredCards')) {
+    const l = idList(raw.discoveredCards, DRAFT_CARD_SET);
+    if (!l) return null;
+    discoveredCards = l;
   }
 
   let audioLevel: AudioLevel = def.audioLevel;
@@ -189,5 +210,5 @@ export function parseVaultState(raw: unknown, strict = false): VaultState | null
     updatedAt = raw.updatedAt;
   }
 
-  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats, prologueSeen, updatedAt };
+  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, discoveredCards, audioLevel, run, stats, prologueSeen, updatedAt };
 }

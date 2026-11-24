@@ -2,10 +2,10 @@
 import { VAULT_COOKIE_ATTRS, VAULT_COOKIE_NAME } from '../contracts/constants';
 import { MATERIALS, type MaterialId } from '../contracts/materials';
 import { BADGE_ORDER, WARDROBE_ITEMS, type WardrobeItemId } from '../contracts/progression';
-import { CHAPTERS, type ChapterId, type RunCore } from '../contracts/roguelike';
+import { CHAPTERS, type ChapterId, type DraftCardId, type RunCore } from '../contracts/roguelike';
 import type { CompactCookieV1, VaultState } from '../contracts/vault';
 import { base64UrlToText, fnv1a32Hex, textToBase64Url } from './codec';
-import { BRUSH_ORDER, PHASE_ORDER, RELIC_ORDER, defaultVaultState, emptyWardrobe, isFiniteNum, isRecord, isUint } from './schema';
+import { BRUSH_ORDER, DRAFT_CARD_ORDER, PHASE_ORDER, RELIC_ORDER, defaultVaultState, emptyWardrobe, isFiniteNum, isRecord, isUint } from './schema';
 
 export const COOKIE_MAX_CHARS = 1500;
 
@@ -24,17 +24,18 @@ function fromBits<T>(bits: number, order: readonly T[]): T[] {
   return out;
 }
 
-const MATERIAL_ORDER: readonly number[] = MATERIALS.map((m) => m.id); // ids 1..12, bit = id - 1
+const MATERIAL_ORDER: readonly number[] = MATERIALS.map((m) => m.id); // ids 1..17, bit = id - 1
 const WARDROBE_ORDER: readonly WardrobeItemId[] = WARDROBE_ITEMS.map((w) => w.id);
 const CHAPTER_BY_CODE = new Map<string, ChapterId>(CHAPTERS.map((c) => [c.code, c.id]));
 const CODE_BY_CHAPTER = new Map<ChapterId, string>(CHAPTERS.map((c) => [c.id, c.code]));
 
-export type CompactCookiePayload = CompactCookieV1 & { p?: 0 | 1 };
+export type CompactCookiePayload = CompactCookieV1;
 
 export function toCompactCookie(s: Readonly<VaultState>): CompactCookiePayload {
   let m = 0;
   for (const id of s.unlockedMaterials) if (id >= 1 && id <= 31) m |= 1 << (id - 1);
   const equipped = WARDROBE_ORDER.filter((id) => s.wardrobe[id]);
+  const dBits = bitsOf(s.discoveredCards ?? [], DRAFT_CARD_ORDER);
   let r: CompactCookieV1['r'] = 0;
   if (s.run) {
     r = [
@@ -58,6 +59,7 @@ export function toCompactCookie(s: Readonly<VaultState>): CompactCookiePayload {
     s: [s.stats.runsCompleted, s.stats.regionsAwakened],
     t: s.updatedAt,
   };
+  if (dBits !== 0) out.d = dBits;
   if (s.prologueSeen === true) out.p = 1;
   return out;
 }
@@ -138,6 +140,11 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
     if (!isUint(raw.w, INT)) return null;
     for (const id of fromBits(raw.w, WARDROBE_ORDER)) wardrobe[id] = true;
   }
+  let discoveredCards: DraftCardId[] = [...(def.discoveredCards ?? [])];
+  if (has('d')) {
+    if (!isUint(raw.d, INT)) return null;
+    discoveredCards = fromBits(raw.d, DRAFT_CARD_ORDER);
+  }
   let audioLevel = def.audioLevel;
   if (has('a')) {
     const a = raw.a;
@@ -184,5 +191,5 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
     if (!isFiniteNum(raw.t) || raw.t < 0) return null;
     updatedAt = raw.t;
   }
-  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, audioLevel, run, stats, prologueSeen, updatedAt };
+  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, discoveredCards, audioLevel, run, stats, prologueSeen, updatedAt };
 }

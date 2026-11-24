@@ -9,7 +9,22 @@ import type { VaultBackends, VaultPort, VaultState } from '../../../src/contract
 import { createVault } from '../../../src/vault';
 import { decodeCookieValue, extractCookieValue } from '../../../src/vault/cookie';
 import { defaultVaultState, parseVaultState } from '../../../src/vault/schema';
-import { fakeCookie, fakeLocalStorage, makeBook, makePage, maxState, midState, putStateInCookie, rawDelete, rawGetRecord, rawPutRecord, rawStoreNames } from './helpers';
+import {
+  FROZEN_SPRINT1_COOKIE_NO_P,
+  FROZEN_SPRINT1_COOKIE_WITH_P,
+  fakeCookie,
+  fakeLocalStorage,
+  makeBook,
+  makePage,
+  maxState,
+  midState,
+  putStateInCookie,
+  rawDelete,
+  rawGetRecord,
+  rawPutRecord,
+  rawStoreNames,
+  sprint1RawVault,
+} from './helpers';
 
 interface Env {
   ls: ReturnType<typeof fakeLocalStorage>;
@@ -50,6 +65,8 @@ describe('vault: defaults and fresh hydrate', () => {
     expect(s.unlockedMaterials).toEqual([...CORE_MATERIAL_IDS]);
     expect(Object.values(s.wardrobe).every((x) => x === false)).toBe(true);
     expect(Object.keys(s.wardrobe)).toHaveLength(WARDROBE_ITEMS.length);
+    expect(Object.keys(s.wardrobe)).toHaveLength(14);
+    expect(s.discoveredCards).toEqual([]);
     expect(s.audioLevel).toBe(2);
     expect(s.run).toBeNull();
     expect(s.stats).toEqual({ runsCompleted: 0, regionsAwakened: 0, pokes: 0 });
@@ -89,11 +106,20 @@ describe('vault: self-healing hydrate', () => {
     a.update((d) => {
       d.gems = 123;
       d.badges = ['firstBloom', 'rainbowMaster'];
-      d.unlockedMaterials = [...CORE_MATERIAL_IDS, 9, 12];
-      d.wardrobeOwned = ['lumiCrown'];
+      d.unlockedMaterials = [...CORE_MATERIAL_IDS, 9, 12, 13, 17];
+      d.wardrobeOwned = ['lumiCrown', 'violetHeadphones', 'novaGalaxyBowtie'];
       d.wardrobe.lumiCrown = true;
+      d.wardrobe.violetHeadphones = true;
+      d.discoveredCards = ['zeroGGel', 'moonbeamQuill', 'zoomiePaw', 'constellationCrown'];
       d.audioLevel = 3;
-      d.run = { seed: 99, chapterIndex: 1, path: ['rooftop', 'milkshakeNebula'], brushes: ['standard', 'zeroGGel'], relics: ['zoomiePaw'], phase: 'doors' };
+      d.run = {
+        seed: 99,
+        chapterIndex: 1,
+        path: ['rooftop', 'milkshakeNebula'],
+        brushes: ['standard', 'zeroGGel', 'moonbeamQuill'],
+        relics: ['zoomiePaw', 'constellationCrown'],
+        phase: 'doors',
+      };
       d.stats.runsCompleted = 4;
       d.stats.regionsAwakened = 77;
     });
@@ -219,6 +245,216 @@ describe('vault: self-healing hydrate', () => {
     expect((await v.hydrate()).source).toBe('cookie');
     expect(v.get()).toEqual(maxState());
     expect(v.get().badges).toEqual([...BADGE_ORDER]);
+    expect(v.get().unlockedMaterials).toHaveLength(17);
+    expect(v.get().wardrobeOwned).toHaveLength(14);
+    expect(v.get().discoveredCards).toHaveLength(20);
+    expect(v.get().run!.brushes).toHaveLength(11);
+    expect(v.get().run!.relics).toHaveLength(10);
+    expect(v.get().prologueSeen).toBe(true);
+  });
+});
+
+describe('vault: lossless Sprint 1 -> Sprint 2 migration & discoveredCards', () => {
+  it('hydrates a frozen verbatim Sprint 1 cookie with zero lost progress and heals LS + IDB', async () => {
+    const e = makeEnv(2_000_000_000_000);
+    e.cookie.set(FROZEN_SPRINT1_COOKIE_WITH_P);
+
+    const v = createVault(e.backends);
+    const report = await v.hydrate();
+    expect(report).toEqual({ source: 'cookie', healed: ['localStorage', 'indexedDB'] });
+
+    const s = v.get();
+    expect(s.gems).toBe(185);
+    expect(s.badges).toEqual(['firstBloom', 'lumiFriend', 'rainbowMaster', 'firstRun']);
+    expect(s.unlockedMaterials).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 12]);
+    expect(s.wardrobeOwned).toEqual(['violetPins', 'violetCape', 'lumiCrown', 'novaScarf']);
+    expect(s.wardrobe.violetPins).toBe(true);
+    expect(s.wardrobe.lumiCrown).toBe(true);
+    expect(s.wardrobe.novaScarf).toBe(true);
+    expect(s.wardrobe.violetCape).toBe(false);
+    // All 8 new Sprint 2 wardrobe keys default cleanly to false
+    for (const k of WARDROBE_ITEMS.slice(6).map((w) => w.id)) {
+      expect(s.wardrobe[k]).toBe(false);
+    }
+    expect(s.discoveredCards).toEqual([]);
+    expect(s.run).toEqual({
+      seed: 987_654_321,
+      chapterIndex: 3,
+      path: ['rooftop', 'milkshakeNebula', 'saturnRings', 'whaleSea'],
+      brushes: ['standard', 'turboCheetah', 'supernovaSponge', 'zeroGGel'],
+      relics: ['zoomiePaw', 'uvFlashlight', 'kaleidoSharpener'],
+      phase: 'doors',
+    });
+    expect(s.stats).toEqual({ runsCompleted: 3, regionsAwakened: 142, pokes: 0 });
+    expect(s.prologueSeen).toBe(true);
+
+    // Healed localStorage and IndexedDB carry the full Sprint 2 shape
+    expect(lsState(e)).toEqual(s);
+    expect((await rawGetRecord(e.idb)).vault).toEqual(s);
+
+    // Also verify early Sprint 1 cookie without p or d
+    const e2 = makeEnv(2_000_000_000_000);
+    e2.cookie.set(FROZEN_SPRINT1_COOKIE_NO_P);
+    const v2 = createVault(e2.backends);
+    expect(await v2.hydrate()).toEqual({ source: 'cookie', healed: ['localStorage', 'indexedDB'] });
+    expect(v2.get().gems).toBe(74);
+    expect(v2.get().prologueSeen).toBe(false);
+    expect(v2.get().discoveredCards).toEqual([]);
+    expect(v2.get().wardrobe.novaBoosters).toBe(true);
+    expect(Object.keys(v2.get().wardrobe)).toHaveLength(14);
+  });
+
+  it('migrates Sprint 1 localStorage & IndexedDB saves (6-key wardrobe, no discoveredCards) losslessly', async () => {
+    const rawS1 = sprint1RawVault(1_760_000_000_000);
+
+    // 1. From Sprint 1 localStorage JSON
+    const eLs = makeEnv(1_800_000_000_000);
+    eLs.ls.setItem(VAULT_LS_KEY, JSON.stringify(rawS1));
+    const vLs = createVault(eLs.backends);
+    const rLs = await vLs.hydrate();
+    expect(rLs).toEqual({ source: 'localStorage', healed: ['indexedDB', 'cookie'] });
+    const sLs = vLs.get();
+    expect(sLs.gems).toBe(185);
+    expect(sLs.badges).toEqual(['firstBloom', 'lumiFriend', 'rainbowMaster', 'firstRun']);
+    expect(sLs.unlockedMaterials).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 12]);
+    expect(sLs.wardrobeOwned).toEqual(['violetPins', 'violetCape', 'lumiCrown', 'novaScarf']);
+    expect(sLs.wardrobe.violetPins).toBe(true);
+    expect(sLs.wardrobe.lumiCrown).toBe(true);
+    expect(sLs.wardrobe.novaScarf).toBe(true);
+    expect(Object.keys(sLs.wardrobe)).toHaveLength(14);
+    for (const k of WARDROBE_ITEMS.slice(6).map((w) => w.id)) expect(sLs.wardrobe[k]).toBe(false);
+    expect(sLs.discoveredCards).toEqual([]);
+    expect(sLs.run).toEqual(rawS1.run);
+    expect(sLs.stats).toEqual({ runsCompleted: 3, regionsAwakened: 142, pokes: 29 });
+    expect(cookieState(eLs)?.gems).toBe(185);
+    expect((await rawGetRecord(eLs.idb)).vault).toEqual(sLs);
+
+    // 2. From Sprint 1 IndexedDB record
+    const eIdb = makeEnv(1_800_000_000_000);
+    await rawPutRecord(eIdb.idb, { vault: rawS1, pages: { active: null, done: [] } });
+    const vIdb = createVault(eIdb.backends);
+    const rIdb = await vIdb.hydrate();
+    expect(rIdb).toEqual({ source: 'indexedDB', healed: ['localStorage', 'cookie'] });
+    expect(vIdb.get()).toEqual(sLs);
+    expect(lsState(eIdb)).toEqual(sLs);
+  });
+
+  it('imports Sprint 1 portable JSON exports in strict mode (6-key wardrobe, no discoveredCards) with zero data loss', async () => {
+    const rawS1 = sprint1RawVault(1_760_000_000_000, false); // omits both discoveredCards and prologueSeen
+    const book = makeBook('s1-book', 1_755_000_000_000, 1);
+    const sprint1Export = JSON.stringify({
+      format: 'chroma-cosmos-vault',
+      version: 1,
+      exportedAt: 1_760_000_000_000,
+      vault: rawS1,
+      storybooks: [
+        {
+          ...book,
+          pages: book.pages.map((p) => ({
+            sceneId: p.sceneId,
+            seed: p.seed,
+            paintedMaskRle: Buffer.from(p.paintedMaskRle).toString('base64'),
+            regionMaterialId: Buffer.from(p.regionMaterialId).toString('base64'),
+            completedRegionIds: p.completedRegionIds,
+          })),
+        },
+      ],
+    });
+
+    // Direct strict parseVaultState accepts Sprint 1 6-key wardrobe & missing discoveredCards
+    const strictParsed = parseVaultState(rawS1, true);
+    expect(strictParsed).not.toBeNull();
+    expect(strictParsed!.gems).toBe(185);
+    expect(strictParsed!.wardrobe.violetPins).toBe(true);
+    expect(strictParsed!.wardrobe.lumiCrown).toBe(true);
+    expect(strictParsed!.wardrobe.novaScarf).toBe(true);
+    expect(Object.keys(strictParsed!.wardrobe)).toHaveLength(14);
+    for (const k of WARDROBE_ITEMS.slice(6).map((w) => w.id)) expect(strictParsed!.wardrobe[k]).toBe(false);
+    expect(strictParsed!.discoveredCards).toEqual([]);
+    expect(strictParsed!.prologueSeen).toBe(false);
+
+    // Full importJson heals all 3 tiers and preserves storybooks & active run
+    const dst = makeEnv(2_000_000_000_000);
+    const vDst = createVault(dst.backends);
+    await vDst.hydrate();
+    const report = await vDst.importJson(sprint1Export);
+    expect(report.healed).toEqual(['localStorage', 'indexedDB', 'cookie']);
+    expect(vDst.get().gems).toBe(185);
+    expect(vDst.get().badges).toEqual(['firstBloom', 'lumiFriend', 'rainbowMaster', 'firstRun']);
+    expect(vDst.get().unlockedMaterials).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 12]);
+    expect(vDst.get().wardrobeOwned).toEqual(['violetPins', 'violetCape', 'lumiCrown', 'novaScarf']);
+    expect(vDst.get().wardrobe.violetPins).toBe(true);
+    expect(vDst.get().wardrobe.violetHeadphones).toBe(false);
+    expect(vDst.get().discoveredCards).toEqual([]);
+    expect(vDst.get().run).toEqual(rawS1.run);
+    expect(vDst.get().stats).toEqual({ runsCompleted: 3, regionsAwakened: 142, pokes: 29 });
+    expect(await vDst.getStorybook('s1-book')).toEqual(book);
+    expect(lsState(dst)).toEqual(vDst.get());
+    expect(cookieState(dst)?.gems).toBe(185);
+    expect((await rawGetRecord(dst.idb)).vault).toEqual(vDst.get());
+  });
+
+  it('rejects non-object/missing wardrobe, non-boolean wardrobe values, and invalid discoveredCards while round-tripping valid cards', async () => {
+    const rawS1 = sprint1RawVault(1_760_000_000_000);
+    const wrapExport = (vault: unknown): string =>
+      JSON.stringify({ format: 'chroma-cosmos-vault', version: 1, exportedAt: 1000, vault, storybooks: [] });
+
+    // Missing or non-object wardrobe is rejected in strict mode
+    const withoutWardrobe = { ...rawS1 };
+    delete withoutWardrobe.wardrobe;
+    expect(parseVaultState(withoutWardrobe, true)).toBeNull();
+    for (const badWardrobe of [null, [], 'wardrobe', 42]) {
+      expect(parseVaultState({ ...rawS1, wardrobe: badWardrobe }, false)).toBeNull();
+      expect(parseVaultState({ ...rawS1, wardrobe: badWardrobe }, true)).toBeNull();
+    }
+
+    // Non-boolean value on any wardrobe key is rejected in both strict and non-strict modes
+    for (const badWardrobe of [
+      { ...(rawS1.wardrobe as Record<string, unknown>), violetPins: 'true' },
+      { ...(rawS1.wardrobe as Record<string, unknown>), violetHeadphones: 1 },
+      { ...(rawS1.wardrobe as Record<string, unknown>), novaGalaxyBowtie: null },
+      { ...(rawS1.wardrobe as Record<string, unknown>), extraKey: 'bad' },
+    ]) {
+      expect(parseVaultState({ ...rawS1, wardrobe: badWardrobe }, false)).toBeNull();
+      expect(parseVaultState({ ...rawS1, wardrobe: badWardrobe }, true)).toBeNull();
+    }
+
+    // Invalid discoveredCards values are rejected in both strict and non-strict modes
+    for (const badCards of [null, 'twinTail', 123, {}, ['notACard'], ['twinTail', 42]]) {
+      expect(parseVaultState({ ...rawS1, discoveredCards: badCards }, false)).toBeNull();
+      expect(parseVaultState({ ...rawS1, discoveredCards: badCards }, true)).toBeNull();
+    }
+
+    // Valid discoveredCards dedupes and round-trips through all 3 tiers & JSON export/import
+    const deduped = parseVaultState({ ...rawS1, discoveredCards: ['cometMeteor', 'cometMeteor', 'constellationCrown'] }, true);
+    expect(deduped?.discoveredCards).toEqual(['cometMeteor', 'constellationCrown']);
+
+    const e = makeEnv(3000);
+    const v = createVault(e.backends);
+    await v.hydrate();
+    v.update((d) => {
+      d.gems = 55;
+      d.discoveredCards = ['cometMeteor', 'starlightBubble', 'sleepyMoonCat', 'constellationCrown'];
+    });
+    await v.flush();
+
+    // Corrupt discoveredCards update is refused without touching vault
+    v.update((d) => {
+      (d.discoveredCards as unknown as string[]).push('bogusUpgrade');
+    });
+    expect(v.get().discoveredCards).toEqual(['cometMeteor', 'starlightBubble', 'sleepyMoonCat', 'constellationCrown']);
+
+    // Corrupt strict JSON import is rejected without touching vault
+    await expect(v.importJson(wrapExport({ ...rawS1, wardrobe: { violetPins: 'yes' } }))).rejects.toThrow(/vault data/);
+    await expect(v.importJson(wrapExport({ ...rawS1, discoveredCards: ['notACard'] }))).rejects.toThrow(/vault data/);
+    expect(v.get().gems).toBe(55);
+
+    // Wipe LS + IDB -> cookie self-heals discoveredCards completely
+    e.ls.map.clear();
+    expect(await rawDelete(e.idb)).toBe('deleted');
+    const healed = createVault(e.backends);
+    expect(await healed.hydrate()).toEqual({ source: 'cookie', healed: ['localStorage', 'indexedDB'] });
+    expect(healed.get().discoveredCards).toEqual(['cometMeteor', 'starlightBubble', 'sleepyMoonCat', 'constellationCrown']);
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CausalityKind } from '../../../src/contracts/causality';
 import { PAGE_H, PAGE_W } from '../../../src/contracts/constants';
+import { REGION_INK } from '../../../src/contracts/regions';
 import type { EffectKind, EffectRenderState, PokeInvite, WispRenderState, WonderWhisperHint } from '../../../src/contracts/simulation';
 import {
   FX_ID,
@@ -31,7 +32,7 @@ const fx = (kind: EffectKind, x: number, y: number, extra: Partial<EffectRenderS
 });
 
 /** scans every pixel; returns the count of written pixels and verifies the buffer layout invariants */
-function audit(p: PixelPlane): { pixels: number; minX: number; maxX: number; minY: number; maxY: number } {
+function audit(p: PixelPlane, allowInk = false): { pixels: number; minX: number; maxX: number; minY: number; maxY: number } {
   let pixels = 0;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   expect(p.data.length).toBe(PAGE_W * PAGE_H * 4);
@@ -43,7 +44,8 @@ function audit(p: PixelPlane): { pixels: number; minX: number; maxX: number; min
       const a = d[o + 3] as number;
       if (a === 255) {
         pixels++;
-        if (!FX_IDS.has(d[o] as number)) throw new Error(`unexpected FX id ${d[o]} at (${x},${y})`);
+        const id = d[o] as number;
+        if (!FX_IDS.has(id) && !(allowInk && id === REGION_INK)) throw new Error(`unexpected FX id ${id} at (${x},${y})`);
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -287,6 +289,7 @@ describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', (
     const aFull = audit(pFull);
     expect(pQuarter.count).toBeGreaterThan(0);
     expect(pFull.count).toBeGreaterThan(pQuarter.count);
+    expect(pFull.count).toBeGreaterThanOrEqual(220); // lush continuous 2-3px rainbow ribbon
     expect(aFull.pixels).toBe(pFull.count);
 
     const ids = new Set<number>();
@@ -299,8 +302,9 @@ describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', (
       }
     }
     expect(ids.has(FX_ID.rainbow)).toBe(true);
+    expect(ids.has(FX_ID.wispCore)).toBe(true);
     expect(ids.has(FX_ID.wispAura)).toBe(true);
-    expect(rainbowVariants.size).toBeGreaterThanOrEqual(3);
+    expect(rainbowVariants.size).toBeGreaterThanOrEqual(4);
 
     // Non-prologueStroke or inactive wisp draws nothing
     const pIdle = new PixelPlane();
@@ -383,28 +387,42 @@ describe('Wisp ghost-stroke, Wonder Whispers, and Poke Invites rasterization', (
     expect(pEmpty.count).toBe(0);
   });
 
-  it('draws pulsing concentric starlight poke rings using 232 & 227, extra prominent when firstAwake', () => {
+  it('draws high-contrast pulsing concentric dashed poke rings using 227/231 gold, 232 violet, and 0 ink for both Wand and firstAwake', () => {
     const soft = new PixelPlane();
     const warm = new PixelPlane();
     rasterizePokeInvites(soft, [{ instanceId: 'l1', kind: 'lumi', x: 240, y: 135, firstAwake: false }], 700);
     rasterizePokeInvites(warm, [{ instanceId: 'l1', kind: 'lumi', x: 240, y: 135, firstAwake: true }], 700);
-    const aSoft = audit(soft);
-    const aWarm = audit(warm);
-    expect(aSoft.pixels).toBeGreaterThan(10);
+    const aSoft = audit(soft, true);
+    const aWarm = audit(warm, true);
+    expect(aSoft.pixels).toBeGreaterThanOrEqual(70);
     expect(aWarm.pixels).toBeGreaterThan(aSoft.pixels);
 
-    let warmGold = 0;
-    let warmAura = 0;
-    for (let i = 0; i < PAGE_W * PAGE_H; i++) {
-      if (warm.data[i * 4 + 3] === 255) {
-        const id = warm.data[i * 4] as number;
-        expect(id === FX_ID.wispAura || id === FX_ID.goldDoodle).toBe(true);
-        if (id === FX_ID.goldDoodle) warmGold++;
-        if (id === FX_ID.wispAura) warmAura++;
+    for (const [label, plane] of [
+      ['wand', soft],
+      ['firstAwake', warm],
+    ] as const) {
+      let gold = 0;
+      let core = 0;
+      let aura = 0;
+      let ink = 0;
+      for (let i = 0; i < PAGE_W * PAGE_H; i++) {
+        if (plane.data[i * 4 + 3] === 255) {
+          const id = plane.data[i * 4] as number;
+          expect(
+            id === FX_ID.goldDoodle || id === FX_ID.wispCore || id === FX_ID.wispAura || id === REGION_INK,
+            `${label} unexpected id ${id}`,
+          ).toBe(true);
+          if (id === FX_ID.goldDoodle) gold++;
+          if (id === FX_ID.wispCore) core++;
+          if (id === FX_ID.wispAura) aura++;
+          if (id === REGION_INK) ink++;
+        }
       }
+      expect(gold, `${label} goldDoodle`).toBeGreaterThan(0);
+      expect(core, `${label} wispCore`).toBeGreaterThan(0);
+      expect(aura, `${label} wispAura`).toBeGreaterThan(0);
+      expect(ink, `${label} REGION_INK contrast`).toBeGreaterThan(0);
     }
-    expect(warmGold).toBeGreaterThan(0);
-    expect(warmAura).toBeGreaterThan(0);
 
     // Off-page and non-finite invites draw nothing
     const pNone = new PixelPlane();

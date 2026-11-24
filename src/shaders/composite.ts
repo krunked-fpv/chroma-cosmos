@@ -193,6 +193,31 @@ void main() {
   vec3 col;
   // ---- Layer 3: ink (and sel-out) ----
   if (id == 0) {
+    int nNE = rid(ip + ivec2(1, -1));
+    int nNW = rid(ip + ivec2(-1, -1));
+    int nSE = rid(ip + ivec2(1, 1));
+    int nSW = rid(ip + ivec2(-1, 1));
+    int ids8[8] = int[8](nE, nW, nS, nN, nNE, nNW, nSE, nSW);
+    bool touchesRegular = false;
+    bool touchesGhost = false;
+    bool ghostVisible = false;
+    bool inFlashlight = (uFlashlight.w > 0.5) && (distance(pp, uFlashlight.xy) <= uFlashlight.z);
+    for (int k = 0; k < 8; k++) {
+      int nid = ids8[k];
+      if (nid >= 1 && nid <= 233) {
+        touchesRegular = true;
+      } else if (nid >= 234 && nid <= 254) {
+        touchesGhost = true;
+        if (hasFlag(regionRow0(nid).a, FLAG_REVEALED) || inFlashlight) {
+          ghostVisible = true;
+        }
+      }
+    }
+    if (!touchesRegular && touchesGhost && !ghostVisible) {
+      fragColor = vec4(skyColor(pp, ip), 1.0);
+      return;
+    }
+
     col = INK;
     int ids4[4] = int[4](nE, nW, nS, nN);
     for (int k = 0; k < 4; k++) {
@@ -244,13 +269,19 @@ void main() {
     mat = s0.r;
     a = mat > 0 ? 1.0 : 0.0;
   } else {
-    ivec2 stp = ivec2(int(floor(pp.x * STROKE_S)), ${STROKE_RT_H - 1} - int(floor(pp.y * STROKE_S)));
-    vec4 sv = texelFetch(uStrokeTex, stp, 0);
-    float c = sv.r;
-    if (c > 0.0) {
-      mat = decodeId(sv.g);
-      a = smoothstep(0.12, 0.5, c);
-      flow = vec2(sv.b, sv.a) * 2.0 - 1.0;
+    int baseSlot = decodeId(texelFetch(uRegionTex, ip, 0).b);
+    bool vacatedSlot = !isActor && baseSlot > 0 && (((uLiveSlots >> baseSlot) & 1) == 1);
+    float c = 0.0;
+    if (!vacatedSlot || (id != 255 && s0.g > 0 && !complete)) {
+      ivec2 stp = ivec2(int(floor(pp.x * STROKE_S)), ${STROKE_RT_H - 1} - int(floor(pp.y * STROKE_S)));
+      vec4 sv = texelFetch(uStrokeTex, stp, 0);
+      int svMat = decodeId(sv.g);
+      if (sv.r > 0.0 && (!vacatedSlot || (s0.r > 0 && svMat == s0.r))) {
+        c = sv.r;
+        mat = svMat;
+        a = smoothstep(0.12, 0.5, c);
+        flow = vec2(sv.b, sv.a) * 2.0 - 1.0;
+      }
     }
     if (complete) {
       ivec4 s1 = regionRow1(id);

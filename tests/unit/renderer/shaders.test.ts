@@ -73,6 +73,32 @@ describe('GLSL sources (static checks; real compile is verified in the live lab)
     expect(stamp).toContain(`uStampB[${MAX_STAMPS_PER_BATCH}]`);
   });
 
+  it('suppresses vacated actor-slot strokes so moved actors do not leave ghosted silhouettes', () => {
+    expect(comp).toContain('int baseSlot = decodeId(texelFetch(uRegionTex, ip, 0).b);');
+    expect(comp).toContain('bool vacatedSlot = !isActor && baseSlot > 0 && (((uLiveSlots >> baseSlot) & 1) == 1);');
+    expect(comp).toContain('if (!vacatedSlot || (id != 255 && s0.g > 0 && !complete))');
+    expect(comp).toContain('svMat == s0.r');
+  });
+
+  it('hides unrevealed ghost ink outlines in the id == 0 ink branch', () => {
+    const inkStart = comp.indexOf('if (id == 0) {');
+    const inkEnd = comp.indexOf('// ---- Layer 0 base by id class ----');
+    expect(inkStart).toBeGreaterThan(0);
+    expect(inkEnd).toBeGreaterThan(inkStart);
+    const inkBlock = comp.slice(inkStart, inkEnd);
+    expect(inkBlock).toContain('rid(ip + ivec2(1, -1))');
+    expect(inkBlock).toContain('rid(ip + ivec2(-1, -1))');
+    expect(inkBlock).toContain('rid(ip + ivec2(1, 1))');
+    expect(inkBlock).toContain('rid(ip + ivec2(-1, 1))');
+    expect(inkBlock).toContain('bool touchesRegular = false;');
+    expect(inkBlock).toContain('bool touchesGhost = false;');
+    expect(inkBlock).toContain('bool ghostVisible = false;');
+    expect(inkBlock).toContain('FLAG_REVEALED');
+    expect(inkBlock).toContain('uFlashlight.w > 0.5');
+    expect(inkBlock).toContain('if (!touchesRegular && touchesGhost && !ghostVisible)');
+    expect(inkBlock).toContain('fragColor = vec4(skyColor(pp, ip), 1.0);');
+  });
+
   it('colour helpers', () => {
     expect(hexToRgb('#ff0000')).toEqual([1, 0, 0]);
     expect(hexToRgb('#0f0')).toEqual([0, 1, 0]);

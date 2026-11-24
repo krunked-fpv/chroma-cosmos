@@ -146,21 +146,24 @@ export function rasterizeEffect(p: PixelPlane, e: EffectRenderState): void {
       break;
     }
     case 'cheetahRacetrack': {
-      const rx = Math.abs(num(e.x2, 70));
-      const ry = Math.abs(num(e.y2, 24));
+      const rx = e.x2 !== undefined && Number.isFinite(e.x2) ? Math.max(16, Math.abs(e.x2 - e.x)) : 70;
+      const ry = e.y2 !== undefined && Number.isFinite(e.y2) ? Math.max(10, Math.abs(e.y2 - e.y)) : 24;
       for (let i = 0; i < 48; i++) {
         const a = (i / 48) * Math.PI * 2;
         if (i % 2 === 0) p.put(e.x + Math.cos(a) * rx, e.y + Math.sin(a) * ry, FX_ID.goldDoodle);
       }
-      for (let c = 0; c < 3; c++) {
-        const a = age * 0.0022 + (c * Math.PI * 2) / 3;
-        const cx = e.x + Math.cos(a) * rx;
-        const cy = e.y + Math.sin(a) * ry;
-        const dir = -Math.sin(a) >= 0 ? 1 : -1;
-        p.rect(cx - 3, cy - 2, 7, 3, FX_ID.cometCar, 1);
-        p.rect(cx - dir * 5, cy - 1, 2, 1, FX_ID.cometCar, 2);
-        p.put(cx - 2, cy + 1, FX_ID.cometCar, 3);
-        p.put(cx + 2, cy + 1, FX_ID.cometCar, 3);
+      for (let s = 0; s < 6; s++) {
+        const a = age * 0.0026 + (s * Math.PI * 2) / 6;
+        const sx = e.x + Math.cos(a) * rx;
+        const sy = e.y + Math.sin(a) * ry;
+        const twinkle = Math.sin(age * 0.012 + s * 1.7) > 0;
+        p.put(sx, sy, FX_ID.goldDoodle);
+        if (twinkle) {
+          p.put(sx - 1, sy, FX_ID.goldDoodle);
+          p.put(sx + 1, sy, FX_ID.goldDoodle);
+          p.put(sx, sy - 1, FX_ID.goldDoodle);
+          p.put(sx, sy + 1, FX_ID.goldDoodle);
+        }
       }
       break;
     }

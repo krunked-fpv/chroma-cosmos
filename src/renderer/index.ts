@@ -15,14 +15,17 @@ import type { MeshGeometry, Shader } from 'pixi.js';
 import type { FrameInput, RendererPort, RendererStats } from '../contracts/renderer';
 import type { CompiledPage, SpriteLibrary, SpriteSheet } from '../contracts/art';
 import type { GpuStampBatch } from '../contracts/simulation';
-import { BG_HEX, MAX_STAMPS_PER_BATCH, PAGE_H, PAGE_TURN_MS, PAGE_W, WAND_UV_PEEK_RADIUS } from '../contracts/constants';
+import { MAX_STAMPS_PER_BATCH, PAGE_H, PAGE_TURN_MS, PAGE_W, PAPER_HEX, WAND_UV_PEEK_RADIUS } from '../contracts/constants';
 import { REGION_FLAG, REGION_STATE_BYTES, REGION_STATE_H, REGION_STATE_W } from '../contracts/regions';
 import {
   MAX_SPARKLES,
+  PAL_TEX_H,
+  PAL_TEX_W,
   STROKE_RT_H,
   STROKE_RT_W,
   buildCompositeFrag,
   buildCurlFrag,
+  buildPaletteTexData,
   buildStampFrag,
   hexToRgb,
 } from '../shaders';
@@ -78,6 +81,7 @@ export function createRenderer(): RendererPort {
   let actorTex: DataTexture | null = null;
   let stateTex: DataTexture | null = null;
   let allowedTex: DataTexture | null = null;
+  let palTex: DataTexture | null = null;
   let particleTex: DataTexture | null = null;
   let compShader: Shader | null = null;
   let stampShader: Shader | null = null;
@@ -391,7 +395,7 @@ export function createRenderer(): RendererPort {
         antialias: false,
         autoDensity: true,
         resolution,
-        background: BG_HEX,
+        background: PAPER_HEX,
         width: Math.max(1, h.clientWidth),
         height: Math.max(1, h.clientHeight),
         autoStart: false,
@@ -427,6 +431,9 @@ export function createRenderer(): RendererPort {
     actorTex = new DataTexture(PAGE_W, PAGE_H);
     stateTex = new DataTexture(REGION_STATE_W, REGION_STATE_H);
     allowedTex = new DataTexture(256, 1);
+    palTex = new DataTexture(PAL_TEX_W, PAL_TEX_H);
+    buildPaletteTexData(palTex.data);
+    palTex.update();
     particleTex = new DataTexture(3, 3);
     {
       // 3x3 pixel star (plus shape + soft corners)
@@ -456,18 +463,20 @@ export function createRenderer(): RendererPort {
     strokeA.source.scaleMode = 'linear';
     strokeB.source.scaleMode = 'linear';
 
-    // shaders
+    // shaders (only run extra synchronous validateProgram pass in DEV so production cold boot compiles once)
     const compFrag = buildCompositeFrag();
     const stampFrag = buildStampFrag();
     const curlFrag = buildCurlFrag();
-    const gl = glOf(a.renderer as never);
-    for (const [name, src] of [
-      ['composite', compFrag],
-      ['stamp', stampFrag],
-      ['curl', curlFrag],
-    ] as const) {
-      const err = validateProgram(gl, name, src);
-      if (err) shaderErrors.push(err);
+    if (import.meta.env.DEV) {
+      const gl = glOf(a.renderer as never);
+      for (const [name, src] of [
+        ['composite', compFrag],
+        ['stamp', stampFrag],
+        ['curl', curlFrag],
+      ] as const) {
+        const err = validateProgram(gl, name, src);
+        if (err) shaderErrors.push(err);
+      }
     }
 
     cu = {};
@@ -499,6 +508,7 @@ export function createRenderer(): RendererPort {
       uActorTex: actorTex.source,
       uRegionStateTex: stateTex.source,
       uStrokeTex: strokeA.source,
+      uPalTex: palTex.source,
     });
     cu = (compShader.resources as Record<string, { uniforms: Uniforms }>).compositeUniforms!.uniforms;
 
@@ -576,6 +586,7 @@ export function createRenderer(): RendererPort {
     if (regionTex) regionTex.update();
     if (actorTex) actorTex.update();
     if (stateTex) stateTex.update();
+    if (palTex) palTex.update();
     if (particleTex) particleTex.update();
     strokeCur = 'A';
     needsReseed = true;
@@ -785,7 +796,7 @@ export function createRenderer(): RendererPort {
 
   function stats(): RendererStats {
     const ps = pool ? pool.stats() : { live: 0, pooled: 0, created: 0, destroyed: 0 };
-    const textures = [regionTex, actorTex, stateTex, allowedTex, particleTex].filter((t) => t !== null).length;
+    const textures = [regionTex, actorTex, stateTex, allowedTex, palTex, particleTex].filter((t) => t !== null).length;
     return {
       textures,
       renderTextures: ps.live,
@@ -811,8 +822,8 @@ export function createRenderer(): RendererPort {
     pool?.destroyAll();
     strokeA = null;
     strokeB = null;
-    for (const t of [regionTex, actorTex, stateTex, allowedTex, particleTex]) t?.destroy();
-    regionTex = actorTex = stateTex = allowedTex = particleTex = null;
+    for (const t of [regionTex, actorTex, stateTex, allowedTex, palTex, particleTex]) t?.destroy();
+    regionTex = actorTex = stateTex = allowedTex = palTex = particleTex = null;
     particleObjs.length = 0;
     if (app) {
       app.destroy({ removeView: true }, { children: true, texture: false });

@@ -8,6 +8,7 @@
 import type { WonderSketchDot } from '../contracts/art';
 import type { CausalityKind } from '../contracts/causality';
 import { PAGE_H, PAGE_W } from '../contracts/constants';
+import { REGION_INK } from '../contracts/regions';
 import type { EffectRenderState, PokeInvite, WispRenderState, WonderWhisperHint } from '../contracts/simulation';
 import { PixelPlane } from './pixelPlane';
 import { clamp01, easeInOut, easeOut, mulberry32 } from './rng';
@@ -280,8 +281,9 @@ export function rasterizeEffects(p: PixelPlane, effects: readonly EffectRenderSt
 }
 
 /**
- * Draws a gentle, softly-spaced looping translucent rainbow ghost-stroke trail along `wisp.ghostPath`
- * up to `wisp.ghostStrokeT` during `prologueStroke` mode (using FX_ID.rainbow 221 + FX_ID.wispAura 232).
+ * Draws a lush, clearly readable 2-3px curved pastel rainbow ghost-stroke ribbon along `wisp.ghostPath`
+ * up to `wisp.ghostStrokeT` during `prologueStroke` mode (using FX_ID.rainbow 221 across bands + glowing
+ * 231/232 tip sparkles).
  */
 export function rasterizeWispGhostStroke(p: PixelPlane, wisp: WispRenderState | undefined, timeMs: number): void {
   if (!wisp || !wisp.active || wisp.mode !== 'prologueStroke' || wisp.ghostPath.length < 2) return;
@@ -299,8 +301,9 @@ export function rasterizeWispGhostStroke(p: PixelPlane, wisp: WispRenderState | 
 
   const drawLen = totalLen * progress;
   const safeTime = Number.isFinite(timeMs) ? timeMs : 0;
-  const phase = Math.floor(safeTime / 120) & 3;
-  const spacing = Math.max(2, drawLen / 220); // cap work on absurdly long paths
+  const hueShift = Math.floor(safeTime / 140);
+  const pulseTick = Math.floor(safeTime / 180) & 1;
+  const spacing = Math.max(0.55, drawLen / 480); // dense continuous ribbon with zero diagonal holes, capped
   let walked = 0;
   let nextSample = 0;
   let sampleIdx = 0;
@@ -319,7 +322,7 @@ export function rasterizeWispGhostStroke(p: PixelPlane, wisp: WispRenderState | 
     const ny = dx / segLen;
     const segEnd = Math.min(walked + segLen, drawLen);
 
-    while (nextSample <= segEnd && sampleIdx < 320) {
+    while (nextSample <= segEnd && sampleIdx < 600) {
       const local = (nextSample - walked) / segLen;
       const sx = a.x + dx * local;
       const sy = a.y + dy * local;
@@ -327,24 +330,23 @@ export function rasterizeWispGhostStroke(p: PixelPlane, wisp: WispRenderState | 
       tipX = sx;
       tipY = sy;
 
-      // Softly thin the trailing tail so the looping stroke looks airy and ethereal
-      const tailSkip = u < 0.22 && (sampleIdx & 1) === 1;
-      if (!tailSkip) {
-        for (let bIdx = 0; bIdx < 3; bIdx++) {
-          const off = (bIdx - 1) * 2;
-          const px = Math.floor(sx + nx * off);
-          const py = Math.floor(sy + ny * off);
-          // Stippled transparency pattern (never heavy solid ink)
-          if (((px + py + phase + bIdx) & 1) === 0 || (bIdx === 1 && (sampleIdx & 1) === 0)) {
-            const band = ((Math.floor(sampleIdx * 0.5) + bIdx) % 6) + 1;
-            p.put(px, py, FX_ID.rainbow, band);
-          }
-        }
-        if (sampleIdx % 3 === 0) {
-          const side = (sampleIdx & 1) === 0 ? 3 : -3;
-          p.put(sx + nx * side, sy + ny * side, FX_ID.wispAura, 1);
-        }
+      // Full lush 3px curved pastel rainbow ribbon (tapers gently to 2px at entry tip u < 0.08)
+      const offsets = u < 0.08 ? [-0.5, 0.5] : [-1.2, -0.4, 0.4, 1.2];
+      const baseHue = Math.floor(u * 6 + sampleIdx * 0.06) + hueShift;
+      for (let oi = 0; oi < offsets.length; oi++) {
+        const off = offsets[oi]!;
+        const px = Math.floor(sx + nx * off);
+        const py = Math.floor(sy + ny * off);
+        const band = (((baseHue + oi * 2) % 6) + 6) % 6 + 1;
+        p.put(px, py, FX_ID.rainbow, band);
       }
+
+      // Shimmering fairy-aura stardust flanking the ribbon
+      if (sampleIdx % 8 === 0 && u >= 0.08) {
+        const side = (sampleIdx & 1) === 0 ? 2.6 : -2.6;
+        p.put(sx + nx * side, sy + ny * side, FX_ID.wispAura, 1);
+      }
+
       nextSample += spacing;
       sampleIdx++;
     }
@@ -352,11 +354,28 @@ export function rasterizeWispGhostStroke(p: PixelPlane, wisp: WispRenderState | 
   }
 
   if (Number.isFinite(tipX) && Number.isFinite(tipY)) {
-    p.put(tipX, tipY, FX_ID.wispAura, 2);
-    p.put(tipX - 1, tipY, FX_ID.wispAura, 1);
-    p.put(tipX + 1, tipY, FX_ID.wispAura, 1);
-    p.put(tipX, tipY - 1, FX_ID.wispAura, 1);
-    p.put(tipX, tipY + 1, FX_ID.wispAura, 1);
+    const tx = Math.floor(tipX);
+    const ty = Math.floor(tipY);
+    // Glowing 231 core cross + 232 fairy aura halo sparkles at the leading stroke tip
+    p.put(tx, ty, FX_ID.wispCore, 2);
+    p.put(tx - 1, ty, FX_ID.wispCore, 1);
+    p.put(tx + 1, ty, FX_ID.wispCore, 1);
+    p.put(tx, ty - 1, FX_ID.wispCore, 1);
+    p.put(tx, ty + 1, FX_ID.wispCore, 1);
+    p.put(tx - 1, ty - 1, FX_ID.wispAura, 2);
+    p.put(tx + 1, ty - 1, FX_ID.wispAura, 2);
+    p.put(tx - 1, ty + 1, FX_ID.wispAura, 2);
+    p.put(tx + 1, ty + 1, FX_ID.wispAura, 2);
+    p.put(tx - 2, ty, FX_ID.wispAura, 1);
+    p.put(tx + 2, ty, FX_ID.wispAura, 1);
+    p.put(tx, ty - 2, FX_ID.wispAura, 1);
+    p.put(tx, ty + 2, FX_ID.wispAura, 1);
+    if (pulseTick === 0) {
+      p.put(tx - 3, ty, FX_ID.wispCore, 1);
+      p.put(tx + 3, ty, FX_ID.wispCore, 1);
+      p.put(tx, ty - 3, FX_ID.wispCore, 1);
+      p.put(tx, ty + 3, FX_ID.wispCore, 1);
+    }
   }
 }
 
@@ -580,8 +599,9 @@ export function rasterizeWonderWhisper(
 }
 
 /**
- * Draws pulsing concentric starlight poke-invitation rings around each invite `(x, y)` using
- * `FX_ID.wispAura` (232) and `FX_ID.goldDoodle` (227), extra warm & prominent when `firstAwake === true`.
+ * Draws crisp, high-contrast pulsing concentric dashed poke-invitation rings around each invite `(x, y)`
+ * alternating 2px luminous gold (`227`/`231`) dashes with deep-indigo (`0`) / violet (`232`) contrast dots
+ * and 4 crisp cardinal cross-sparkles so invitations pop on BOTH cream paper and dark night sky.
  */
 export function rasterizePokeInvites(
   p: PixelPlane,
@@ -598,35 +618,69 @@ export function rasterizePokeInvites(
     const warm = inv.firstAwake;
     const ringCount = warm ? 3 : 2;
     const period = warm ? 1400 : 1800;
-    const minR = warm ? 10 : 9;
-    const maxR = warm ? 27 : 21;
+    const minR = warm ? 11 : 10;
+    const maxR = warm ? 29 : 24;
     const steps = warm ? 32 : 24;
+    const cardinalStep = steps / 4;
 
     for (let rIdx = 0; rIdx < ringCount; rIdx++) {
       const ph = ((safeTime / period) + rIdx / ringCount) % 1;
       const r = minR + (maxR - minR) * easeOut(ph);
-      const rot = safeTime * 0.0007 * (rIdx % 2 === 0 ? 1 : -1) + idx * 0.5;
-      const fading = ph > 0.82;
+      const rot = safeTime * 0.00075 * (rIdx % 2 === 0 ? 1 : -1) + idx * 0.5;
+      const fading = ph > 0.85;
 
       for (let s = 0; s < steps; s++) {
-        if (fading && (s & 3) !== 0) continue;
-        if (!warm && (s & 1) === 1) continue;
-        if (warm && s % 3 === 2) continue;
+        const cardinal = s % cardinalStep === 0;
+        if (fading && !cardinal && (s & 1) === 1) continue;
         const a = (s / steps) * Math.PI * 2 + rot;
-        const px = inv.x + Math.cos(a) * r;
-        const py = inv.y + Math.sin(a) * r;
-        const cardinal = s % (steps / 4) === 0;
-        const id = warm
-          ? cardinal || (rIdx === 0 && (s & 1) === 0)
-            ? FX_ID.goldDoodle
-            : FX_ID.wispAura
-          : cardinal
-            ? FX_ID.goldDoodle
-            : FX_ID.wispAura;
-        p.put(px, py, id, cardinal ? 2 : 1);
-        if (warm && cardinal && !fading) {
-          p.put(px + 1, py, FX_ID.goldDoodle, 2);
-          p.put(px, py - 1, FX_ID.wispAura, 1);
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        const ix = Math.floor(inv.x + ca * r);
+        const iy = Math.floor(inv.y + sa * r);
+
+        if (cardinal) {
+          // 4 crisp cardinal cross-sparkles with gold arms, luminous core, and ink anchor for cream paper contrast
+          p.put(ix, iy, FX_ID.wispCore, 2);
+          p.put(ix - 1, iy, FX_ID.goldDoodle, 2);
+          p.put(ix + 1, iy, FX_ID.goldDoodle, 2);
+          p.put(ix, iy - 1, FX_ID.goldDoodle, 2);
+          p.put(ix, iy + 1, FX_ID.goldDoodle, 2);
+          if (!fading) {
+            p.put(ix + 1, iy + 1, REGION_INK, 0);
+            p.put(ix - 1, iy + 1, REGION_INK, 0);
+            if (warm || rIdx === 0) {
+              p.put(ix - 2, iy, FX_ID.wispAura, 2);
+              p.put(ix + 2, iy, FX_ID.wispAura, 2);
+              p.put(ix, iy - 2, FX_ID.wispAura, 2);
+              p.put(ix, iy + 2, FX_ID.wispAura, 2);
+            }
+          }
+          continue;
+        }
+
+        // Guaranteed distinct 8-adjacent tangent step for crisp 2px dash segments
+        const tx = -sa;
+        const ty = ca;
+        const stepX = Math.abs(tx) >= Math.abs(ty) ? (tx >= 0 ? 1 : -1) : Math.round(tx);
+        const stepY = Math.abs(ty) > Math.abs(tx) ? (ty >= 0 ? 1 : -1) : Math.round(ty);
+
+        if ((s & 1) === 0) {
+          // 2px luminous gold dash (227 / 231)
+          const headId = warm || rIdx === 0 ? FX_ID.goldDoodle : FX_ID.wispCore;
+          const tailId = (s & 2) === 0 ? FX_ID.wispCore : FX_ID.goldDoodle;
+          p.put(ix, iy, headId, 2);
+          if (!fading) {
+            p.put(ix + stepX, iy + stepY, tailId, 1);
+          }
+        } else {
+          // Alternating deep-indigo (0) + vivid violet (232) contrast pair for cream paper & dark sky legibility
+          if ((s & 3) === 1) {
+            p.put(ix, iy, REGION_INK, 0);
+            p.put(ix + stepX, iy + stepY, FX_ID.wispAura, 1);
+          } else {
+            p.put(ix, iy, FX_ID.wispAura, 2);
+            p.put(ix + stepX, iy + stepY, REGION_INK, 0);
+          }
         }
       }
     }

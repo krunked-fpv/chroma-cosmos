@@ -7,33 +7,44 @@ import { MATERIALS } from '../contracts/materials';
 import { f, hexToRgb } from './glsl-util';
 
 export const MAX_PALETTE = 8;
+export const PAL_TEX_W = MAX_PALETTE;
+export const PAL_TEX_H = 16;
 
-/** Generates `const` palette / program tables from the MATERIALS contract (index 0 is an unused dummy row). */
+/** Populates an 8x16 RGBA8 palette lookup texture from the MATERIALS contract (row m = material id, col i = stop). */
+export function buildPaletteTexData(out: Uint8Array): void {
+  out.fill(0);
+  for (let m = 1; m <= MATERIALS.length; m++) {
+    const def = MATERIALS.find((d) => d.id === m);
+    if (!def) throw new Error(`material ${m} missing`);
+    const pal = def.palette.map(hexToRgb);
+    for (let i = 0; i < MAX_PALETTE; i++) {
+      const c = pal[Math.min(i, pal.length - 1)] as [number, number, number];
+      const o = (m * PAL_TEX_W + i) * 4;
+      out[o] = Math.round(c[0] * 255);
+      out[o + 1] = Math.round(c[1] * 255);
+      out[o + 2] = Math.round(c[2] * 255);
+      out[o + 3] = 255;
+    }
+  }
+}
+
+/** Generates compact `const` metadata tables from the MATERIALS contract (index 0 is an unused dummy row). */
 export function buildMaterialTables(): string {
-  const rows: string[] = [];
   const counts: number[] = [0];
   const progs: number[] = [0];
   const dark: string[] = ['vec3(0.0)'];
-  for (let i = 0; i < MAX_PALETTE; i++) rows.push('vec3(0.0)');
   for (let m = 1; m <= MATERIALS.length; m++) {
     const def = MATERIALS.find((d) => d.id === m);
     if (!def) throw new Error(`material ${m} missing`);
     const pal = def.palette.map(hexToRgb);
     counts.push(pal.length);
     progs.push(def.program);
-    for (let i = 0; i < MAX_PALETTE; i++) {
-      const c = pal[Math.min(i, pal.length - 1)] as [number, number, number];
-      rows.push(`vec3(${f(c[0])},${f(c[1])},${f(c[2])})`);
-    }
     const avg = pal.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]], [0, 0, 0]).map((v) => v / pal.length);
     dark.push(`vec3(${f(avg[0] ?? 0)},${f(avg[1] ?? 0)},${f(avg[2] ?? 0)})`);
   }
   const n = MATERIALS.length + 1;
   return `
 const int MAT_COUNT = ${n};
-const vec3 PAL[${n * MAX_PALETTE}] = vec3[${n * MAX_PALETTE}](
-  ${rows.join(',\n  ')}
-);
 const int PALN[${n}] = int[${n}](${counts.join(',')});
 const int PROG[${n}] = int[${n}](${progs.join(',')});
 const vec3 PALAVG[${n}] = vec3[${n}](${dark.join(',')});
@@ -41,7 +52,7 @@ const vec3 PALAVG[${n}] = vec3[${n}](${dark.join(',')});
 }
 
 export const MATERIAL_FUNCS_GLSL = `
-vec3 palAt(int m, int i) { return PAL[m * ${MAX_PALETTE} + i]; }
+vec3 palAt(int m, int i) { return texelFetch(uPalTex, ivec2(i, m), 0).rgb; }
 // cyclic palette sample over the first n stops
 vec3 palCyc(int m, float x, int n) {
   float fx = fract(x) * float(n);
@@ -58,11 +69,7 @@ vec3 palRamp(int m, float x) {
 }
 
 // 1 - Liquid Aurora (and Aurora Sherbet): multi-stop pastel simplex, breathing
-vec3 progAurora(int m, vec2 p, vec2 off, vec2 flow) {
-  vec2 q = p * 0.021 + off * 0.01;
-  float tt = uTime * 0.11;
-  float n1 = snoise(q + vec2(tt, -tt * 0.7) + flow * 0.4);
-  float n2 = snoise(q * 2.3 - vec2(tt * 1.3, 0.0) + 7.1);
+vec3 progAurora(int m, vec2 p, float n1, float n2) {
   float breathe = 0.5 + 0.5 * sin(uTime * 0.7 + n1 * 2.0);
   float v = 0.5 + 0.5 * (0.68 * n1 + 0.32 * n2);
   v = v * 0.85 + 0.12 * breathe + p.y * 0.0022;
@@ -72,10 +79,9 @@ vec3 progAurora(int m, vec2 p, vec2 off, vec2 flow) {
 }
 
 // 2 - Holographic Rainbow Foil: 7-spectrum iridescence shifted by stroke flow + tilt
-vec3 progHolo(int m, vec2 p, vec2 off, vec2 flow) {
+vec3 progHolo(int m, vec2 p, vec2 flow, float sn) {
   float tilt = sin(uTime * 0.35) * 0.45;
-  float h = dot(p, vec2(0.86, 0.51)) * 0.0105 + flow.x * 0.35 + flow.y * 0.2 + tilt
-          + 0.32 * snoise(p * 0.028 + off * 0.01);
+  float h = dot(p, vec2(0.86, 0.51)) * 0.0105 + flow.x * 0.35 + flow.y * 0.2 + tilt + 0.32 * sn;
   vec3 c = palCyc(m, h, 7);
   float sheen = pow(0.5 + 0.5 * sin(dot(p, vec2(0.7, -0.7)) * 0.085 + uTime * 0.8 + h * 6.0), 6.0);
   c = mix(c, palAt(m, 7), sheen * 0.62);
@@ -84,9 +90,7 @@ vec3 progHolo(int m, vec2 p, vec2 off, vec2 flow) {
 }
 
 // 3 - Velvet Nebula watercolor: wet-on-wet bloom, edge pooling, micro-stars
-vec3 progNebula(int m, vec2 p, vec2 off, ivec2 ip, float edge) {
-  float n = snoise(p * 0.02 + off * 0.01 + vec2(uTime * 0.01, 0.0));
-  float n2 = snoise(p * 0.065 + off * 0.01 + 3.3 + n * 1.6);
+vec3 progNebula(int m, vec2 off, ivec2 ip, float edge, float n, float n2) {
   float v = 0.5 + 0.5 * (0.6 * n + 0.4 * n2);
   float bloom = smoothstep(0.6, 0.88, v);
   vec3 c = palRamp(m, mix(0.2, 0.78, v));
@@ -100,9 +104,9 @@ vec3 progNebula(int m, vec2 p, vec2 off, ivec2 ip, float edge) {
 }
 
 // 4 - Solar Cheetah Amber (24K Solar Flare reuses it with the gold palette)
-vec3 progAmber(int m, vec2 p, vec2 off) {
+vec3 progAmber(int m, vec2 p, vec2 off, float sn) {
   int n = PALN[m];
-  float nz = 0.5 + 0.5 * snoise(p * 0.028 + off * 0.01 + vec2(uTime * 0.04, 0.0));
+  float nz = 0.5 + 0.5 * sn;
   float wave = 0.5 + 0.5 * sin(p.y * 0.035 + p.x * 0.012 + nz * 2.2);
   vec3 base = mix(palAt(m, 0), palAt(m, 1), smoothstep(0.15, 0.85, nz * 0.65 + wave * 0.35));
   float beat = fract(uBeat);
@@ -143,8 +147,8 @@ vec3 progAmber(int m, vec2 p, vec2 off) {
 }
 
 // 5 - Supernova Glitter: luminous violet-lavender gel + crisp diamond sparkles flashing near sparkle sources
-vec3 progGlitter(int m, vec2 p, vec2 off) {
-  float n = 0.5 + 0.5 * snoise(p * 0.032 + off * 0.01 + vec2(uTime * 0.05, -uTime * 0.03));
+vec3 progGlitter(int m, vec2 p, vec2 off, float sn) {
+  float n = 0.5 + 0.5 * sn;
   vec3 base = mix(palAt(m, 0), palAt(m, 1), smoothstep(0.18, 0.82, n));
   base = mix(base, vec3(0.95, 0.85, 1.0), 0.16 * pow(n, 2.0));
   float boost = 0.0;
@@ -180,7 +184,7 @@ vec3 progGlitter(int m, vec2 p, vec2 off) {
 }
 
 // 6 - Rainbow Prism Wax: crayon tooth + multi-band stripes (fx rainbow pixels carry their band in gFxVar)
-vec3 progWax(int m, vec2 p, vec2 off, ivec2 ip) {
+vec3 progWax(int m, vec2 p, vec2 off, float sn) {
   float tooth = vnoise(vec2(p.x * 0.7 + p.y * 0.25, p.y * 2.3) + off);
   float grain = hash12(floor(p * 1.5) + off);
   vec3 c;
@@ -189,7 +193,7 @@ vec3 progWax(int m, vec2 p, vec2 off, ivec2 ip) {
     c = palAt(m, bi);
     c = mix(c, vec3(1.0), 0.08 + 0.12 * (0.5 + 0.5 * sin(uTime * 3.0 - p.x * 0.2)));
   } else {
-    float band = (p.x * 0.55 + p.y * 0.85) / 7.0 + 0.15 * snoise(p * 0.04) + uTime * 0.02;
+    float band = (p.x * 0.55 + p.y * 0.85) / 7.0 + 0.15 * sn + uTime * 0.02;
     float fx = fract(band / 6.0) * 6.0;
     int i = int(floor(fx)) % 6;
     c = mix(palAt(m, i), palAt(m, (i + 1) % 6), smoothstep(0.78, 1.0, fract(fx)));
@@ -200,8 +204,8 @@ vec3 progWax(int m, vec2 p, vec2 off, ivec2 ip) {
 }
 
 // 7 - Cotton-Candy Chalk: fluffy pink-to-sky cloud billows + chalky shimmer (periodic so both hues shine anywhere)
-vec3 progChalk(int m, vec2 p, vec2 off) {
-  float n = 0.5 + 0.5 * snoise(p * 0.038 + off * 0.01 + vec2(uTime * 0.025, -uTime * 0.015));
+vec3 progChalk(int m, vec2 p, vec2 off, float sn) {
+  float n = 0.5 + 0.5 * sn;
   float n2 = vnoise(p * 0.12 + off);
   float swirl = 0.5 + 0.5 * sin(p.x * 0.045 + p.y * 0.032 + n * 2.6);
   float v = smoothstep(0.18, 0.82, 0.52 * swirl + 0.33 * n + 0.15 * n2);
@@ -216,9 +220,8 @@ vec3 progChalk(int m, vec2 p, vec2 off) {
 }
 
 // 8 - Opal Pearl: milky pearlescence + lush pastel rainbow fire
-vec3 progOpal(int m, vec2 p, vec2 off) {
+vec3 progOpal(int m, vec2 p, vec2 off, float n) {
   vec3 milk = palAt(m, 0);
-  float n = snoise(p * 0.032 + off * 0.01 + uTime * 0.035);
   float ang = 0.5 + 0.5 * sin(n * 3.2 + dot(p, vec2(0.028, 0.022)) + uTime * 0.28);
   vec3 pastel = palCyc(m, ang, 4);
   // boost pastel saturation slightly inside the milky pearl so opalescence reads vividly
@@ -234,11 +237,11 @@ vec3 progOpal(int m, vec2 p, vec2 off) {
 }
 
 // 9 - Neon Cyber-Cheetah: synthwave magenta/lime gradient, sleek rosette spots, scanlines
-vec3 progNeon(int m, vec2 p, vec2 off, ivec2 ip) {
+vec3 progNeon(int m, vec2 p, vec2 off, ivec2 ip, float sn) {
   vec3 mag = palAt(m, 0);
   vec3 lime = palAt(m, 1);
   vec3 dk = palAt(m, 2);
-  float g = 0.5 + 0.5 * sin(p.y * 0.05 + p.x * 0.015 + uTime * 0.55 + 1.15 * snoise(p * 0.022 + off * 0.01));
+  float g = 0.5 + 0.5 * sin(p.y * 0.05 + p.x * 0.015 + uTime * 0.55 + 1.15 * sn);
   vec3 c = mix(mag, lime, smoothstep(0.22, 0.78, g)) * 0.94;
   vec2 gc = p / 17.0 + off * 0.05;
   vec2 ci = floor(gc);
@@ -258,13 +261,11 @@ vec3 progNeon(int m, vec2 p, vec2 off, ivec2 ip) {
 }
 
 // 10 - Deep-Space Bioluminescence: teal-to-ultraviolet sea-star tendrils
-vec3 progBiolum(int m, vec2 p, vec2 off) {
+vec3 progBiolum(int m, vec2 p, vec2 off, float w1, float n2) {
   vec3 deep = palAt(m, 0);
   vec3 teal = palAt(m, 1);
   vec3 uv = palAt(m, 2);
-  float w1 = snoise(p * 0.03 + off * 0.01 + vec2(0.0, uTime * 0.05));
-  vec2 q = p + 12.0 * vec2(w1, w1 * 0.7);
-  float ridge = 1.0 - abs(snoise(q * 0.05 + 5.0));
+  float ridge = 1.0 - abs(n2);
   float tendril = pow(ridge, 6.0);
   vec2 gc = p / 60.0 + off * 0.05;
   vec2 ci = floor(gc);
@@ -281,17 +282,38 @@ vec3 progBiolum(int m, vec2 p, vec2 off) {
 
 vec3 shadeMaterial(int m, vec2 p, ivec2 ip, vec2 flow, float edge, vec2 off) {
   int prog = PROG[m];
+  // Shared simplex noise evaluation (2 call sites instead of 13 inlined copies across programs)
+  vec2 q1 = p * 0.028 + off * 0.01;
+  if (prog == 1) q1 = p * 0.021 + off * 0.01 + vec2(uTime * 0.11, -uTime * 0.077) + flow * 0.4;
+  else if (prog == 3) q1 = p * 0.02 + off * 0.01 + vec2(uTime * 0.01, 0.0);
+  else if (prog == 4) q1 = p * 0.028 + off * 0.01 + vec2(uTime * 0.04, 0.0);
+  else if (prog == 5) q1 = p * 0.032 + off * 0.01 + vec2(uTime * 0.05, -uTime * 0.03);
+  else if (prog == 6) q1 = p * 0.04;
+  else if (prog == 7) q1 = p * 0.038 + off * 0.01 + vec2(uTime * 0.025, -uTime * 0.015);
+  else if (prog == 8) q1 = p * 0.032 + off * 0.01 + uTime * 0.035;
+  else if (prog == 9) q1 = p * 0.022 + off * 0.01;
+  else if (prog == 10) q1 = p * 0.03 + off * 0.01 + vec2(0.0, uTime * 0.05);
+  float sn1 = snoise(q1);
+
+  float sn2 = 0.0;
+  if (prog == 1 || prog == 3 || prog == 10) {
+    vec2 q2 = (p + 12.0 * vec2(sn1, sn1 * 0.7)) * 0.05 + 5.0;
+    if (prog == 1) q2 = (p * 0.021 + off * 0.01) * 2.3 - vec2(uTime * 0.143, 0.0) + 7.1;
+    else if (prog == 3) q2 = p * 0.065 + off * 0.01 + 3.3 + sn1 * 1.6;
+    sn2 = snoise(q2);
+  }
+
   vec3 c;
-  if (prog == 1) c = progAurora(m, p, off, flow);
-  else if (prog == 2) c = progHolo(m, p, off, flow);
-  else if (prog == 3) c = progNebula(m, p, off, ip, edge);
-  else if (prog == 4) c = progAmber(m, p, off);
-  else if (prog == 5) c = progGlitter(m, p, off);
-  else if (prog == 6) c = progWax(m, p, off, ip);
-  else if (prog == 7) c = progChalk(m, p, off);
-  else if (prog == 8) c = progOpal(m, p, off);
-  else if (prog == 9) c = progNeon(m, p, off, ip);
-  else c = progBiolum(m, p, off);
+  if (prog == 1) c = progAurora(m, p, sn1, sn2);
+  else if (prog == 2) c = progHolo(m, p, flow, sn1);
+  else if (prog == 3) c = progNebula(m, off, ip, edge, sn1, sn2);
+  else if (prog == 4) c = progAmber(m, p, off, sn1);
+  else if (prog == 5) c = progGlitter(m, p, off, sn1);
+  else if (prog == 6) c = progWax(m, p, off, sn1);
+  else if (prog == 7) c = progChalk(m, p, off, sn1);
+  else if (prog == 8) c = progOpal(m, p, off, sn1);
+  else if (prog == 9) c = progNeon(m, p, off, ip, sn1);
+  else c = progBiolum(m, p, off, sn1, sn2);
   return clamp(c, 0.0, 1.0);
 }
 `;

@@ -47,7 +47,7 @@ export const CANONICAL_REGIONS: readonly CanonicalRegion[] = [
 ] as const;
 
 /** Fixed shader for system regions: a MaterialId, or a special token. */
-export type SystemFixed = MaterialId | 'eyeShine' | 'blush' | 'selected';
+export type SystemFixed = MaterialId | 'eyeShine' | 'blush' | 'selected' | 'wispCore' | 'wispAura' | 'wonderChalk';
 
 export interface SystemRegion {
   id: number;
@@ -75,6 +75,9 @@ export const SYSTEM_REGIONS: readonly SystemRegion[] = [
   { id: 228, key: 'fx_trampoline', fixed: 7 },
   { id: 229, key: 'fx_constellation', fixed: 1 },
   { id: 230, key: 'fx_slide_cloud', fixed: 12 },
+  { id: 231, key: 'fx_wisp_core', fixed: 'wispCore' },
+  { id: 232, key: 'fx_wisp_aura', fixed: 'wispAura' },
+  { id: 233, key: 'fx_wonder_chalk', fixed: 'wonderChalk' },
 ] as const;
 
 export interface RegionMeta {
@@ -99,5 +102,5 @@ export const REGION_STATE_BYTES = 2048;
  * Row 0, offset id*4: R materialId (0 none), G coverage 0..255, B bloom progress 0..255, A flags.
  * Row 1, offset 1024 + id*4: R originX*255/480, G originY*255/270, B stage 0..4, A reserved.
  */
-export const REGION_FLAG = { complete: 1, ghostRevealed: 4, wiggle: 8, flash: 16, hidden: 32 } as const;
+export const REGION_FLAG = { complete: 1, ghostRevealed: 4, wiggle: 8, flash: 16, hidden: 32, guideGlow: 64 } as const;
 export const REGION_STATE_ROW1_OFFSET = 1024;

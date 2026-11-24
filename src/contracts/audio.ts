@@ -7,6 +7,13 @@ import type { RegionKind } from './regions';
 /** 0 = muted; cycle 3 -> 2 -> 1 -> 0 -> 3 */
 export type AudioLevel = 0 | 1 | 2 | 3;
 export type StemId = 'pad' | 'marimba' | 'harp' | 'celesta';
+export type UiFoleyKind =
+  | 'paperRustle'
+  | 'woodTap'
+  | 'jarClink'
+  | 'stickerPeel'
+  | 'wispChime'
+  | 'tinSnap';
 
 export interface AudioPort {
   unlock(): Promise<void>;
@@ -19,6 +26,8 @@ export interface AudioPort {
   actorAwake(actor: ActorKind): void;
   causality(k: CausalityKind): void;
   pageTurn(): void;
+  /** Warm low-pass procedural tabletop ASMR foley (strictly zero voices). */
+  uiFoley?(kind: UiFoleyKind): void;
   setStems(s: StemId[]): void;
   /** 0..1 position within the current beat, from the audio clock (or wall clock before unlock) */
   beatPhase(): number;

@@ -1,8 +1,25 @@
 /** Procedural art contracts. */
+import type { CausalityKind } from './causality';
 import type { RegionMeta } from './regions';
 import type { MaterialId } from './materials';
 import type { ChapterId, DraftCardId, RelicId, SceneId } from './roguelike';
 import type { WardrobeItemId, WardrobeState } from './progression';
+
+export type StoryMilestoneKind = 'violet' | 'lumi' | 'nova' | 'planet' | 'cloud';
+
+export interface StoryMilestone {
+  id: StoryMilestoneKind;
+  kind: StoryMilestoneKind;
+  label: string;
+  regionIds: number[];
+  centroid: { x: number; y: number };
+}
+
+export interface WonderSketchDot {
+  x: number;
+  y: number;
+  shade: 1 | 2;
+}
 
 export interface PixelImage {
   width: number;
@@ -70,6 +87,8 @@ export interface CompiledPage {
   /** length 256 */
   regions: (RegionMeta | undefined)[];
   coreRegionIds: number[];
+  /** 3 to 5 narrative story milestones mapped to the Stitched Linen Bookmark sockets */
+  storyMilestones?: StoryMilestone[];
   actors: ActorSpawn[];
   paths: PagePath[];
   focal: { x: number; y: number };
@@ -90,6 +109,8 @@ export type IllustrationKind =
 export interface ArtPort {
   compilePage(id: SceneId, seed: number, wardrobe: WardrobeState): CompiledPage;
   sprites(wardrobe: WardrobeState): SpriteLibrary;
+  wispSprite?(): SpriteSheet;
+  wonderSketch?(effect: CausalityKind, box: { x0: number; y0: number; x1: number; y1: number }, timeMs: number): WonderSketchDot[];
   renderPreview(page: CompiledPage, opts: { colored: boolean; scale: number }): PixelImage;
   illustration(kind: IllustrationKind, w: number, h: number): PixelImage;
 }

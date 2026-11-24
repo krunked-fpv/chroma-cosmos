@@ -15,6 +15,8 @@ export interface VaultState {
   audioLevel: AudioLevel;
   run: RunCore | null;
   stats: { runsCompleted: number; regionsAwakened: number; pokes: number };
+  /** True once the player has experienced the Chapter 1 visual prologue at least once (optional for v1 compat). */
+  prologueSeen?: boolean;
   updatedAt: number;
 }
 
@@ -51,6 +53,8 @@ export interface StorybookSummary {
   galaxyName: string;
   createdAt: number;
   pageCount: number;
+  /** Deterministic cover/spine palette seed from Storybook.seed */
+  seed?: number;
 }
 
 export interface HydrationReport {

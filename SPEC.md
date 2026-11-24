@@ -6,7 +6,7 @@ Source of truth for data contracts. TypeScript sources live in `src/contracts/` 
 | Name | Value |
 |---|---|
 | `PAGE_W × PAGE_H` | 480 × 270 (`PAGE_PIXELS` 129600), `STROKE_SCALE` 4 |
-| `CACHE_VERSION` | `chroma-cosmos-v1` |
+| `CACHE_VERSION` | `chroma-cosmos-v2` |
 | `VAULT_COOKIE_NAME` | `krunked-cookie-vault-v1` |
 | `VAULT_COOKIE_ATTRS` | `SameSite=Lax; path=/; max-age=31536000` |
 | `VAULT_LS_KEY` | `chroma-cosmos:vault:v1` |
@@ -20,7 +20,8 @@ Source of truth for data contracts. TypeScript sources live in `src/contracts/` 
 | `BRUSH_RADIUS_PX` | standard 6, turboCheetah 10, twinTail 6, supernovaSponge 28, zeroGGel 5 |
 | Stamping | `STAMP_SPACING` 0.35 × radius; `MAX_STAMPS_PER_BATCH` 64 |
 | Relic tuning | `TWIN_TAIL_NEIGHBOR_CHANCE` 0.4, `KALEIDOSCOPE_PREFILL` 0.35, `KALEIDOSCOPE_TARGETS` 3, `UV_FLASHLIGHT_RADIUS` 40 |
-| Timing | `POKE_CHASE_MS` 4000, `RIPPLE_MS` 900, `PAGE_TURN_MS` 1400 |
+| Timing | `POKE_CHASE_MS` 4000, `RIPPLE_MS` 900, `PAGE_TURN_MS` 1400, `PROLOGUE_DURATION_MS` 5600, `IDLE_WISP_DELAY_MS` 7000, `TOOL_TAG_DURATION_MS` 2500, `SOCKET_WIGGLE_MS` 1600 |
+| Wand UV peek | `WAND_UV_PEEK_RADIUS` 38 |
 | Colours | ink `#231942`, bg `#120d2b`, paper `#fbf3e0` |
 
 ## 2. Region ID lookup table (`regions.ts`)
@@ -57,12 +58,22 @@ System regions (fixed material):
 215 violet_galaxy_pins (5), 216 violet_cape (2), 217 lumi_wings (8), 218 lumi_crown (11), 219 nova_boosters (9),
 220 nova_scarf (6), 221 fx_rainbow (6), 222 fx_prism_beam (2), 223 fx_droplet (3), 224 fx_flower (10),
 225 fx_comet_car (4), 226 fx_gem (5), 227 fx_gold_doodle (11), 228 fx_trampoline (7), 229 fx_constellation (1),
-230 fx_slide_cloud (12). 231–233 reserved. Dynamic `cometCar` FX actors remap `24->225, 25->222`; dynamic `flower` FX actors remap `26->224, 27->227, 28->224`.
+230 fx_slide_cloud (12), 231 fx_wisp_core (`wispCore`), 232 fx_wisp_aura (`wispAura`), 233 fx_wonder_chalk (`wonderChalk`). Dynamic `cometCar` FX actors remap `24->225, 25->222`; dynamic `flower` FX actors remap `26->224, 27->227, 28->224`.
 
 ### REGION_STATE layout (`SimView.regionState`, 256×2 RGBA8 = 2048 bytes)
 - Row 0, offset `id*4`: R materialId (0 none), G coverage 0–255, B bloom progress 0–255, A flags.
 - Row 1, offset `1024 + id*4`: R originX·255/480, G originY·255/270, B stage 0–4, A reserved.
-- Flags: complete 1, ghostRevealed 4, wiggle 8, flash 16, hidden 32.
+- Flags: complete 1, ghostRevealed 4, wiggle 8, flash 16, hidden 32, guideGlow 64.
+
+### Tool Modes, Dual-Star Economy, Wisp Onboarding & Wonder Whispers
+- **ToolMode (`'pencil' | 'wand'`)**: Mirrors `doodle` (`'pencil'` = stay-in-the-lines awaken with hovered uncolored region paper shimmer `hoveredRegionId`; `'wand'` = sky constellation doodle + `wandGlow` UV peek + concentric starlight poke rings `pokeInvites`). Tool switches show a <=4-word illustrated parchment micro-tag auto-fading after `TOOL_TAG_DURATION_MS` (2500 ms).
+- **Dual Star Economy**:
+  - **Bookmark Story Star Sockets (`StoryStarState[]`, 3–5 per chapter)**: Derived from `CompiledPage.storyMilestones` (`violet`, `lumi`, `nova`, `planet`, `cloud`). When all `regionIds` of a milestone reach Auto-Bloom (>=93%), `storyStarLit` fires and animates a golden starlight thread up to the stitched top linen bookmark; tapping an unlit socket calls `sim.nudgeMilestone(id)` to wiggle its uncolored shapes for `SOCKET_WIGGLE_MS` (1600 ms). When all Story Stars light (`pageComplete`), the bottom-right parchment dog-ear curls and glows warmly (tapping/swiping turns the page); a tiny unlit top-right dog-ear enables optional early turns.
+  - **Prism Stardust Crystals (`VaultState.gems`)**: Faceted colorful crystal shards accumulating inside a corked glass apothecary jar on the desk corner; tapping opens/returns to Violet's Stargazer Desk Hub.
+- **Wordless Visual Prologue & 7s Idle Wisp**: On Chapter 1 start (`RunContext.playPrologue`), plays a 5.6s interactive/skippable Sleepy Hush mist veil (`wisp.prologueMist`) + Luminous Starlight Wisp cueing the Enchanted Pencil (`wisp.mode = 'prologueTapPencil'`) and tracing a looping translucent rainbow ghost-stroke (`wisp.ghostPath`, `wisp.ghostStrokeT`) inside the first key uncolored core region — dissolving immediately on first pointer stroke. After `IDLE_WISP_DELAY_MS` (7000 ms) of pointer inactivity on an unfinished page, Wisp glides to the next unawakened core region (`wisp.mode = 'idleGuide'`), setting `REGION_FLAG.guideGlow`.
+- **Causality "Wonder Whispers"**: Hovering or starting to color an uncompleted `cloud` or `planet`/`rings` with a matching causality-reactive material exposes `SimView.wonderWhisper` to draw faint dotted charcoal sketch previews (`fx_wonder_chalk`).
+- **First-Awakening Poke Invite**: First time `lumi` or `nova` wakes in a run, `SimView.pokeInvites` pulses concentric starlight rings + ear/tail wiggle until poked.
+- **Cozy Tabletop UI ASMR Foley (`AudioPort.uiFoley`)**: Strictly zero voices (`speechSynthesis` banned). Procedural F-Lydian-harmonized low-pass foley: `paperRustle`, `woodTap`, `jarClink`, `stickerPeel`, `wispChime`, `tinSnap`.
 
 ## 3. Shader materials (`materials.ts`)
 | id | key | tier / cost | program | asmr | palette |
@@ -122,7 +133,7 @@ See ARCHITECTURE.md §1 and §8. Port interfaces: `ArtPort`, `RendererPort`, `Si
 Sprites use region ids as pixel values; 255 = transparent. Page generators guarantee ≥1 cloud and ≥1 ringed planet per chapter.
 
 ## 9. PWA constants
-`CACHE_VERSION = 'chroma-cosmos-v1'` in `public/sw.js` MUST equal the contracts constant.
+`CACHE_VERSION = 'chroma-cosmos-v2'` in `public/sw.js` MUST equal the contracts constant.
 Manifest: name "Chroma Cosmos: Violet's Living Sketchbook", short_name "Chroma Cosmos",
 description "Interactive Hi-Bit Cosmic Coloring Book Roguelike starring Violet, Lumi & Nova", display standalone,
 orientation landscape, background/theme `#120d2b`, start_url `./`, scope `./`,

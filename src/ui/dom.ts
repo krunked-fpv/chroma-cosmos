@@ -1,4 +1,4 @@
-/** Tiny DOM helpers (no framework). */
+/** Tiny DOM helpers (no framework, zero inline SVG icon hacks). */
 
 export type Attrs = Record<string, string | number | boolean | undefined | null>;
 
@@ -22,7 +22,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-/** A chunky button. Every interactive control uses `.cc-btn` (>= 56px hit target, see main.css). */
+/** A kid-friendly interactive button. Every interactive control uses `.cc-btn` (>= 56px hit target). */
 export function button(cls: string, label: string, onTap: () => void, inner?: Node | string): HTMLButtonElement {
   const b = h('button', { class: `cc-btn ${cls}`, type: 'button', 'aria-label': label, title: label });
   if (inner !== undefined) b.append(typeof inner === 'string' ? document.createTextNode(inner) : inner);
@@ -34,16 +34,10 @@ export function button(cls: string, label: string, onTap: () => void, inner?: No
   return b;
 }
 
-/** Parse a static, trusted SVG/HTML snippet (icons only, never user text). */
-export function frag(html: string): DocumentFragment {
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  return t.content;
-}
-
-export function iconSpan(svg: string, cls = 'cc-ico'): HTMLSpanElement {
+/** Create a sprite icon container that hosts a crisp integer-scaled Hi-Bit pixel canvas. */
+export function spriteBox(cls = 'cc-ico', initial?: HTMLCanvasElement): HTMLSpanElement {
   const s = h('span', { class: cls, 'aria-hidden': 'true' });
-  s.append(frag(svg));
+  if (initial) s.append(initial);
   return s;
 }
 

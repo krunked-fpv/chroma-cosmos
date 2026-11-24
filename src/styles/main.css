@@ -1,71 +1,59 @@
 /* ==========================================================================
-   Chroma Cosmos — Violet's Living Sketchbook (AAA Wanderlings Heirloom Craft)
-   Warm lamp-lit cedar desk, seamless open cotton sketchbook spread (>=78% viewport),
-   draped stitched linen bookmark, corked amber apothecary jar with twine tag,
-   bevel-carved walnut pen-rest with glazed porcelain paint-wells, silk-and-vellum
-   swallowtail Voyage ribbon, 4 physically distinct tabletop craft objects,
-   tactile walnut/cardstock/bookshelf/brass drawers, riveted enamel Astral Pencil Tin,
-   and pleated velvet Star-Door archways.
-   Offline bundled fonts (Fraunces, Quicksand, Patrick Hand) loaded via JS in src/ui/index.ts.
-   Zero external URLs, zero CSS font imports, zero side rails. All interactive targets >= 56px (--hit).
+   Chroma Cosmos — Midnight Cloisonne Storybook Frame & Hi-Bit HUD
+   Palette:
+   - Midnight-Velvet Stargazer Backdrop: #0d1026 -> #1a1436
+   - Frosted Midnight-Plum Glass-Enamel: rgba(19, 16, 42, 0.86) + blur(12px)
+   - Crisp Warm-Ivory Cotton Sketchbook Sheet: #faf6ec (>=78% viewport)
+   - Burnished Celestial Gold Cloisonne Filigree: #eac46f (1px hairlines)
+   - Deep Twilight Ink: #231942
+   Strictly ZERO muddy browns/tans/beiges, ZERO stitched/dotted borders,
+   ZERO thick plastic bevels, ZERO inline SVG icons, ZERO external CDN URLs.
    ========================================================================== */
 
 :root {
   --hit: 56px;
   --ink: #231942;
-  --ink-warm: #3a2748;
-  --ink-sepia: #5a4232;
-  --ink-soft: rgba(35, 25, 66, 0.62);
-  --paper: #fbf3e0;
-  --paper-hi: #fffaf0;
-  --paper-2: #f3e4c3;
-  --paper-3: #e4cfa2;
-  --paper-edge: #cfb684;
-  --porcelain-hi: #fffcf4;
-  --porcelain: #f7ebd2;
-  --porcelain-shade: #dfcca5;
-  --linen: #2d2654;
-  --linen-2: #1f1a3e;
-  --walnut-hi: #8c5736;
-  --walnut: #603721;
-  --walnut-deep: #3d2115;
-  --walnut-void: #24120b;
-  --brass-hi: #f7df99;
-  --brass: #d2a148;
-  --brass-deep: #855b1e;
-  --wax-hi: #df5c70;
-  --wax: #b03246;
-  --wax-deep: #6d1b29;
-  --enamel-hi: #342966;
-  --enamel: #211947;
-  --enamel-deep: #140f30;
-  --night: #120d2b;
-  --violet: #7b3fa0;
-  --pink: #ff9ecf;
-  --gold: #ffd43b;
-  --amber: #f5aa42;
-  --aurora: #7fe7f0;
-  --lilac: #b69cff;
-  --mint: #b5f2d0;
+  --ink-soft: rgba(35, 25, 66, 0.68);
+  --paper: #faf6ec;
+  --paper-hi: #fffdf7;
+  --paper-edge-1: #f2ece0;
+  --paper-edge-2: #e7e0d2;
+  --paper-edge-3: #d8d0c0;
 
-  /* Purposeful offline storybook typography (loaded via @fontsource in src/ui/index.ts) */
+  --night-deep: #0d1026;
+  --night-mid: #1a1436;
+  --night-plum: #251b4b;
+  --night-lifted: #322463;
+  --enamel-glass: rgba(19, 16, 42, 0.86);
+  --enamel-glass-strong: rgba(19, 16, 42, 0.94);
+
+  --gold: #eac46f;
+  --gold-hi: #fff2c2;
+  --gold-bright: #ffd97d;
+  --gold-line: rgba(234, 196, 111, 0.45);
+  --gold-line-soft: rgba(234, 196, 111, 0.35);
+  --gold-line-dim: rgba(234, 196, 111, 0.18);
+
+  --aurora: #7ce8ff;
+  --lilac: #b69cff;
+  --rose: #ff9ecf;
+  --mint: #9af0d4;
+  --ivory-text: #faf6ec;
+  --ivory-muted: rgba(250, 246, 236, 0.76);
+
+  /* Offline bundled storybook typography (imported in src/ui/index.ts before CSS) */
   --font-display: 'Fraunces', Georgia, serif;
   --font-hand: 'Patrick Hand', cursive, sans-serif;
   --font-ui: 'Quicksand', ui-rounded, system-ui, sans-serif;
-  --font: var(--font-ui);
-  --font-serif: var(--font-display);
 
-  --rim-x: clamp(8px, 1vw, 14px);
-  --rim-top: clamp(6px, 0.85dvh, 10px);
-  --tray-h: clamp(64px, 8.6dvh, 74px);
-  --gap: clamp(5px, 0.9vmin, 10px);
+  --rim-x: clamp(10px, 1.2vw, 18px);
+  --rim-top: clamp(6px, 0.8dvh, 8px);
+  --dock-h: clamp(64px, 8.6dvh, 72px);
   --radius: 16px;
-  --chunk: 0 3px 0 rgba(35, 25, 66, 0.88);
-  --chunk-pressed: 0 1px 0 rgba(35, 25, 66, 0.88);
-  color-scheme: light;
+  color-scheme: dark;
 }
 
-/* ---------- full-viewport kid-proof touch lock (no scroll, no rubber band, no selection) ---------- */
+/* ---------- full-viewport kid-proof touch lock ---------- */
 html,
 body,
 #app {
@@ -82,14 +70,14 @@ body,
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  background: var(--night);
+  background: var(--night-deep);
 }
 
 body {
   position: fixed;
   inset: 0;
   font-family: var(--font-ui);
-  color: var(--ink);
+  color: var(--ivory-text);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
@@ -116,105 +104,129 @@ button,
   display: none !important;
 }
 
-/* ---------- warm lamp-lit cedar & walnut artist desk ---------- */
+/* ---------- Midnight-Velvet Stargazer Backdrop (#0d1026 -> #1a1436) ---------- */
 .cc-root {
   position: fixed;
   inset: 0;
   overflow: hidden;
   font-family: var(--font-ui);
-  color: var(--ink);
+  color: var(--ivory-text);
   background:
-    radial-gradient(ellipse 54% 70% at 6% -6%, rgba(255, 210, 134, 0.46), rgba(255, 174, 92, 0.14) 44%, transparent 72%),
-    radial-gradient(ellipse 68% 58% at 96% 104%, rgba(16, 11, 40, 0.88), transparent 72%),
-    radial-gradient(ellipse 92% 92% at 50% 45%, transparent 56%, rgba(14, 9, 32, 0.64) 100%),
-    repeating-linear-gradient(179deg, rgba(16, 8, 4, 0.085) 0 2px, transparent 2px 8px, rgba(255, 224, 180, 0.032) 8px 10px, transparent 10px 21px),
-    repeating-radial-gradient(ellipse 170% 20% at 32% 48%, rgba(56, 26, 12, 0.24) 0 2px, transparent 2px 15px),
-    linear-gradient(180deg, #684028 0%, #4d2c1c 42%, #351f17 78%, #211329 100%);
+    radial-gradient(ellipse 68% 58% at 14% 8%, rgba(124, 232, 255, 0.08), transparent 64%),
+    radial-gradient(ellipse 64% 58% at 88% 92%, rgba(182, 156, 255, 0.14), transparent 66%),
+    radial-gradient(ellipse 74% 62% at 50% 42%, rgba(44, 31, 88, 0.42), transparent 72%),
+    linear-gradient(155deg, #0d1026 0%, #141230 48%, #1a1436 100%);
 }
 
-/* ---------- ambient lamp glow & drifting golden dust motes ---------- */
 .cc-desk {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  overflow: hidden;
 }
 
-.cc-lamp {
+/* Faint celestial astrolabe ring glow framing the stargazer desk */
+.cc-astrolabe-ring {
   position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(96vw, 1280px);
+  height: min(96vw, 1280px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(234, 196, 111, 0.12);
+  box-shadow:
+    0 0 60px rgba(234, 196, 111, 0.05),
+    inset 0 0 80px rgba(182, 156, 255, 0.06);
+}
+
+.cc-astrolabe-ring::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  border: 1px solid rgba(234, 196, 111, 0.08);
+}
+
+.cc-nebula-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(22px);
+}
+
+.cc-nebula-glow.g1 {
   left: -8vmin;
-  top: -12vmin;
-  width: 52vmin;
-  height: 52vmin;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 224, 156, 0.36), rgba(255, 186, 98, 0.08) 52%, transparent 70%);
-  animation: cc-lamp 7.5s ease-in-out infinite alternate;
+  top: -10vmin;
+  width: 46vmin;
+  height: 46vmin;
+  background: radial-gradient(circle, rgba(124, 232, 255, 0.12), rgba(182, 156, 255, 0.05) 54%, transparent 72%);
+  animation: cc-nebula-breathe 9s ease-in-out infinite alternate;
 }
 
-.cc-lamp-halo {
-  position: absolute;
+.cc-nebula-glow.g2 {
   right: -10vmin;
-  bottom: -14vmin;
-  width: 44vmin;
-  height: 44vmin;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(123, 63, 160, 0.24), transparent 68%);
+  bottom: -12vmin;
+  width: 48vmin;
+  height: 48vmin;
+  background: radial-gradient(circle, rgba(234, 196, 111, 0.11), rgba(182, 156, 255, 0.08) 50%, transparent 74%);
+  animation: cc-nebula-breathe 11s ease-in-out infinite alternate-reverse;
 }
 
-.cc-dust-mote {
+.cc-star-mote {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff8d6 0%, rgba(255, 212, 110, 0.55) 55%, transparent 100%);
-  filter: drop-shadow(0 0 4px rgba(255, 214, 120, 0.8));
-  opacity: 0.44;
-  animation: cc-dust-drift 13s ease-in-out infinite;
+  background: radial-gradient(circle, #fff8dc 0%, rgba(234, 196, 111, 0.65) 55%, transparent 100%);
+  box-shadow: 0 0 6px rgba(234, 196, 111, 0.72);
+  opacity: 0.45;
+  animation: cc-star-drift 14s ease-in-out infinite;
 }
 
-.cc-dust-mote.m1 { left: 11%; top: 18%; animation-delay: 0s; width: 4px; height: 4px; }
-.cc-dust-mote.m2 { left: 26%; top: 4%; animation-delay: -2.4s; animation-duration: 15s; }
-.cc-dust-mote.m3 { right: 18%; top: 6%; animation-delay: -5.1s; width: 4px; height: 4px; }
-.cc-dust-mote.m4 { right: 4%; top: 44%; animation-delay: -8.2s; animation-duration: 16s; }
-.cc-dust-mote.m5 { left: 3%; bottom: 26%; animation-delay: -3.7s; width: 6px; height: 6px; }
-.cc-dust-mote.m6 { right: 14%; bottom: 14%; animation-delay: -6.5s; width: 4px; height: 4px; }
-.cc-dust-mote.m7 { left: 54%; bottom: 6%; animation-delay: -10.2s; }
+.cc-star-mote.m1 { left: 6%; top: 14%; animation-delay: 0s; }
+.cc-star-mote.m2 { left: 22%; top: 3%; animation-delay: -2.2s; animation-duration: 16s; width: 3px; height: 3px; }
+.cc-star-mote.m3 { right: 20%; top: 4%; animation-delay: -5.4s; }
+.cc-star-mote.m4 { right: 3%; top: 38%; animation-delay: -7.8s; animation-duration: 17s; width: 5px; height: 5px; }
+.cc-star-mote.m5 { left: 2%; bottom: 28%; animation-delay: -3.5s; }
+.cc-star-mote.m6 { right: 6%; bottom: 14%; animation-delay: -6.1s; width: 3px; height: 3px; }
+.cc-star-mote.m7 { left: 48%; bottom: 3%; animation-delay: -9.8s; }
+.cc-star-mote.m8 { right: 34%; bottom: 4%; animation-delay: -11.4s; width: 3px; height: 3px; }
 
-/* ---------- generic accessible interactive base (>= 56px hit target) ---------- */
+/* ---------- interactive base (>= 56px hit target) ---------- */
 .cc-btn {
   position: relative;
   min-width: var(--hit);
   min-height: var(--hit);
   margin: 0;
   padding: 6px 12px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--gold-line);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--paper-hi) 0%, var(--paper-2) 100%);
-  color: var(--ink);
+  background: var(--enamel-glass);
+  color: var(--ivory-text);
   font: inherit;
   font-weight: 700;
   line-height: 1.15;
   cursor: pointer;
-  box-shadow: var(--chunk);
-  transition: transform 0.16s cubic-bezier(0.28, 1.5, 0.5, 1), box-shadow 0.16s ease, filter 0.18s ease, opacity 0.2s ease;
+  box-shadow: 0 6px 18px rgba(5, 4, 18, 0.42), inset 0 1px 0 rgba(255, 246, 214, 0.14);
+  transition: transform 0.18s cubic-bezier(0.28, 1.5, 0.5, 1), box-shadow 0.18s ease, border-color 0.18s ease, opacity 0.2s ease;
   outline: none;
   -webkit-appearance: none;
   appearance: none;
 }
 
 .cc-btn:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: var(--chunk-pressed);
+  transform: scale(0.96);
 }
 
 .cc-btn:focus-visible {
-  box-shadow: var(--chunk), 0 0 0 3px var(--paper), 0 0 0 6px var(--brass);
+  box-shadow: 0 0 0 2px var(--night-deep), 0 0 0 4px var(--gold);
 }
 
 .cc-btn:disabled {
   cursor: default;
-  opacity: 0.42;
-  filter: saturate(0.45);
+  opacity: 0.4;
+  filter: saturate(0.5);
 }
 
 .cc-ico {
@@ -226,10 +238,9 @@ button,
   pointer-events: none;
 }
 
-.cc-ico svg {
+.cc-ico canvas {
   width: 100%;
   height: 100%;
-  overflow: visible;
 }
 
 .cc-pix {
@@ -249,112 +260,94 @@ button,
   place-items: center;
 }
 
-.cc-round .cc-ico {
-  width: 28px;
-  height: 28px;
-}
-
-/* ---------- 1. Seamless Open Cotton Sketchbook Spread (>= 78% viewport in chapter mode) ---------- */
+/* ---------- 1. Crisp Warm-Ivory Cotton Sketchbook Sheet (#faf6ec, >= 78% viewport) ---------- */
 .cc-book.cc-spread {
   position: absolute;
   top: var(--rim-top);
   left: var(--rim-x);
   right: var(--rim-x);
-  bottom: calc(var(--tray-h) + 4px);
+  bottom: calc(var(--dock-h) + 6px);
   z-index: 2;
   display: flex;
   flex-direction: column;
-  padding: clamp(36px, 5dvh, 46px) clamp(14px, 1.5vw, 22px) clamp(10px, 1.5dvh, 16px) clamp(28px, 2.7vw, 38px);
-  border-radius: 9px 16px 15px 9px;
-  /* Warm cotton-rag watercolor paper tooth + candlelight desk glow */
+  padding: clamp(60px, 8dvh, 66px) clamp(88px, 7.2vw, 104px) clamp(10px, 1.3dvh, 14px) clamp(70px, 5.6vw, 84px);
+  border-radius: 10px 18px 18px 10px;
   background:
-    radial-gradient(ellipse 64% 78% at 4% 4%, rgba(255, 214, 142, 0.22), transparent 56%),
-    radial-gradient(circle at 1px 1px, rgba(64, 45, 84, 0.036) 1px, transparent 1.7px) 0 0 / 5px 5px,
-    repeating-linear-gradient(24deg, rgba(164, 124, 68, 0.022) 0 1px, transparent 1px 8px),
-    var(--paper);
-  /* Crisp 3-page cream paper edge stack along right & bottom + warm spine depth */
+    radial-gradient(ellipse 68% 76% at 50% 45%, #fffdf8 0%, var(--paper) 74%, #f4efe2 100%);
+  border: 1px solid rgba(234, 196, 111, 0.55);
+  /* Subtle realistic warm-ivory stacked page edges + twilight elevation */
   box-shadow:
-    0 0 0 1px rgba(108, 78, 46, 0.34),
-    2px 2px 0 #efe1c0,
-    2.5px 2.5px 0 rgba(102, 74, 44, 0.28),
-    4px 4px 0 #e0cca0,
-    4.5px 4.5px 0 rgba(94, 66, 38, 0.32),
-    6px 6px 0 #cbb382,
-    6.5px 6.5px 0 rgba(54, 34, 24, 0.45),
-    0 18px 38px rgba(8, 4, 20, 0.64),
-    inset 0 0 0 1.5px rgba(255, 253, 246, 0.72),
-    inset 26px 0 30px -18px rgba(48, 30, 74, 0.28);
+    2px 2px 0 var(--paper-edge-1),
+    3px 3px 0 rgba(35, 25, 66, 0.16),
+    4px 4px 0 var(--paper-edge-2),
+    5px 5px 0 rgba(35, 25, 66, 0.18),
+    6px 6px 0 var(--paper-edge-3),
+    0 18px 42px rgba(4, 3, 18, 0.62),
+    inset 0 0 0 1px rgba(255, 254, 250, 0.85),
+    inset 22px 0 26px -16px rgba(35, 25, 66, 0.16);
   transition: bottom 0.24s ease, padding 0.24s ease;
 }
 
-/* Realistic stitched indigo linen bookbinding along the left edge */
+/* Sleek Midnight-Indigo Velvet spine binding with 1px solid burnished gold inlay */
 .cc-spine {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  width: clamp(20px, 2.15vw, 28px);
-  border-radius: 9px 0 0 9px;
+  width: clamp(14px, 1.35vw, 20px);
+  border-radius: 10px 0 0 10px;
   pointer-events: none;
   z-index: 3;
-  background:
-    repeating-linear-gradient(0deg, rgba(255, 246, 224, 0.06) 0 1.5px, transparent 1.5px 3.5px),
-    repeating-linear-gradient(90deg, rgba(255, 246, 224, 0.045) 0 1.5px, transparent 1.5px 4px),
-    linear-gradient(90deg, #1d173d 0%, #372d68 38%, #413577 56%, #241c49 84%, rgba(35, 25, 66, 0.52) 100%);
-  box-shadow:
-    inset -2px 0 4px rgba(10, 6, 24, 0.48),
-    inset 1.5px 0 0 rgba(255, 240, 202, 0.14),
-    3px 0 8px rgba(35, 25, 66, 0.26);
-}
-
-/* Double warm-linen saddle stitching running down the bookbinding seam */
-.cc-spine::before {
-  content: "";
-  position: absolute;
-  top: 18px;
-  bottom: 18px;
-  left: 5px;
-  width: 1px;
-  border-left: 1.5px dashed rgba(244, 224, 180, 0.32);
+  background: linear-gradient(90deg, #120e29 0%, #241b4b 48%, #2e225e 66%, #181236 100%);
+  box-shadow: inset -1px 0 0 rgba(234, 196, 111, 0.58), 2px 0 8px rgba(13, 16, 38, 0.25);
 }
 
 .cc-spine::after {
   content: "";
   position: absolute;
-  top: 16px;
-  bottom: 16px;
+  top: 14px;
+  bottom: 14px;
   right: 4px;
-  width: 2px;
-  border-right: 2px dashed rgba(247, 232, 198, 0.72);
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(234, 196, 111, 0.72) 15%, rgba(234, 196, 111, 0.72) 85%, transparent);
 }
 
-/* Ornate shaded metallic-brass corner clasps with rivets */
-.cc-clasp {
+/* 1px Burnished Celestial Gold (#eac46f) astrolabe corner filigree */
+.cc-corner-filigree {
   position: absolute;
-  width: clamp(24px, 3vmin, 32px);
-  height: clamp(24px, 3vmin, 32px);
+  width: 28px;
+  height: 28px;
   pointer-events: none;
-  z-index: 5;
-  filter: drop-shadow(0 2px 3px rgba(16, 10, 32, 0.48));
+  z-index: 3;
 }
 
-.cc-clasp.tl { top: -2px; left: -2px; }
-.cc-clasp.bl { bottom: -2px; left: -2px; transform: scaleY(-1); }
-
-/* Delicate hand-drawn botanical & celestial ink corner filigree */
-.cc-filigree {
+.cc-corner-filigree::before {
+  content: "";
   position: absolute;
-  width: clamp(32px, 4.4vmin, 44px);
-  height: clamp(32px, 4.4vmin, 44px);
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.68;
+  inset: 0;
+  border-top: 1px solid rgba(234, 196, 111, 0.82);
+  border-left: 1px solid rgba(234, 196, 111, 0.82);
+  border-top-left-radius: 8px;
 }
 
-.cc-filigree.tl { top: 8px; left: clamp(24px, 2.5vw, 34px); }
-.cc-filigree.bl { bottom: 8px; left: clamp(24px, 2.5vw, 34px); transform: scaleY(-1); }
+.cc-corner-filigree::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(234, 196, 111, 0.68);
+  background: radial-gradient(circle, rgba(234, 196, 111, 0.55) 0 1.5px, transparent 2px);
+}
 
-/* ---------- stage: seamless 16:9 Hi-Bit sketchbook canvas (ZERO dark bezel!) ---------- */
+.cc-corner-filigree.tl { top: 8px; left: clamp(22px, 2vw, 28px); }
+.cc-corner-filigree.tr { top: 8px; right: 10px; transform: scaleX(-1); }
+.cc-corner-filigree.bl { bottom: 8px; left: clamp(22px, 2vw, 28px); transform: scaleY(-1); }
+.cc-corner-filigree.br { bottom: 8px; right: 10px; transform: scale(-1); }
+
+/* ---------- stage: seamless 16:9 Hi-Bit sketchbook canvas ---------- */
 .cc-stage {
   position: relative;
   flex: 1 1 auto;
@@ -394,7 +387,7 @@ button,
   image-rendering: pixelated;
 }
 
-/* Gentle boot shimmer */
+/* Boot shimmer */
 .cc-boot {
   position: absolute;
   inset: 0;
@@ -403,8 +396,8 @@ button,
   align-content: center;
   gap: 10px;
   border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 45%, rgba(42, 31, 85, 0.8), rgba(18, 13, 43, 0.94));
-  color: #fff3d0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(37, 27, 75, 0.86), rgba(13, 16, 38, 0.96));
+  color: var(--gold-hi);
   pointer-events: none;
 }
 
@@ -412,409 +405,797 @@ button,
 
 .cc-boot-spark {
   grid-area: 1 / 1;
-  width: clamp(38px, 8vmin, 76px);
-  height: clamp(38px, 8vmin, 76px);
+  width: clamp(38px, 7.5vmin, 64px);
+  height: clamp(38px, 7.5vmin, 64px);
   animation: cc-boot 2.4s ease-in-out infinite;
-  filter: drop-shadow(0 0 12px rgba(255, 212, 59, 0.85));
+  filter: drop-shadow(0 0 12px rgba(234, 196, 111, 0.85));
 }
 
 .cc-boot-spark .cc-ico { width: 100%; height: 100%; }
-.cc-boot-spark.s2 { transform: translate(-150%, 40%) scale(0.45); animation-delay: 0.5s; width: clamp(20px, 4vmin, 36px); height: clamp(20px, 4vmin, 36px); }
-.cc-boot-spark.s3 { transform: translate(170%, -50%) scale(0.35); animation-delay: 1s; width: clamp(20px, 4vmin, 36px); height: clamp(20px, 4vmin, 36px); }
+.cc-boot-spark.s2 { transform: translate(-155%, 38%) scale(0.55); animation-delay: 0.5s; }
+.cc-boot-spark.s3 { transform: translate(165%, -44%) scale(0.45); animation-delay: 1s; }
 
 .cc-boot-text {
   grid-area: 2 / 1;
-  margin-top: 16px;
+  margin-top: 14px;
   font-family: var(--font-display);
   font-style: italic;
   font-weight: 700;
-  font-size: clamp(16px, 2.5vmin, 22px);
+  font-size: clamp(16px, 2.4vmin, 22px);
   letter-spacing: -0.01em;
-  text-shadow: 0 2px 8px rgba(14, 9, 32, 0.92);
+  color: var(--gold-hi);
   animation: cc-breathe 2.4s ease-in-out infinite;
 }
 
-/* ---------- 2. Stitched Draped Hanging Linen Bookmark (Chapter Mode) ---------- */
-.cc-bookmark {
+/* ---------- 2. Top Spine: 5-Chapter Constellation Voyage Ribbon ---------- */
+.cc-voyage-spine {
   position: absolute;
-  top: -3px;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 8;
-  max-width: min(60vw, 600px);
+  z-index: 10;
+  max-width: min(56vw, 560px);
   pointer-events: none;
-  /* Warm draped ribbon shadow cast softly onto the cotton sketchbook paper underneath */
-  filter: drop-shadow(0 5px 8px rgba(32, 20, 56, 0.34)) drop-shadow(0 1px 0 rgba(26, 17, 48, 0.55));
 }
 
-.cc-bookmark-ribbon {
+.cc-voyage-pill {
   pointer-events: auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px clamp(16px, 2vw, 24px) 5px;
+  border-radius: 999px;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 6px 20px rgba(8, 7, 26, 0.42), inset 0 1px 0 rgba(255, 244, 210, 0.16);
+}
+
+.cc-voyage-nodes {
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.cc-voyage-node {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: clamp(8px, 1.1vw, 13px);
-  padding: 2px clamp(20px, 2.3vw, 28px) 9px;
-  min-height: clamp(40px, 5.4dvh, 48px);
-  color: #fdf6e3;
-  /* Authentic woven twilight-indigo linen cross-hatch texture */
-  background:
-    repeating-linear-gradient(45deg, rgba(255, 246, 222, 0.045) 0 1.5px, transparent 1.5px 5px),
-    repeating-linear-gradient(-45deg, rgba(16, 10, 36, 0.14) 0 1.5px, transparent 1.5px 5px),
-    linear-gradient(180deg, #241c4a 0%, #352b69 52%, #292054 100%);
-  /* Scalloped / pointed hanging ribbon tail hem anchored flush at top edge */
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), 86% calc(100% - 3px), 50% 100%, 14% calc(100% - 3px), 0 calc(100% - 8px));
-  box-shadow: inset 0 3px 5px rgba(10, 6, 26, 0.45);
-}
-
-/* Satin gold running-stitch embroidery framing the hanging linen bookmark */
-.cc-bookmark-ribbon::before {
-  content: "";
-  position: absolute;
-  inset: 0 7px 6px;
-  border-left: 1.5px dashed rgba(247, 223, 153, 0.56);
-  border-right: 1.5px dashed rgba(247, 223, 153, 0.56);
-  border-bottom: 1.5px dashed rgba(247, 223, 153, 0.62);
-  border-radius: 0 0 16px 16px;
-  pointer-events: none;
-}
-
-/* Satin gold top hem crease where ribbon folds over the sketchbook spine */
-.cc-bookmark-ribbon::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 3px;
-  background: linear-gradient(90deg, rgba(247, 223, 153, 0.2), rgba(255, 240, 192, 0.65) 50%, rgba(247, 223, 153, 0.2));
-  pointer-events: none;
-}
-
-.cc-story-sockets {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  margin: -10px 0 -10px -8px;
-}
-
-/* Accessible 56px hit target while keeping embroidered gold stars delicate on the ribbon */
-.cc-story-socket {
-  width: var(--hit);
-  height: var(--hit);
-  margin: 0 -8px;
-  padding: 0;
-  border: 0;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: transparent;
-  box-shadow: none;
-  display: inline-grid;
-  place-items: center;
+  border: 1px solid rgba(234, 196, 111, 0.34);
+  background: rgba(26, 20, 54, 0.9);
+  color: rgba(250, 246, 236, 0.56);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
 }
 
-.cc-story-socket:active:not(:disabled) {
-  transform: scale(0.92);
-  box-shadow: none;
+.cc-node-dot {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.cc-story-socket .cc-socket-ico {
-  width: clamp(24px, 3.2vmin, 30px);
-  height: clamp(24px, 3.2vmin, 30px);
-  transition: transform 0.24s cubic-bezier(0.3, 1.8, 0.5, 1), filter 0.25s ease;
+.cc-node-num {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
 }
 
-.cc-story-socket:hover .cc-socket-ico {
-  transform: scale(1.14);
+.cc-voyage-node.is-done {
+  background: linear-gradient(135deg, #f7df9d 0%, var(--gold) 100%);
+  border-color: var(--gold-hi);
+  color: var(--ink);
+  box-shadow: 0 0 10px rgba(234, 196, 111, 0.5);
 }
 
-.cc-story-socket.is-lit .cc-socket-ico {
-  filter: drop-shadow(0 0 7px rgba(255, 212, 59, 0.92));
+.cc-voyage-node.is-current {
+  transform: scale(1.16);
+  background: radial-gradient(circle at 35% 30%, #fff7d6 0%, var(--gold) 75%);
+  border-color: var(--gold-hi);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(234, 196, 111, 0.36), 0 0 16px rgba(234, 196, 111, 0.85);
 }
 
-.cc-story-socket.is-star-burst .cc-socket-ico {
-  animation: cc-socket-pop 0.8s cubic-bezier(0.25, 1.8, 0.45, 1);
+.cc-node-link {
+  width: clamp(14px, 2vw, 24px);
+  height: 1px;
+  background: linear-gradient(90deg, rgba(234, 196, 111, 0.28), rgba(234, 196, 111, 0.65), rgba(234, 196, 111, 0.28));
 }
 
-.cc-bookmark-title {
+.cc-spine-title {
   font-family: var(--font-hand);
   font-weight: 400;
-  font-size: clamp(16px, 2.2vmin, 20px);
-  letter-spacing: 0.02em;
-  color: #fcf2d8;
-  text-shadow: 0 1px 2px rgba(14, 9, 32, 0.78);
+  font-size: clamp(13px, 1.75vmin, 16px);
+  letter-spacing: 0.025em;
+  color: var(--gold-hi);
+  line-height: 1.05;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: min(30vw, 280px);
-  padding-left: 10px;
-  border-left: 1px solid rgba(247, 223, 153, 0.36);
+  max-width: min(44vw, 440px);
 }
 
-/* ---------- 3. Corked Glass Apothecary Jar & Twine-Tied Parchment Tag ---------- */
-.cc-crystal-jar {
+/* ---------- 3. Top-Left: Frosted Midnight-Plum Glass-Enamel Prism Crystal Pill ---------- */
+.cc-crystal-jar.cc-crystal-pill {
   position: fixed;
-  top: clamp(2px, 0.45dvh, 6px);
-  left: clamp(30px, 2.9vw, 44px);
-  z-index: 15;
+  top: clamp(6px, 0.85dvh, 10px);
+  left: clamp(22px, 2vw, 32px);
+  z-index: 20;
   min-width: var(--hit);
   min-height: var(--hit);
-  padding: 2px 6px 2px 2px;
-  border: 0;
-  border-radius: 20px;
-  background: transparent;
-  box-shadow: none;
+  padding: 4px 14px 4px 10px;
+  border-radius: 999px;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 8px 22px rgba(6, 5, 22, 0.48), inset 0 1px 0 rgba(255, 246, 214, 0.16);
   display: inline-flex;
   align-items: center;
 }
 
-.cc-crystal-jar:hover {
-  filter: drop-shadow(0 0 8px rgba(255, 222, 138, 0.58));
+.cc-crystal-pill:hover {
+  border-color: var(--gold);
+  box-shadow: 0 8px 24px rgba(6, 5, 22, 0.56), 0 0 16px rgba(234, 196, 111, 0.34);
 }
 
-.cc-crystal-jar:active:not(:disabled) {
-  transform: translateY(2px) scale(0.96);
-  box-shadow: none;
+.cc-crystal-pill.has-affordable {
+  border-color: var(--gold);
+  box-shadow: 0 8px 24px rgba(6, 5, 22, 0.52), 0 0 18px rgba(234, 196, 111, 0.45);
 }
 
 .cc-jar-inner {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0;
+  gap: 8px;
 }
 
 .cc-jar-art {
   display: inline-grid;
   place-items: center;
-  width: clamp(48px, 6.4vmin, 58px);
-  height: clamp(48px, 6.4vmin, 58px);
-  filter: drop-shadow(0 4px 7px rgba(14, 9, 30, 0.5));
-  transition: transform 0.2s ease;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  filter: drop-shadow(0 0 6px rgba(124, 232, 255, 0.42));
 }
 
-.cc-jar-art svg {
+.cc-jar-art canvas {
   width: 100%;
   height: 100%;
-  overflow: visible;
 }
 
 .cc-crystal-jar.is-clinking .cc-jar-art {
-  animation: cc-jar-tumble 0.65s ease;
+  animation: cc-jar-tumble 0.62s ease;
 }
 
-.cc-crystal-jar.is-clinking .cc-jar-shard {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: cc-shard-shimmer 0.6s ease both;
-  animation-delay: calc(var(--si, 0) * 28ms);
+.cc-gems-n {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(18px, 2.5vmin, 22px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-hi);
+  text-shadow: 0 0 10px rgba(234, 196, 111, 0.42);
 }
 
-/* Rustic tilted cream parchment luggage tag tied with hemp twine */
-.cc-jar-tag {
-  position: relative;
+.cc-affordable-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin-left: -6px;
-  margin-top: 8px;
-  padding: 2px 10px 2px 11px;
-  clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%);
-  background:
-    repeating-linear-gradient(90deg, rgba(164, 124, 68, 0.06) 0 2px, transparent 2px 7px),
-    linear-gradient(180deg, #fcf4de 0%, #ead6ab 100%);
-  font-family: var(--font-hand);
-  font-weight: 400;
-  font-size: clamp(16px, 2.2vmin, 20px);
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  gap: 4px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff1ba 0%, var(--gold) 100%);
   color: var(--ink);
-  transform: rotate(-6deg);
-  filter: drop-shadow(0 2px 0 rgba(35, 25, 66, 0.72)) drop-shadow(0 4px 6px rgba(16, 10, 32, 0.3));
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 0 12px rgba(234, 196, 111, 0.72);
+  animation: cc-gold-pulse 2s ease-in-out infinite;
 }
 
-.cc-jar-eyelet {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--walnut-deep);
-  box-shadow: 0 0 0 1.4px var(--brass-deep);
-  flex: none;
+.cc-gift-ico {
+  width: 16px;
+  height: 16px;
 }
 
 .cc-jar-drops {
   position: absolute;
-  top: -8px;
-  left: 20px;
+  top: -10px;
+  left: 12px;
   width: 16px;
-  height: 40px;
+  height: 38px;
   pointer-events: none;
 }
 
 .cc-crystal-drop {
   position: absolute;
-  left: 0;
+  left: 2px;
   top: 0;
-  width: 12px;
-  height: 12px;
-  filter: drop-shadow(0 0 5px var(--c, #7fe7f0));
+  width: 10px;
+  height: 10px;
+  background: var(--c, #7ce8ff);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  box-shadow: 0 0 8px var(--c, #7ce8ff);
   animation: cc-crystal-fall 0.68s cubic-bezier(0.35, 0, 0.7, 1) forwards;
   animation-delay: var(--delay, 0ms);
 }
 
-/* ---------- Top-Right Corner Cluster (Relic wax-charms + Quiet Brass Bell) ---------- */
+/* ---------- 4. Top-Right: Frosted Glass Settings/Menu Pill + Compact Popover ---------- */
 .cc-corner-right {
   position: absolute;
-  top: 2px;
-  right: clamp(60px, 6.4vw, 76px);
-  z-index: 9;
+  top: 6px;
+  right: 12px;
+  z-index: 22;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.cc-corner-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 6px 18px rgba(6, 5, 22, 0.44);
+}
+
+.cc-audio,
+.cc-settings-btn {
+  width: var(--hit);
+  height: var(--hit);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 50%;
+}
+
+.cc-audio::before,
+.cc-settings-btn::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(234, 196, 111, 0.32);
+  background: rgba(37, 27, 75, 0.65);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cc-audio .cc-ico,
+.cc-settings-btn .cc-ico {
+  position: relative;
+  z-index: 1;
+}
+
+.cc-audio[data-level="3"]::before {
+  border-color: rgba(234, 196, 111, 0.75);
+  box-shadow: 0 0 10px rgba(234, 196, 111, 0.34);
+}
+
+.cc-audio[data-level="2"]::before {
+  border-color: rgba(255, 158, 207, 0.7);
+}
+
+.cc-audio[data-level="1"]::before {
+  border-color: rgba(182, 156, 255, 0.65);
+}
+
+.cc-audio[data-level="0"]::before {
+  background: rgba(19, 16, 42, 0.9);
+  border-color: rgba(234, 196, 111, 0.22);
+  opacity: 0.75;
+}
+
+.cc-settings-btn.is-open::before,
+.cc-settings-btn:hover::before,
+.cc-audio:hover::before {
+  border-color: var(--gold);
+  background: rgba(50, 36, 99, 0.88);
+}
+
+.cc-settings-popover {
+  min-width: 158px;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--enamel-glass-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 14px 32px rgba(4, 3, 18, 0.68);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cc-popover-item {
+  width: 100%;
+  min-height: var(--hit);
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(234, 196, 111, 0.24);
+  background: rgba(37, 27, 75, 0.72);
+  color: var(--ivory-text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  box-shadow: none;
+}
+
+.cc-popover-item:hover {
+  border-color: var(--gold);
+  background: rgba(56, 42, 108, 0.92);
+}
+
+.cc-popover-item-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cc-skip-ico {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---------- 5. Right Margin: Firefly Hint Lantern & Tethered Cloisonne Story Medallions ---------- */
+.cc-quest-rail {
+  position: fixed;
+  top: clamp(72px, 9.6dvh, 80px);
+  right: clamp(18px, 1.8vw, 26px);
+  z-index: 18;
+  width: clamp(74px, 6.2vw, 86px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   pointer-events: none;
 }
 
-.cc-corner-right > * {
+.cc-quest-rail > * {
   pointer-events: auto;
 }
 
-.cc-relics {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.cc-relics:empty {
-  display: none;
-}
-
-.cc-wax-charm {
+.cc-hint-lantern {
+  width: 60px;
+  height: 60px;
+  min-width: var(--hit);
+  min-height: var(--hit);
+  padding: 0;
+  border-radius: 50%;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(234, 196, 111, 0.65);
+  box-shadow:
+    0 6px 18px rgba(6, 5, 22, 0.5),
+    0 0 18px rgba(255, 217, 125, 0.35),
+    inset 0 1px 0 rgba(255, 248, 220, 0.25);
   display: inline-grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  padding: 3px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, var(--brass-hi), var(--brass) 62%, var(--brass-deep) 100%);
-  border: 2px solid var(--ink);
-  box-shadow: 0 2px 5px rgba(18, 12, 34, 0.42), inset 0 1px 0 rgba(255, 250, 224, 0.78);
-  transform: rotate(var(--tilt, 0deg));
+  position: relative;
 }
 
-.cc-wax-charm canvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-}
-
-/* Quiet corner hammered-brass audio bell (4 unmistakable states 3 -> 2 -> 1 -> 0; hidden on Hub) */
-.cc-audio {
-  width: var(--hit);
-  height: var(--hit);
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.cc-audio::before {
-  content: "";
+.cc-lantern-halo {
   position: absolute;
-  inset: 8px;
+  inset: -4px;
   border-radius: 50%;
-  border: 2px solid var(--ink);
-  box-shadow: 0 2px 0 rgba(35, 25, 66, 0.78), 0 4px 8px rgba(18, 11, 36, 0.3), inset 0 1.5px 0 rgba(255, 250, 220, 0.75);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  background: radial-gradient(circle, rgba(255, 217, 125, 0.38) 0%, rgba(234, 196, 111, 0.14) 55%, transparent 74%);
+  pointer-events: none;
+  animation: cc-lantern-glow 2.6s ease-in-out infinite;
 }
 
-.cc-audio .cc-ico {
+.cc-lantern-ico {
   position: relative;
   z-index: 1;
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 0 8px rgba(255, 217, 125, 0.65));
 }
 
-.cc-audio[data-level="3"]::before { background: radial-gradient(circle at 35% 28%, #fff6cc, #e8be63 72%, #b07c29 100%); }
-.cc-audio[data-level="2"]::before { background: radial-gradient(circle at 35% 28%, #ffe5f0, #f09fc2 75%, #b55c87 100%); }
-.cc-audio[data-level="1"]::before { background: radial-gradient(circle at 35% 28%, #eee6ff, #b39cf2 78%, #765cb8 100%); }
-.cc-audio[data-level="0"]::before { background: radial-gradient(circle at 35% 28%, #473a74, #251c48 78%); }
-
-/* ---------- Diegetic Parchment Dog-Ear Page-Curl Navigation ---------- */
-.cc-dogear {
-  position: absolute;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  display: inline-grid;
-  place-items: center;
-  z-index: 10;
+.cc-hint-lantern:hover,
+.cc-hint-lantern.is-hint-active,
+.cc-hint-lantern.is-hint-firing {
+  border-color: var(--gold-hi);
+  box-shadow:
+    0 6px 20px rgba(6, 5, 22, 0.54),
+    0 0 26px rgba(255, 217, 125, 0.78);
 }
 
-.cc-dogear:active:not(:disabled) {
-  transform: none;
-  box-shadow: none;
-}
-
-.cc-dogear-svg {
+.cc-medallion-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
-  height: 100%;
-  display: block;
+}
+
+/* Vertical burnished gold constellation thread tethering all Story Medallions */
+.cc-medallion-thread {
+  position: absolute;
+  top: -10px;
+  bottom: 24px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(234, 196, 111, 0.72), rgba(234, 196, 111, 0.45) 70%, rgba(234, 196, 111, 0.12));
   pointer-events: none;
 }
 
-.cc-dogear-svg svg {
+.cc-medallion-list {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(8px, 1.3dvh, 13px);
+  width: 100%;
+}
+
+.cc-story-medallion {
+  width: 100%;
+  min-width: var(--hit);
+  min-height: var(--hit);
+  padding: 2px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cc-medallion-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+/* 360-degree liquid-gold radial progress ring via crisp CSS conic-gradient */
+.cc-medallion-ring {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  border-radius: 50%;
+  background: conic-gradient(#eac46f calc(var(--prog, 0) * 1turn), rgba(234, 196, 111, 0.16) 0);
+  box-shadow:
+    0 5px 14px rgba(8, 6, 26, 0.42),
+    0 0 0 1px rgba(234, 196, 111, 0.45);
+  display: grid;
+  place-items: center;
+  transition: transform 0.22s cubic-bezier(0.3, 1.7, 0.5, 1), box-shadow 0.22s ease;
+}
+
+.cc-medallion-disc {
   width: 100%;
   height: 100%;
-  display: block;
-  overflow: visible;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #2b2159 0%, #13102a 85%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(234, 196, 111, 0.22);
 }
 
-.cc-dogear-next {
-  right: 0;
-  bottom: 0;
-  width: clamp(68px, 9.2vmin, 88px);
-  height: clamp(68px, 9.2vmin, 88px);
-  border-radius: 0 0 15px 0;
-  transform-origin: 100% 100%;
-  transform: scale(calc(1 + var(--curl-pull, 0) * 0.18));
-  filter: drop-shadow(-4px -4px 12px rgba(255, 212, 82, 0.72));
-  animation: cc-dogear-glow 2.2s ease-in-out infinite;
+.cc-medallion-pix {
+  width: 36px;
+  height: 36px;
 }
 
-.cc-dogear-next:hover,
-.cc-dogear-next.is-pulling {
-  transform: scale(calc(1.08 + var(--curl-pull, 0) * 0.2));
-  filter: drop-shadow(-6px -6px 18px rgba(255, 224, 112, 0.92));
+.cc-medallion-seal {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fff5c8 0%, var(--gold) 100%);
+  border: 1px solid var(--ink);
+  box-shadow: 0 0 10px rgba(234, 196, 111, 0.85);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.3, 1.8, 0.5, 1);
+  pointer-events: none;
 }
 
-.cc-dogear-early {
-  top: 0;
-  right: 0;
-  width: var(--hit);
-  height: var(--hit);
-  border-radius: 0 16px 0 0;
-  opacity: 0.74;
-  transform-origin: 100% 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+.cc-medallion-seal canvas {
+  width: 14px;
+  height: 14px;
 }
 
-.cc-dogear-early .cc-dogear-svg {
+.cc-story-medallion.is-lit .cc-medallion-ring {
+  background: conic-gradient(#fff2be 0turn, #eac46f 1turn);
+  box-shadow:
+    0 0 0 1.5px var(--gold-hi),
+    0 0 18px rgba(234, 196, 111, 0.72),
+    0 6px 14px rgba(8, 6, 26, 0.42);
+}
+
+.cc-story-medallion.is-lit .cc-medallion-disc {
+  background: radial-gradient(circle at 36% 28%, #3c2b75 0%, #1b1440 86%);
+  border-color: rgba(255, 242, 194, 0.55);
+}
+
+.cc-story-medallion.is-lit .cc-medallion-seal {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.cc-story-medallion:hover .cc-medallion-ring {
+  transform: scale(1.07);
+}
+
+.cc-story-medallion.is-highlighted .cc-medallion-ring,
+.cc-story-medallion.is-hint-firing .cc-medallion-ring {
+  animation: cc-medallion-pulse 1.35s ease-in-out infinite;
+}
+
+.cc-story-medallion.is-star-burst .cc-medallion-ring {
+  animation: cc-socket-pop 0.8s cubic-bezier(0.25, 1.8, 0.45, 1);
+}
+
+.cc-medallion-label {
+  max-width: 82px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(19, 16, 42, 0.82);
+  border: 1px solid rgba(234, 196, 111, 0.28);
+  color: var(--ivory-text);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-story-medallion.is-lit .cc-medallion-label {
+  color: var(--gold-hi);
+  border-color: rgba(234, 196, 111, 0.62);
+}
+
+/* ---------- 6. Left Margin: Equipped Brush & Sticker Relic Charm Strip ---------- */
+.cc-relic-strip {
+  position: fixed;
+  top: clamp(74px, 9.8dvh, 84px);
+  left: clamp(20px, 1.7vw, 28px);
+  z-index: 18;
+  width: 56px;
+  max-height: calc(100dvh - 170px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.cc-relic-list {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 5px;
+  border-radius: 999px;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line-soft);
+  box-shadow: 0 8px 22px rgba(6, 5, 22, 0.46);
+}
+
+.cc-charm-badge {
+  position: relative;
   width: 44px;
   height: 44px;
-  margin: 0 0 auto auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #322463 0%, #161233 88%);
+  border: 1px solid rgba(234, 196, 111, 0.48);
+  box-shadow: 0 3px 10px rgba(6, 5, 22, 0.45), inset 0 1px 0 rgba(255, 246, 214, 0.22);
+  display: inline-grid;
+  place-items: center;
 }
 
-.cc-dogear-early:hover {
-  opacity: 1;
-  transform: scale(1.08);
+.cc-charm-brush {
+  min-width: 44px;
+  min-height: 44px;
 }
 
-/* ---------- 4. Bevel-Carved Walnut Studio Pen-Rest & Glazed Porcelain Paint-Wells ---------- */
-.cc-dock.cc-wood-dock {
+.cc-charm-brush.is-active {
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 0 1.5px var(--gold), 0 0 14px rgba(234, 196, 111, 0.72);
+}
+
+.cc-charm-relic {
+  border-color: rgba(182, 156, 255, 0.58);
+  box-shadow: 0 3px 10px rgba(6, 5, 22, 0.45), 0 0 10px rgba(182, 156, 255, 0.24);
+}
+
+.cc-charm-pix {
+  width: 30px;
+  height: 30px;
+}
+
+.cc-charm-relic.is-flaring {
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 0 2px var(--gold), 0 0 22px 4px rgba(234, 196, 111, 0.92);
+  animation: cc-socket-pop 0.75s cubic-bezier(0.25, 1.8, 0.45, 1);
+}
+
+.cc-relic-whisper {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--enamel-glass-strong);
+  border: 1px solid var(--gold);
+  color: var(--gold-hi);
+  font-family: var(--font-hand);
+  font-size: 15px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(4, 3, 18, 0.6), 0 0 12px rgba(234, 196, 111, 0.35);
+  animation: cc-whisper-pop 1.4s ease forwards;
+}
+
+/* ---------- 7. Celebratory Bottom-Right Auto-Turning Page Ribbon ---------- */
+.cc-auto-turn-ribbon {
+  position: fixed;
+  right: clamp(18px, 1.8vw, 28px);
+  bottom: calc(var(--dock-h) + 12px);
+  z-index: 21;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 12px;
+  border-radius: 999px;
+  background: var(--enamel-glass-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(234, 196, 111, 0.72);
+  box-shadow:
+    0 10px 28px rgba(4, 3, 18, 0.64),
+    0 0 24px rgba(234, 196, 111, 0.36),
+    inset 0 1px 0 rgba(255, 246, 214, 0.22);
+}
+
+.cc-auto-turn-ribbon.is-staying {
+  padding: 4px;
+  border-color: var(--gold);
+  box-shadow: 0 8px 24px rgba(4, 3, 18, 0.56), 0 0 18px rgba(234, 196, 111, 0.32);
+}
+
+.cc-finale-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-finale-ring {
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border-radius: 50%;
+  background: conic-gradient(#eac46f calc(var(--finale-prog, 0) * 1turn), rgba(234, 196, 111, 0.18) 0);
+  display: grid;
+  place-items: center;
+  flex: none;
+  box-shadow: 0 0 12px rgba(234, 196, 111, 0.5);
+}
+
+.cc-finale-ring-core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #171333;
+  display: grid;
+  place-items: center;
+}
+
+.cc-finale-ring-ico {
+  width: 22px;
+  height: 22px;
+}
+
+.cc-finale-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(13px, 1.7vmin, 15px);
+  color: var(--gold-hi);
+  white-space: nowrap;
+}
+
+.cc-auto-turn-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cc-turn-now-btn {
+  min-height: var(--hit);
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  border: 1px solid var(--gold-hi);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(14px, 1.85vmin, 16px);
+  box-shadow: 0 4px 14px rgba(234, 196, 111, 0.45);
+}
+
+.cc-turn-now-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(234, 196, 111, 0.72);
+}
+
+.cc-stay-doodle-btn {
+  min-height: var(--hit);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(37, 27, 75, 0.85);
+  border: 1px solid var(--gold-line);
+  color: var(--ivory-text);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.cc-stay-doodle-btn:hover {
+  border-color: var(--gold);
+  background: rgba(54, 40, 106, 0.94);
+}
+
+.cc-ribbon-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.cc-turn-ico { width: 22px; height: 22px; }
+.cc-stay-ico { width: 20px; height: 20px; }
+
+/* ---------- 8. Bottom Edge: Floating Midnight-Enamel Art Dock ---------- */
+.cc-dock.cc-enamel-dock {
   position: fixed;
   left: 50%;
   bottom: clamp(4px, 0.7dvh, 8px);
   transform: translateX(-50%);
-  z-index: 16;
-  max-width: calc(100vw - 16px);
+  z-index: 20;
+  max-width: calc(100vw - 20px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -822,31 +1203,28 @@ button,
   transition: opacity 0.24s ease, visibility 0.24s ease;
 }
 
-/* Hand-torn vellum paper slip micro-tag (<= 4 words, Patrick Hand ink, auto-fades 2.5s) */
+/* Floating <=4-word auto-fading Midnight-Gold whisper micro-tag */
 .cc-tool-tag {
   pointer-events: none;
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) rotate(-0.8deg);
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 15px 4px 11px;
-  border-radius: 7px 14px 9px 13px / 11px 7px 12px 8px;
-  background:
-    repeating-linear-gradient(22deg, rgba(164, 124, 68, 0.05) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #fffcf2 0%, #f1e1bc 100%);
-  border: 1.5px solid rgba(90, 66, 50, 0.52);
-  box-shadow:
-    0 4px 12px rgba(18, 10, 32, 0.34),
-    0 1px 0 rgba(58, 39, 72, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 5px 15px 5px 11px;
+  border-radius: 999px;
+  background: var(--enamel-glass-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 8px 20px rgba(4, 3, 18, 0.56), 0 0 14px rgba(234, 196, 111, 0.24);
   font-family: var(--font-hand);
   font-weight: 400;
-  font-size: clamp(16px, 2.2vmin, 19px);
-  letter-spacing: 0.015em;
-  color: var(--ink);
+  font-size: clamp(16px, 2.1vmin, 19px);
+  letter-spacing: 0.02em;
+  color: var(--gold-hi);
   white-space: nowrap;
   opacity: 1;
   transition: opacity 0.28s ease, transform 0.28s ease;
@@ -854,67 +1232,62 @@ button,
 
 .cc-tool-tag.is-fading {
   opacity: 0;
-  transform: translateX(-50%) translateY(-4px) rotate(-0.8deg);
+  transform: translateX(-50%) translateY(-4px);
 }
 
 .cc-tool-tag-glyph {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
 }
 
-/* Richly shaded bevel-carved walnut studio pen-rest */
-.cc-wood-groove {
+.cc-enamel-bar {
   pointer-events: auto;
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: clamp(5px, 0.75vw, 10px);
-  padding: 4px clamp(12px, 1.5vw, 18px) 5px;
-  border-radius: 26px 26px 18px 18px;
-  background:
-    /* Warm specular top bevel highlight */
-    linear-gradient(180deg, rgba(255, 228, 184, 0.34) 0 2.5px, rgba(255, 212, 152, 0.08) 2.5px 6px, transparent 7px),
-    /* Recessed dark-walnut horizontal pen channel */
-    linear-gradient(180deg, transparent 20%, rgba(20, 9, 4, 0.44) 36%, rgba(16, 7, 3, 0.56) 66%, rgba(255, 218, 168, 0.14) 86%, transparent 94%),
-    /* Natural walnut grain fibers */
-    repeating-linear-gradient(92deg, rgba(26, 11, 4, 0.1) 0 2px, transparent 2px 14px, rgba(255, 220, 174, 0.04) 14px 16px, transparent 16px 28px),
-    linear-gradient(180deg, #865132 0%, #5e341d 48%, #3c1f12 100%);
-  border: 2px solid #22100a;
+  gap: clamp(6px, 0.8vw, 10px);
+  padding: 4px clamp(12px, 1.4vw, 18px);
+  border-radius: 999px;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line-soft);
   box-shadow:
-    0 10px 22px rgba(8, 4, 18, 0.68),
-    0 3px 0 #1c0d08,
-    inset 0 6px 12px rgba(18, 8, 3, 0.52),
-    inset 0 -2px 0 rgba(255, 220, 168, 0.22);
+    0 12px 28px rgba(4, 3, 18, 0.62),
+    inset 0 1px 0 rgba(255, 246, 214, 0.16);
+  max-width: calc(100vw - 24px);
 }
 
 .cc-tools-cluster {
   display: inline-flex;
   align-items: center;
-  gap: clamp(3px, 0.45vw, 6px);
+  gap: clamp(2px, 0.4vw, 6px);
+  flex: none;
 }
 
 .cc-brush-group {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 0 5px;
+  padding: 0 4px;
   border-radius: 999px;
-  background: rgba(20, 9, 4, 0.36);
-  box-shadow: inset 0 2px 6px rgba(8, 3, 1, 0.56), 0 1px 0 rgba(255, 220, 170, 0.14);
+  background: rgba(13, 16, 38, 0.55);
+  border: 1px solid rgba(234, 196, 111, 0.22);
+  max-width: min(26vw, 240px);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-/* Inlaid antique-brass pen-rest divider */
-.cc-groove-sep {
-  width: 3.5px;
+.cc-brush-group::-webkit-scrollbar { display: none; }
+
+.cc-dock-sep {
+  width: 1px;
   height: 36px;
-  border-radius: 99px;
-  background: linear-gradient(180deg, var(--brass-hi), var(--brass) 52%, var(--brass-deep));
-  box-shadow: 0 1px 2px rgba(18, 9, 4, 0.72);
+  background: linear-gradient(180deg, transparent, rgba(234, 196, 111, 0.65) 50%, transparent);
   flex: none;
 }
 
-/* Sculpted Enchanted Pencil, Starlight Wand & Brush notches carved into the walnut rest */
-.cc-wood-tool {
+.cc-enamel-tool {
   width: var(--hit);
   height: var(--hit);
   padding: 0;
@@ -924,69 +1297,70 @@ button,
   box-shadow: none;
   display: inline-grid;
   place-items: center;
+  flex: none;
   transition: transform 0.24s cubic-bezier(0.3, 1.75, 0.5, 1), filter 0.2s ease;
 }
 
-.cc-wood-tool::before {
+.cc-enamel-tool::before {
   content: "";
   position: absolute;
   inset: 5px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 62%, rgba(22, 10, 5, 0.52), rgba(44, 23, 13, 0.28) 72%);
-  border: 1.5px solid rgba(255, 224, 178, 0.14);
-  box-shadow: inset 0 3px 6px rgba(10, 4, 2, 0.62);
+  background: rgba(37, 27, 75, 0.72);
+  border: 1px solid rgba(234, 196, 111, 0.24);
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.cc-wood-tool:active:not(:disabled) {
-  transform: translateY(1px) scale(0.95);
-  box-shadow: none;
-}
-
-.cc-wood-ico {
+.cc-tool-ico {
   position: relative;
   z-index: 1;
-  width: 42px;
-  height: 42px;
-  filter: drop-shadow(0 2px 3px rgba(14, 7, 3, 0.55));
+  width: 36px;
+  height: 36px;
 }
 
 .cc-brush-ico {
   position: relative;
   z-index: 1;
-  width: 34px;
-  height: 34px;
-  filter: drop-shadow(0 2px 3px rgba(14, 7, 3, 0.5));
+  width: 32px;
+  height: 32px;
 }
 
-.cc-wood-tool.is-on {
-  transform: translateY(-8px);
+.cc-enamel-tool.is-on {
+  transform: translateY(-7px);
 }
 
-.cc-wood-tool.is-on::before {
-  background: radial-gradient(circle at 50% 34%, rgba(255, 244, 190, 0.5), rgba(210, 161, 72, 0.34) 74%);
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px var(--ink), 0 0 16px 4px rgba(255, 212, 59, 0.72);
+.cc-enamel-tool.is-on::before {
+  background: radial-gradient(circle at 40% 30%, rgba(234, 196, 111, 0.45), rgba(50, 36, 99, 0.92) 78%);
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 16px 2px rgba(234, 196, 111, 0.65);
 }
 
 .cc-tool-wand.is-on::before {
-  background: radial-gradient(circle at 50% 34%, rgba(196, 172, 255, 0.54), rgba(50, 36, 98, 0.62) 78%);
-  border-color: #ffe694;
-  box-shadow: 0 0 0 2px var(--ink), 0 0 18px 4px rgba(182, 156, 255, 0.85);
+  background: radial-gradient(circle at 40% 30%, rgba(182, 156, 255, 0.55), rgba(40, 29, 84, 0.94) 78%);
+  border-color: var(--aurora);
+  box-shadow: 0 0 18px 2px rgba(124, 232, 255, 0.68);
 }
 
 .cc-tool-pencil.is-wisp-cue::before {
-  border-color: #fff3b0;
-  box-shadow: 0 0 0 2px var(--gold), 0 0 18px 6px rgba(255, 218, 92, 0.94);
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 0 2px var(--gold), 0 0 20px 6px rgba(234, 196, 111, 0.88);
   animation: cc-wisp-halo 1.35s ease-in-out infinite;
 }
 
-/* Organic pillowed glazed porcelain paint-wells nestled in the carved walnut rest */
+/* Luminous Pigment Shader Orbs */
 .cc-swatches {
   display: inline-flex;
   align-items: center;
   gap: clamp(2px, 0.35vw, 5px);
+  max-width: min(64vw, 860px);
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 6px 4px 2px;
+  margin: -6px 0 -2px;
+  scrollbar-width: none;
 }
+
+.cc-swatches::-webkit-scrollbar { display: none; }
 
 .cc-swatch {
   width: var(--hit);
@@ -996,27 +1370,21 @@ button,
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
+  flex: none;
   transition: transform 0.24s cubic-bezier(0.3, 1.8, 0.5, 1);
 }
 
-.cc-swatch:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: none;
-}
-
-/* Soft circular cushion porcelain dish cradling the Hi-Bit pigment pool (ZERO harsh black square tiles!) */
 .cc-swatch-body {
   position: absolute;
-  inset: 4px;
+  inset: 5px;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid #faf0d8;
+  border: 2px solid rgba(250, 246, 236, 0.86);
   background: linear-gradient(135deg, var(--sw-a, #fff), var(--sw-b, #eee));
   box-shadow:
-    0 3px 6px rgba(14, 7, 3, 0.58),
-    0 0 0 1.5px rgba(35, 25, 66, 0.65),
-    inset 0 3px 5px rgba(255, 255, 255, 0.55),
-    inset 0 -4px 6px rgba(24, 15, 48, 0.34);
+    0 4px 10px rgba(4, 3, 18, 0.52),
+    0 0 0 1px rgba(234, 196, 111, 0.45),
+    inset 0 2px 4px rgba(255, 255, 255, 0.45);
   pointer-events: none;
 }
 
@@ -1029,14 +1397,13 @@ button,
   pointer-events: none;
 }
 
-/* Glossy ceramic lip highlight across the porcelain paint-well */
 .cc-swatch-body::after {
   content: "";
   position: absolute;
   top: 2px;
   left: 16%;
   right: 16%;
-  height: 30%;
+  height: 28%;
   border-radius: 50%;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.52), transparent);
   pointer-events: none;
@@ -1051,46 +1418,46 @@ button,
   background-position: 120% 0;
   mix-blend-mode: screen;
   animation: cc-gleam 4.5s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * 0.28s);
+  animation-delay: calc(var(--i, 0) * 0.24s);
 }
 
 .cc-swatch[data-family="foil"] .cc-gleam,
 .cc-swatch[data-family="pearl"] .cc-gleam,
-.cc-swatch[data-family="glitter"] .cc-gleam {
+.cc-swatch[data-family="glitter"] .cc-gleam,
+.cc-swatch[data-family="iridescent"] .cc-gleam,
+.cc-swatch[data-family="crystal"] .cc-gleam {
   background:
     linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.9) 46%, transparent 62%) 120% 0 / 260% 100%,
     conic-gradient(from 30deg, rgba(255, 173, 173, 0.32), rgba(253, 255, 182, 0.32), rgba(155, 246, 255, 0.32), rgba(189, 178, 255, 0.32), rgba(255, 173, 173, 0.32));
   animation-name: cc-gleam-foil;
 }
 
-/* Delicate glowing pigment droplet hovering above the active porcelain well */
 .cc-swatch-tip {
   position: absolute;
   left: 50%;
-  top: -7px;
-  width: 11px;
-  height: 11px;
-  margin-left: -5.5px;
+  top: -5px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
   border-radius: 50% 50% 50% 0;
-  transform: rotate(135deg) translate(4px, 4px);
-  background: linear-gradient(135deg, #fffdf4, var(--sw-a, #ffd43b));
-  border: 1.5px solid var(--ink);
+  transform: rotate(135deg) translate(3px, 3px);
+  background: linear-gradient(135deg, #fffdf4, var(--sw-a, #eac46f));
+  border: 1px solid var(--ink);
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.26s cubic-bezier(0.3, 1.7, 0.5, 1);
   pointer-events: none;
 }
 
 .cc-swatch.is-on {
-  transform: translateY(-9px) scale(1.07);
+  transform: translateY(-7px) scale(1.06);
 }
 
 .cc-swatch.is-on .cc-swatch-body {
-  border-color: #fffaf0;
+  border-color: var(--gold-hi);
   box-shadow:
-    0 0 0 2.5px var(--gold),
-    0 0 16px 4px rgba(255, 212, 59, 0.78),
-    0 8px 12px rgba(14, 7, 3, 0.55),
-    inset 0 2px 4px rgba(255, 255, 255, 0.55);
+    0 0 0 2px var(--gold),
+    0 0 18px 3px rgba(234, 196, 111, 0.72),
+    0 6px 12px rgba(4, 3, 18, 0.52);
 }
 
 .cc-swatch.is-on .cc-swatch-tip {
@@ -1098,71 +1465,38 @@ button,
   transform: rotate(135deg);
 }
 
-/* ---------- 5. Violet's Stargazer Desk Hub (Swallowtail Silk Voyage Ribbon & 4 Distinct Craft Objects) ---------- */
+/* ---------- 9. Violet's Stargazer Hub (Midnight Velvet & Burnished Gold Cloisonne) ---------- */
 .cc-voyage-ribbon {
   position: absolute;
-  left: clamp(32px, 3.6vw, 52px);
-  bottom: clamp(14px, 2.2dvh, 24px);
+  left: clamp(28px, 3vw, 44px);
+  bottom: clamp(14px, 2dvh, 22px);
   z-index: 12;
   display: inline-flex;
   align-items: center;
   gap: 12px;
 }
 
-/* Hand-stitched silk-and-vellum storybook ribbon banner with swallowtail end & 3D wax seal */
 .cc-voyage-seal {
-  position: relative;
   min-height: calc(var(--hit) + 4px);
-  padding: 6px 38px 6px 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--ink);
+  padding: 6px 24px 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(40, 29, 86, 0.94) 0%, rgba(19, 16, 42, 0.96) 100%);
+  border: 1px solid var(--gold);
+  color: var(--gold-hi);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(16px, 2.5vmin, 22px);
-  letter-spacing: -0.015em;
-  text-shadow: 0 1px 0 rgba(255, 252, 242, 0.85);
-  filter: drop-shadow(0 5px 10px rgba(24, 14, 44, 0.44)) drop-shadow(0 2px 0 rgba(35, 25, 66, 0.8));
-}
-
-/* Silk-and-vellum swallowtail ribbon body */
-.cc-voyage-seal::before {
-  content: "";
-  position: absolute;
-  inset: 3px 0 3px 16px;
-  z-index: 0;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 19px) 50%, 100% 100%, 0 100%);
-  background:
-    linear-gradient(180deg, rgba(176, 50, 70, 0.28) 0 3px, transparent 3px calc(100% - 3px), rgba(176, 50, 70, 0.28) calc(100% - 3px) 100%),
-    repeating-linear-gradient(90deg, rgba(210, 161, 72, 0.08) 0 2px, transparent 2px 9px),
-    linear-gradient(180deg, #fffbf0 0%, #f5e4be 52%, #e3c68c 100%);
-  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.9), inset 0 -2px 3px rgba(133, 91, 30, 0.24);
-}
-
-/* Stitched gold-thread running border inside the ribbon */
-.cc-voyage-seal::after {
-  content: "";
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 22px;
-  right: 20px;
-  z-index: 0;
-  border-top: 1.5px dashed rgba(182, 128, 42, 0.68);
-  border-bottom: 1.5px dashed rgba(182, 128, 42, 0.68);
-  pointer-events: none;
+  font-size: clamp(16px, 2.3vmin, 21px);
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 8px 24px rgba(6, 5, 22, 0.52),
+    0 0 18px rgba(234, 196, 111, 0.34),
+    inset 0 1px 0 rgba(255, 246, 214, 0.24);
 }
 
 .cc-voyage-seal:hover {
   transform: translateY(-2px);
-  filter: drop-shadow(0 8px 16px rgba(255, 206, 98, 0.5)) drop-shadow(0 2px 0 rgba(35, 25, 66, 0.85));
-}
-
-.cc-voyage-seal:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: none;
+  border-color: var(--gold-hi);
+  box-shadow: 0 10px 28px rgba(6, 5, 22, 0.6), 0 0 26px rgba(234, 196, 111, 0.58);
 }
 
 .cc-voyage-seal:not(.is-secondary) {
@@ -1170,90 +1504,74 @@ button,
 }
 
 .cc-voyage-seal.is-secondary {
-  padding: 5px 28px 5px 8px;
+  background: var(--enamel-glass);
+  border-color: var(--gold-line);
+  color: var(--ivory-text);
   font-family: var(--font-hand);
   font-weight: 400;
-  font-size: clamp(16px, 2.2vmin, 19px);
-  letter-spacing: 0.01em;
-  opacity: 0.96;
-}
-
-.cc-voyage-seal.is-secondary::before {
-  background:
-    repeating-linear-gradient(90deg, rgba(164, 124, 68, 0.06) 0 2px, transparent 2px 9px),
-    linear-gradient(180deg, #f8efd9 0%, #e7d5ae 100%);
+  font-size: clamp(16px, 2.1vmin, 19px);
 }
 
 .cc-seal-inner {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
 }
 
-.cc-wax-svg {
-  width: 44px;
-  height: 44px;
-  filter: drop-shadow(0 3px 4px rgba(35, 25, 66, 0.44));
+.cc-voyage-seal-ico {
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 0 8px rgba(234, 196, 111, 0.55));
 }
 
-.cc-voyage-seal.is-secondary .cc-wax-svg {
-  width: 34px;
-  height: 34px;
-  filter: sepia(0.35) saturate(0.85) drop-shadow(0 2px 3px rgba(35, 25, 66, 0.38));
+.cc-voyage-seal.is-secondary .cc-voyage-seal-ico {
+  width: 30px;
+  height: 30px;
+  opacity: 0.9;
 }
 
-/* 4 Physically DISTINCT Hand-Crafted Tabletop Objects along the cedar desk apron */
+/* 4 Midnight Cloisonne Hub Craft Stations along the bottom velvet desk edge */
 .cc-desk-stations {
   position: fixed;
   left: 50%;
-  bottom: clamp(5px, 0.85dvh, 10px);
+  bottom: clamp(6px, 0.9dvh, 10px);
   transform: translateX(-50%);
   z-index: 15;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: center;
-  gap: clamp(14px, 2.5vw, 32px);
+  gap: clamp(10px, 1.8vw, 22px);
   max-width: calc(100vw - 24px);
 }
 
-/* Transparent desk-object hit wrapper: ZERO uniform brown rounded rectangle box! */
 .cc-station {
-  min-width: clamp(114px, 13.5vw, 154px);
-  min-height: clamp(78px, 11dvh, 94px);
-  padding: 2px 4px;
-  border: 0;
-  border-radius: 14px;
-  background: transparent;
-  box-shadow: none;
-  color: #f9edd4;
+  position: relative;
+  min-width: clamp(124px, 14vw, 172px);
+  min-height: clamp(78px, 10.6dvh, 92px);
+  padding: 6px 12px 7px;
+  border-radius: 18px;
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line-soft);
+  box-shadow: 0 10px 24px rgba(4, 3, 18, 0.56), inset 0 1px 0 rgba(255, 246, 214, 0.14);
+  color: var(--ivory-text);
   display: inline-flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  transform: rotate(var(--obj-tilt, 0deg));
-  transition: transform 0.22s cubic-bezier(0.3, 1.7, 0.5, 1), filter 0.2s ease;
 }
 
-.cc-station-paintbox { --obj-tilt: -1.4deg; }
-.cc-station-wardrobe { --obj-tilt: 1.5deg; }
-.cc-station-bookshelf { --obj-tilt: -0.7deg; }
-.cc-station-trinkets { --obj-tilt: 1.3deg; }
-
-.cc-station:hover {
-  transform: translateY(-6px) rotate(0deg) scale(1.03);
-  filter: drop-shadow(0 0 12px rgba(255, 220, 128, 0.45));
-}
-
-.cc-station:active:not(:disabled) {
-  transform: translateY(1px) rotate(var(--obj-tilt, 0deg)) scale(0.98);
-  box-shadow: none;
-}
-
+.cc-station:hover,
 .cc-station.is-open {
-  transform: translateY(-7px) rotate(0deg) scale(1.04);
-  filter: drop-shadow(0 0 14px rgba(255, 212, 59, 0.72));
+  transform: translateY(-4px);
+  border-color: var(--gold);
+  box-shadow: 0 12px 28px rgba(4, 3, 18, 0.62), 0 0 20px rgba(234, 196, 111, 0.34);
+}
+
+.cc-station.has-affordable {
+  border-color: var(--gold);
+  box-shadow: 0 10px 24px rgba(4, 3, 18, 0.56), 0 0 18px rgba(234, 196, 111, 0.36);
 }
 
 .cc-station-inner {
@@ -1264,14 +1582,12 @@ button,
   width: 100%;
 }
 
-/* Subtle etched warm-wood desk caption in Patrick Hand */
 .cc-station-tag {
-  font-family: var(--font-hand);
-  font-size: clamp(14px, 1.85vmin, 17px);
-  font-weight: 400;
-  letter-spacing: 0.03em;
-  color: #f7e4be;
-  text-shadow: 0 1.5px 2px rgba(14, 7, 18, 0.92), 0 0 8px rgba(14, 7, 18, 0.55);
+  font-family: var(--font-display);
+  font-size: clamp(12.5px, 1.65vmin, 14.5px);
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  color: var(--gold-hi);
 }
 
 .cc-station-craft {
@@ -1279,159 +1595,92 @@ button,
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   width: 100%;
-  height: clamp(46px, 6.6dvh, 56px);
+  min-height: 40px;
 }
 
-/* Desk Object 1: Hinged Carved Cedar Paintbox with brass hinges, clasp & ceramic color pans */
-.cc-craft-paintbox {
-  padding: 6px 10px 7px;
-  border-radius: 10px 10px 7px 7px;
-  background:
-    linear-gradient(180deg, rgba(255, 228, 184, 0.3) 0 2px, transparent 2px),
-    repeating-linear-gradient(90deg, rgba(26, 11, 4, 0.11) 0 2px, transparent 2px 11px),
-    linear-gradient(180deg, #915937 0%, #683b21 54%, #452414 100%);
-  border: 2px solid #22100a;
-  box-shadow:
-    0 7px 14px rgba(8, 4, 18, 0.64),
-    0 3px 0 #26120a,
-    inset 0 4px 7px rgba(22, 10, 4, 0.54),
-    inset 0 -2px 0 rgba(255, 224, 174, 0.22);
+.cc-station-ico {
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(0 0 6px rgba(234, 196, 111, 0.36));
 }
 
-.cc-box-hinge {
+.cc-station-gift-dot {
   position: absolute;
-  top: -4px;
-  left: 16%;
-  right: 16%;
-  height: 5px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--brass-hi) 0 20%, transparent 20% 80%, var(--brass-hi) 80% 100%);
-  filter: drop-shadow(0 1px 1px rgba(24, 12, 8, 0.75));
-}
-
-.cc-box-clasp {
-  position: absolute;
-  bottom: -5px;
-  left: 50%;
-  width: 20px;
-  height: 8px;
-  margin-left: -10px;
-  border-radius: 3px 3px 5px 5px;
-  background: linear-gradient(180deg, var(--brass-hi), var(--brass) 55%, var(--brass-deep));
-  border: 1.5px solid #24130d;
-  box-shadow: 0 2px 3px rgba(10, 5, 16, 0.55);
+  top: -12px;
+  right: -8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 0 12px rgba(234, 196, 111, 0.78);
+  animation: cc-gold-pulse 2s ease-in-out infinite;
 }
 
 .cc-mini-pans {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 6px;
-  border-radius: 7px;
-  background: rgba(24, 11, 5, 0.45);
-  box-shadow: inset 0 2px 4px rgba(10, 4, 2, 0.6);
+  gap: 4px;
 }
 
 .cc-mini-pan {
-  width: 17px;
-  height: 17px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 2px solid #faf0d8;
+  border: 1px solid rgba(250, 246, 236, 0.85);
   background: linear-gradient(135deg, var(--pan-a), var(--pan-b));
-  box-shadow: 0 2px 3px rgba(14, 8, 22, 0.58), inset 0 1.5px 2px rgba(255, 255, 255, 0.45);
-  opacity: 0.78;
+  opacity: 0.7;
 }
 
 .cc-mini-pan.is-owned {
   opacity: 1;
-  box-shadow: 0 0 7px var(--pan-a), 0 2px 3px rgba(14, 8, 22, 0.58);
-}
-
-/* Desk Object 2: Washi-Taped Cream Cardstock Sticker Sheet holding die-cut portraits */
-.cc-craft-wardrobe {
-  padding: 7px 9px 5px;
-  border-radius: 4px 5px 12px 4px;
-  background:
-    radial-gradient(circle at 1px 1px, rgba(58, 40, 74, 0.05) 1px, transparent 1.5px) 0 0 / 5px 5px,
-    linear-gradient(175deg, #fffbf0 0%, #f1e1bc 100%);
-  border: 1.5px solid rgba(90, 66, 50, 0.55);
-  box-shadow:
-    0 7px 14px rgba(8, 4, 18, 0.54),
-    2px 2px 0 #dfcba0,
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.cc-washi-strip {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%) rotate(-3deg);
-  width: 60px;
-  height: 18px;
-  pointer-events: none;
-  filter: drop-shadow(0 1px 2px rgba(35, 25, 66, 0.24));
-}
-
-.cc-washi-strip svg {
-  width: 100%;
-  height: 100%;
+  box-shadow: 0 0 6px var(--pan-a);
 }
 
 .cc-mini-dolls {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
 }
 
 .cc-mini-doll {
-  position: relative;
-  width: 30px;
-  height: 34px;
-  border-radius: 5px;
+  width: 24px;
+  height: 28px;
+  border-radius: 6px;
   overflow: hidden;
-  border: 2px solid #fffdf6;
-  background: #221942;
-  box-shadow: 0 2px 4px rgba(28, 18, 52, 0.42), 0 0 0 1px rgba(35, 25, 66, 0.5);
+  border: 1px solid var(--gold-line);
+  background: #171333;
 }
-
-.cc-mini-doll:nth-child(1) { transform: rotate(-4deg); }
-.cc-mini-doll:nth-child(2) { transform: translateY(-2px); }
-.cc-mini-doll:nth-child(3) { transform: rotate(4deg); }
 
 .cc-mini-doll.has-worn {
-  border-color: #fff3bd;
-  box-shadow: 0 0 8px rgba(255, 212, 59, 0.85), 0 2px 4px rgba(28, 18, 52, 0.42);
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 8px rgba(234, 196, 111, 0.65);
 }
 
-.cc-mini-doll-pix {
-  width: 100%;
-  height: 100%;
-}
+.cc-mini-doll-pix { width: 100%; height: 100%; }
 
-/* Desk Object 3: Miniature Wooden Book Shelf lip with colorful angled cloth-bound book spines & crimson wax seal */
-.cc-craft-bookshelf {
+.cc-bookshelf-mini-stack {
+  display: inline-flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 0 6px 2px;
-  gap: 0;
-  background: transparent;
-  border: 0;
-  filter: drop-shadow(0 7px 11px rgba(8, 4, 18, 0.62));
+  align-items: center;
+  gap: 2px;
 }
 
 .cc-mini-seals {
   display: inline-flex;
-  gap: 3px;
-  margin-bottom: 3px;
+  gap: 2.5px;
 }
 
 .cc-mini-seal {
-  width: 5.5px;
-  height: 5.5px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: rgba(247, 223, 153, 0.28);
-  border: 1px solid rgba(35, 25, 66, 0.45);
+  background: rgba(234, 196, 111, 0.24);
 }
 
 .cc-mini-seal.is-on {
@@ -1442,119 +1691,63 @@ button,
 .cc-mini-spines {
   display: inline-flex;
   align-items: flex-end;
-  justify-content: center;
-  gap: 3px;
-  height: 36px;
-  padding: 0 8px;
+  gap: 2.5px;
+  height: 28px;
 }
 
 .cc-mini-spine {
-  position: relative;
-  width: 14px;
-  height: var(--spine-h, 30px);
-  border-radius: 2.5px 2.5px 0 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.24) 0 2.5px, var(--spine-bg, #5d3478) 2.5px 10.5px, rgba(255, 255, 255, 0.18) 10.5px 100%);
-  border: 1.5px solid #1b112c;
+  width: 10px;
+  height: var(--spine-h, 24px);
+  border-radius: 2px 2px 0 0;
+  background: var(--spine-bg, #4c2c7a);
+  border: 1px solid rgba(234, 196, 111, 0.55);
   border-bottom: 0;
-  transform-origin: bottom center;
-  transform: rotate(var(--spine-lean, 0deg));
-  box-shadow: inset 0 3px 0 var(--spine-foil, #f3d17c), inset 0 -3px 0 rgba(243, 209, 124, 0.72);
 }
 
-.cc-mini-spine.is-ghost {
-  opacity: 0.88;
-}
+.cc-mini-spine.is-ghost { opacity: 0.65; }
 
-/* Protruding carved walnut shelf lip supporting the standing books */
-.cc-mini-plank {
-  position: relative;
-  width: 100%;
-  height: 11px;
-  border-radius: 3px 3px 6px 6px;
-  background:
-    linear-gradient(180deg, rgba(255, 228, 184, 0.44) 0 2px, transparent 2px),
-    linear-gradient(180deg, #a66c43 0%, #6f4024 60%, #482715 100%);
-  border: 1.8px solid #22100a;
-  box-shadow: 0 3px 0 #26120a;
-}
-
-/* Tiny crimson wax seal & ribbon tab hanging from the miniature shelf */
-.cc-mini-wax-seal {
-  position: absolute;
-  right: 8px;
-  bottom: -4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--wax-hi), var(--wax) 65%, var(--wax-deep) 100%);
-  border: 1.5px solid #231942;
-  box-shadow: inset 0 0 0 2px rgba(247, 223, 153, 0.6), 0 2px 3px rgba(10, 5, 18, 0.55);
-}
-
-/* Desk Object 4: Hammered Burnished-Brass Oval Vanity Trinket Dish */
-.cc-craft-trinkets {
-  width: 96%;
-  height: clamp(46px, 6.4dvh, 54px);
-  border-radius: 50% / 56%;
-  background:
-    radial-gradient(ellipse 64% 52% at 50% 52%, #3a234e 0%, #241638 80%, transparent 85%),
-    radial-gradient(ellipse at 30% 22%, #fff6cc 0%, #ecc266 40%, #b88430 76%, #754d16 100%);
-  border: 2.2px solid #28170b;
-  gap: 8px;
-  box-shadow:
-    0 8px 15px rgba(8, 4, 18, 0.64),
-    0 3px 0 #482c0e,
-    inset 0 2px 3px rgba(255, 252, 226, 0.85),
-    inset 0 -3px 6px rgba(34, 18, 6, 0.55);
-}
-
-.cc-mini-bell,
-.cc-mini-scroll {
-  width: 26px;
-  height: 26px;
-  filter: drop-shadow(0 2px 3px rgba(14, 8, 24, 0.62));
-}
+.cc-mini-bell { width: 24px; height: 24px; }
 
 .cc-mini-install-pip {
   position: absolute;
-  top: -7px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  top: -8px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
   animation: cc-twinkle 2.2s ease-in-out infinite;
 }
 
-.cc-mini-install-pip .cc-ico {
-  width: 20px;
-  height: 20px;
-}
-
-/* ---------- 6. Tactile Tabletop Craft Drawers (ZERO Flat White HTML Boxes! Hero Pixel Assets!) ---------- */
+/* ---------- 10. Midnight Velvet & Burnished Gold Cloisonne Drawers ---------- */
 .cc-craft-overlay {
   position: fixed;
   inset: 0;
   z-index: 42;
   display: grid;
   place-items: center;
-  padding: clamp(12px, 2.4vmin, 28px);
-  background: radial-gradient(ellipse at 50% 45%, rgba(34, 21, 52, 0.56), rgba(12, 8, 26, 0.84));
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
+  padding: clamp(12px, 2.2vmin, 26px);
+  background: radial-gradient(ellipse at 50% 45%, rgba(26, 20, 54, 0.66), rgba(9, 10, 28, 0.88));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   animation: cc-fade 0.2s ease both;
 }
 
 .cc-craft-drawer {
   position: relative;
-  width: min(94vw, 800px);
-  max-height: min(88dvh, 660px);
+  width: min(94vw, 880px);
+  max-height: min(88dvh, 690px);
   display: flex;
   flex-direction: column;
-  gap: clamp(10px, 1.5vmin, 15px);
-  padding: clamp(16px, 2.4vmin, 24px);
-  border-radius: 20px;
-  border: 2.5px solid var(--ink);
-  box-shadow: 0 10px 0 rgba(22, 12, 34, 0.86), 0 26px 54px rgba(6, 3, 16, 0.72);
-  overflow: visible;
+  gap: clamp(10px, 1.4vmin, 14px);
+  padding: clamp(16px, 2.2vmin, 24px);
+  border-radius: 24px;
+  background: linear-gradient(165deg, rgba(28, 22, 58, 0.96) 0%, rgba(15, 13, 36, 0.98) 100%);
+  border: 1px solid rgba(234, 196, 111, 0.55);
+  box-shadow:
+    0 24px 60px rgba(4, 3, 18, 0.78),
+    inset 0 1px 0 rgba(255, 246, 214, 0.18),
+    inset 0 0 0 6px rgba(234, 196, 111, 0.05);
+  color: var(--ivory-text);
+  overflow: hidden;
 }
 
 .cc-drawer-head {
@@ -1562,6 +1755,7 @@ button,
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex: none;
 }
 
 .cc-drawer-titles {
@@ -1573,235 +1767,83 @@ button,
 .cc-drawer-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(22px, 3.5vmin, 31px);
+  font-size: clamp(21px, 3.2vmin, 29px);
   font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.015em;
-  text-shadow: 0 1.5px 0 rgba(0, 0, 0, 0.22);
+  color: var(--gold-hi);
 }
 
 .cc-drawer-sub {
   margin: 0;
   font-family: var(--font-hand);
-  font-size: clamp(15px, 2.1vmin, 19px);
+  font-size: clamp(15px, 2vmin, 18px);
   font-weight: 400;
-  letter-spacing: 0.015em;
-  opacity: 0.9;
+  color: var(--ivory-muted);
 }
 
-/* Hammered antique-brass close medallion */
 .cc-drawer-close {
-  background: radial-gradient(circle at 34% 28%, #fff3c6, var(--brass) 64%, var(--brass-deep) 100%);
-  color: var(--ink);
-  border: 2px solid var(--ink);
-  box-shadow: 0 3px 0 rgba(35, 25, 66, 0.85), inset 0 1.5px 0 rgba(255, 250, 224, 0.8);
-  flex: none;
+  background: rgba(37, 27, 75, 0.85);
+  border: 1px solid var(--gold-line);
+  color: var(--gold-hi);
 }
 
-/* --- Drawer 1: Hinged Carved Walnut Watercolor & Foil Box --- */
-.cc-drawer-paintbox {
-  width: min(94vw, 760px);
-  color: #fff4da;
-  background:
-    radial-gradient(ellipse 60% 45% at 15% 6%, rgba(255, 212, 146, 0.16), transparent 60%),
-    repeating-linear-gradient(90deg, rgba(22, 10, 4, 0.1) 0 3px, transparent 3px 16px, rgba(255, 222, 174, 0.03) 16px 18px, transparent 18px 30px),
-    linear-gradient(180deg, #744428 0%, #522e1a 56%, #391e12 100%);
-  border-color: #21100a;
-  box-shadow:
-    0 10px 0 #1b0c07,
-    0 28px 54px rgba(6, 3, 16, 0.74),
-    inset 0 2px 0 rgba(255, 228, 184, 0.34),
-    inset 0 -3px 8px rgba(18, 8, 3, 0.55);
-}
-
-.cc-drawer-paintbox .cc-drawer-title {
-  color: #fce9be;
-  text-shadow: 0 2px 4px rgba(16, 7, 3, 0.72);
-}
-
-.cc-drawer-paintbox .cc-drawer-sub {
-  color: #f0d7ac;
-}
-
-/* Brass hinged lid crease bar */
-.cc-paintbox-lid-bar {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #2a140b, #1c0d07);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 222, 174, 0.18);
-}
-
-.cc-hinge-pin {
-  width: 46px;
-  height: 10px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, var(--brass-hi), var(--brass) 55%, var(--brass-deep));
-  border: 1.5px solid #24130d;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.48);
+.cc-drawer-close:hover {
+  border-color: var(--gold-hi);
+  background: rgba(56, 42, 112, 0.96);
 }
 
 .cc-grid {
   display: grid;
-  gap: clamp(9px, 1.4vmin, 13px);
+  gap: clamp(8px, 1.2vmin, 12px);
 }
 
-/* Recessed dark-walnut compartment tray cradling the glazed porcelain paint pans */
+/* Paintbox: 10 Exotic Mediums grid */
 .cc-grid-paintbox {
-  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
-  padding: clamp(10px, 1.4vmin, 14px);
-  border-radius: 14px;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(255, 210, 142, 0.08), transparent 65%),
-    linear-gradient(180deg, #28140b 0%, #371c11 100%);
-  border: 2px solid #1e0e08;
-  box-shadow: inset 0 7px 18px rgba(8, 3, 1, 0.78), 0 1px 0 rgba(255, 224, 174, 0.18);
+  grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(11, 10, 30, 0.62);
+  border: 1px solid var(--gold-line-dim);
+  overflow-y: auto;
+  touch-action: pan-y;
 }
 
-/* Glazed ceramic porcelain watercolor pan dish (sculpted warm ivory cushion, HERO 78px pigment!) */
-.cc-porcelain-pan {
-  min-height: 158px;
-  padding: 9px 7px 8px;
-  border-radius: 26px 26px 20px 20px;
-  border: 2.5px solid #351d13;
-  background:
-    radial-gradient(ellipse 90% 34% at 45% 4%, rgba(255, 255, 255, 0.85), transparent 62%),
-    radial-gradient(ellipse 80% 45% at 50% 96%, rgba(162, 122, 64, 0.24), transparent 70%),
-    linear-gradient(180deg, #faf0d8 0%, #ebd8b0 66%, #dcc290 100%);
-  color: var(--ink);
-  box-shadow:
-    0 5px 0 #1c0e08,
-    0 10px 18px rgba(10, 4, 2, 0.56),
-    inset 0 3px 2px rgba(255, 254, 248, 0.9),
-    inset 0 -4px 7px rgba(126, 88, 42, 0.34);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cc-porcelain-pan:hover {
-  transform: translateY(-4px);
-  box-shadow:
-    0 8px 0 #1c0e08,
-    0 14px 22px rgba(10, 4, 2, 0.62),
-    0 0 0 2px rgba(247, 223, 153, 0.78),
-    inset 0 3px 2px rgba(255, 254, 248, 0.94);
-}
-
-.cc-porcelain-pan.is-owned {
-  background:
-    radial-gradient(ellipse 85% 36% at 50% 5%, rgba(255, 255, 255, 0.84), transparent 65%),
-    linear-gradient(180deg, #f5f2dc 0%, #dce8cc 68%, #c5d9b4 100%);
-  box-shadow:
-    0 5px 0 #1c0e08,
-    0 0 12px rgba(181, 242, 208, 0.3),
-    inset 0 3px 2px rgba(255, 254, 248, 0.9);
-}
-
-/* Deep glazed porcelain dish basin cradling the HERO 78x78 pixel pigment! */
-.cc-pan-well {
-  padding: 5px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, #cfb687 0%, #f1e3c4 48%, #fffdf6 100%);
-  box-shadow:
-    inset 0 4px 7px rgba(48, 32, 18, 0.42),
-    0 1.5px 0 rgba(255, 255, 255, 0.85);
-}
-
-/* Painterly organic watercolor brush-stroke wash strip */
-.cc-test-strip {
-  width: 86%;
-  height: 11px;
-  border-radius: 40% 60% 45% 55% / 70% 40% 60% 35%;
-  background: linear-gradient(90deg, var(--strip-a), var(--strip-b) 52%, var(--strip-c));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 2px rgba(48, 32, 18, 0.25);
-  opacity: 0.95;
-}
-
-/* --- Drawer 2: Washi-Taped Heavyweight Cardstock Paper-Doll Sticker Sheet --- */
+/* Wardrobe: Live Violet + Lumi + Nova stage + scrollable 14-item gallery */
 .cc-drawer-wardrobe {
-  width: min(92vw, 608px);
-  color: var(--ink);
-  border-radius: 10px 14px 18px 12px;
-  background:
-    radial-gradient(ellipse 70% 60% at 10% 8%, rgba(255, 232, 182, 0.32), transparent 56%),
-    radial-gradient(circle at 1px 1px, rgba(54, 37, 71, 0.055) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    linear-gradient(180deg, #fbf3df 0%, #efdeb8 68%, #e4cc9a 100%);
-  border: 2.5px solid #594032;
-  box-shadow:
-    3px 4px 0 #d9c294,
-    6px 8px 0 rgba(35, 25, 66, 0.48),
-    0 26px 52px rgba(8, 4, 20, 0.68),
-    inset 0 0 0 1.5px rgba(255, 253, 246, 0.78);
+  width: min(94vw, 860px);
 }
 
-.cc-drawer-wardrobe .cc-drawer-title {
-  color: var(--ink);
-  text-shadow: 0 1px 0 rgba(255, 252, 242, 0.85);
-}
-
-/* Diagonal translucent pastel washi-tape corners pinning the Sticker Sheet */
-.cc-drawer-washi {
-  position: absolute;
-  top: -12px;
-  width: 96px;
-  height: 28px;
-  pointer-events: none;
-  z-index: 4;
-  filter: drop-shadow(0 2px 3px rgba(35, 25, 66, 0.22));
-}
-
-.cc-drawer-washi.tl { left: -20px; transform: rotate(-28deg); }
-.cc-drawer-washi.tr { right: -20px; transform: rotate(28deg); }
-.cc-drawer-washi svg { width: 100%; height: 100%; }
-
-/* Top Stage: 3 Ornate Gilded Paper-Doll Cameo Frames hugging HERO 92x106 portraits! */
 .cc-paper-dolls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(8px, 1.4vmin, 14px);
+  gap: clamp(8px, 1.2vmin, 14px);
+  flex: none;
 }
 
 .cc-doll-card {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   padding: 8px 8px 6px;
   border-radius: 16px;
-  background:
-    radial-gradient(ellipse at 50% 24%, rgba(255, 246, 218, 0.68), transparent 68%),
-    linear-gradient(180deg, #f6e7c9 0%, #e5cd9b 100%);
-  border: 2px solid var(--brass);
-  box-shadow:
-    inset 0 0 0 3px #fbf3e0,
-    inset 0 0 0 4.5px rgba(133, 91, 30, 0.44),
-    0 4px 10px rgba(42, 28, 62, 0.24);
+  background: radial-gradient(ellipse at 50% 24%, rgba(56, 40, 112, 0.6), rgba(18, 15, 42, 0.92));
+  border: 1px solid var(--gold-line-soft);
 }
 
 .cc-doll-card.is-dressed {
-  border-color: var(--brass-deep);
-  background:
-    radial-gradient(ellipse at 50% 24%, rgba(255, 244, 186, 0.8), transparent 68%),
-    linear-gradient(180deg, #fcf1ce 0%, #ecd086 100%);
-  box-shadow:
-    inset 0 0 0 3px #fff9e6,
-    inset 0 0 0 4.5px var(--brass),
-    0 5px 14px rgba(210, 161, 72, 0.36);
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(234, 196, 111, 0.24);
 }
 
-/* Uncropped HERO 92x106 portrait showcasing the full pixel-art gilded oval cartouche & ribbon! */
 .cc-doll-portrait {
-  width: clamp(78px, 11.4dvh, 92px);
-  height: clamp(90px, 13.2dvh, 106px);
-  border-radius: 8px;
+  width: clamp(72px, 10.2dvh, 92px);
+  height: clamp(84px, 11.8dvh, 106px);
+  border-radius: 10px;
   overflow: hidden;
-  border: 2px solid var(--ink);
-  background: #231942;
-  box-shadow: 0 3px 9px rgba(26, 16, 48, 0.42);
+  border: 1px solid var(--gold-line);
+  background: #14102d;
 }
 
 .cc-doll-portrait canvas { width: 100%; height: 100%; }
@@ -1810,15 +1852,15 @@ button,
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 13px;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  color: var(--gold-hi);
 }
 
 .cc-doll-badges {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   min-height: 24px;
 }
 
@@ -1826,69 +1868,116 @@ button,
   width: 26px;
   height: 26px;
   padding: 2px;
-  border-radius: 7px;
-  background: #fbf2dd;
-  border: 1.8px solid var(--ink);
-  box-shadow: 0 2px 4px rgba(35, 25, 66, 0.3);
+  border-radius: 8px;
+  background: rgba(26, 20, 54, 0.92);
+  border: 1px solid var(--gold-line);
 }
 
-.cc-doll-sticker-pip canvas { width: 100%; height: 100%; border-radius: 4px; }
+.cc-doll-sticker-pip canvas { width: 100%; height: 100%; border-radius: 5px; }
 
-/* Authentic Compact Die-Cut Vinyl Stickers hugging HERO 76px pixel art (ZERO wide blank boxes!) */
 .cc-grid-stickers {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(9px, 1.4vmin, 13px);
-  padding: 8px;
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 10px 10px, rgba(164, 124, 68, 0.09) 1.2px, transparent 1.6px) 0 0 / 18px 18px,
-    rgba(133, 91, 30, 0.07);
-  box-shadow: inset 0 2px 6px rgba(90, 66, 50, 0.14);
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  padding: 10px 12px 14px;
+  border-radius: 16px;
+  background: rgba(11, 10, 30, 0.62);
+  border: 1px solid var(--gold-line-dim);
+  overflow-y: auto;
+  touch-action: pan-y;
 }
 
-.cc-diecut-sticker {
-  min-height: 134px;
-  padding: 8px 8px 8px;
-  border-radius: 26px 24px 10px 26px;
-  border: 4px solid #fffaf0;
-  background: linear-gradient(165deg, #fbf3df 0%, #eedcb6 100%);
-  transform: rotate(var(--tilt, 0deg));
-  box-shadow:
-    0 0 0 1.5px rgba(58, 39, 72, 0.45),
-    3px 6px 12px rgba(42, 26, 62, 0.28),
-    inset -6px -6px 10px rgba(196, 162, 102, 0.32);
+.cc-wardrobe-group-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px 2px;
 }
 
-/* Subtle peeled-up sticker corner fold */
-.cc-diecut-sticker::after {
+.cc-wardrobe-group-head::after {
   content: "";
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 15px;
-  height: 15px;
-  border-radius: 4px 0 4px 0;
-  background: linear-gradient(135deg, #fffaf0 0 48%, rgba(164, 128, 80, 0.38) 52%, transparent 100%);
-  pointer-events: none;
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(234, 196, 111, 0.45), transparent);
 }
 
-.cc-diecut-sticker:hover {
-  transform: translateY(-4px) rotate(0deg) scale(1.03);
-  box-shadow:
-    0 0 0 2px var(--brass),
-    5px 10px 18px rgba(42, 26, 62, 0.36);
+.cc-wardrobe-group-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--gold);
 }
 
-.cc-diecut-sticker.is-owned {
-  background: linear-gradient(165deg, #f7f4e2 0%, #e1ecd1 100%);
+/* Cloisonne Item Cards (Exotic Mediums & Wardrobe Accessories) */
+.cc-enamel-pan,
+.cc-cloisonne-card {
+  position: relative;
+  min-height: 152px;
+  padding: 10px 8px 9px;
+  border-radius: 18px;
+  border: 1px solid var(--gold-line-soft);
+  background: linear-gradient(170deg, rgba(42, 31, 84, 0.88) 0%, rgba(21, 17, 46, 0.96) 100%);
+  color: var(--ivory-text);
+  box-shadow: 0 8px 18px rgba(4, 3, 18, 0.44), inset 0 1px 0 rgba(255, 246, 214, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.cc-diecut-sticker.is-on {
-  background: linear-gradient(165deg, #fff7d4 0%, #f5d682 100%);
-  border-color: #fffdf5;
-  box-shadow:
-    0 0 0 2px var(--brass),
-    0 6px 16px rgba(210, 161, 72, 0.48);
+.cc-enamel-pan:hover,
+.cc-cloisonne-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold);
+  box-shadow: 0 10px 24px rgba(4, 3, 18, 0.56), 0 0 18px rgba(234, 196, 111, 0.3);
+}
+
+.cc-enamel-pan.is-ready,
+.cc-cloisonne-card.is-ready {
+  border-color: var(--gold);
+  box-shadow: 0 8px 20px rgba(4, 3, 18, 0.48), 0 0 18px rgba(234, 196, 111, 0.38);
+}
+
+.cc-enamel-pan.is-owned,
+.cc-cloisonne-card.is-owned {
+  border-color: rgba(154, 240, 212, 0.46);
+  background: linear-gradient(170deg, rgba(31, 46, 72, 0.9) 0%, rgba(17, 24, 46, 0.96) 100%);
+}
+
+.cc-cloisonne-card.is-on {
+  border-color: var(--gold-hi);
+  background: linear-gradient(170deg, rgba(64, 44, 108, 0.95) 0%, rgba(30, 22, 66, 0.98) 100%);
+  box-shadow: 0 8px 22px rgba(4, 3, 18, 0.5), 0 0 20px rgba(234, 196, 111, 0.44);
+}
+
+.cc-ready-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 0 12px rgba(234, 196, 111, 0.72);
+  animation: cc-gold-pulse 2s ease-in-out infinite;
+}
+
+.cc-pan-well {
+  padding: 4px;
+  border-radius: 18px;
+  background: rgba(11, 10, 28, 0.72);
+  border: 1px solid rgba(234, 196, 111, 0.28);
+}
+
+.cc-test-strip {
+  width: 82%;
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--strip-a), var(--strip-b) 52%, var(--strip-c));
+  opacity: 0.92;
 }
 
 .cc-item-inner {
@@ -1900,107 +1989,98 @@ button,
   min-width: 0;
 }
 
-/* HERO 76-80px pixel art inside Paintbox & Wardrobe! */
 .cc-item-art {
   position: relative;
   display: block;
-  width: clamp(66px, 9.6dvh, 78px);
-  height: clamp(66px, 9.6dvh, 78px);
+  width: 68px;
+  height: 68px;
   flex: none;
-  border-radius: 15px;
+  border-radius: 14px;
   overflow: hidden;
 }
 
 .cc-item-art.cc-swatch-body {
   position: relative;
   inset: auto;
-  width: clamp(68px, 9.8dvh, 80px);
-  height: clamp(68px, 9.8dvh, 80px);
-  border-radius: 15px;
-  border: 2px solid var(--ink);
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  border: 1px solid rgba(250, 246, 236, 0.65);
 }
 
 .cc-sticker-art {
-  width: clamp(66px, 9.6dvh, 78px);
-  height: clamp(66px, 9.6dvh, 78px);
-  border-radius: 16px;
-  box-shadow: 0 3px 8px rgba(35, 25, 66, 0.34);
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  background: rgba(14, 12, 34, 0.78);
+  border: 1px solid rgba(234, 196, 111, 0.34);
 }
 
 .cc-item-art canvas { width: 100%; height: 100%; }
 
 .cc-item-name {
-  font-family: var(--font-hand);
-  font-size: clamp(15px, 1.9vmin, 18px);
-  font-weight: 400;
-  line-height: 1.08;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.15;
   text-align: center;
-  color: var(--ink);
+  color: var(--ivory-text);
   overflow-wrap: anywhere;
 }
 
-/* Rustic wax-paper / vellum crystal cost & status slips (ZERO sterile pure-white HTML pills!) */
 .cc-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 2px 10px 2px 7px;
-  border-radius: 5px 10px 6px 9px;
+  border-radius: 999px;
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 700;
-  background: linear-gradient(180deg, #fcf4de 0%, #ead6ab 100%);
-  border: 1.5px solid rgba(58, 39, 72, 0.65);
-  box-shadow: 0 2px 0 rgba(58, 39, 72, 0.35);
-  color: var(--ink);
+  background: rgba(19, 16, 42, 0.9);
+  border: 1px solid var(--gold-line);
+  color: var(--gold-hi);
   white-space: nowrap;
 }
 
 .cc-tag-gem { width: 15px; height: 15px; }
+
 .cc-tag-own,
 .cc-tag-on {
   padding: 2px 10px;
-  background: linear-gradient(180deg, #dcf6e5 0%, #b4e4c9 100%);
-  border-color: #2f6c50;
-  color: #1c4734;
+  background: rgba(31, 90, 87, 0.55);
+  border-color: var(--mint);
+  color: #e6fff6;
 }
+
 .cc-tag-off {
   padding: 2px 10px;
-  background: linear-gradient(180deg, #f3e9ff 0%, #dfcdfa 100%);
-  border-color: #5b3d8a;
+  background: rgba(58, 42, 110, 0.72);
+  border-color: var(--lilac);
+  color: var(--ivory-text);
 }
+
+.cc-cost.is-afford {
+  border-color: var(--gold);
+  background: rgba(52, 38, 96, 0.92);
+}
+
 .cc-cost.is-short {
-  background: linear-gradient(180deg, #efe4dc 0%, #dfcec5 100%);
-  color: rgba(35, 25, 66, 0.58);
-}
-.cc-item.is-short { filter: saturate(0.75); }
-
-/* --- Drawer 3: Carved Walnut Heirloom Bookshelf Alcove --- */
-.cc-drawer-bookshelf {
-  color: #fff6e2;
-  background:
-    radial-gradient(ellipse 65% 42% at 50% 0%, rgba(255, 210, 142, 0.14), transparent 60%),
-    repeating-linear-gradient(90deg, rgba(22, 10, 4, 0.1) 0 3px, transparent 3px 16px),
-    linear-gradient(180deg, #623922 0%, #442415 58%, #2e180f 100%);
-  border-color: #21100a;
-  box-shadow:
-    0 10px 0 #1b0c07,
-    0 28px 54px rgba(6, 3, 16, 0.74),
-    inset 0 2px 0 rgba(255, 224, 174, 0.3);
+  border-color: rgba(250, 246, 236, 0.18);
+  color: rgba(250, 246, 236, 0.55);
 }
 
-.cc-drawer-bookshelf .cc-drawer-title { color: #fce9be; }
-.cc-drawer-bookshelf .cc-drawer-sub { color: #edd4a6; }
+.cc-item.is-short {
+  opacity: 0.78;
+}
 
-/* Upper wooden gallery molding holding 3D embossed crimson & gold wax-seal Constellation Badges */
+/* Bookshelf Drawer */
 .cc-shelf-molding {
   padding: 10px 12px;
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 220, 168, 0.1) 0 2px, transparent 2px),
-    linear-gradient(180deg, #2b1a2f 0%, #1c1229 100%);
-  border: 2px solid #22100a;
-  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.58), 0 1px 0 rgba(255, 220, 168, 0.18);
+  border-radius: 16px;
+  background: rgba(11, 10, 30, 0.68);
+  border: 1px solid var(--gold-line-dim);
+  flex: none;
 }
 
 .cc-wax-badges {
@@ -2015,44 +2095,37 @@ button,
   align-items: center;
   gap: 4px;
   padding: 4px 2px;
-  border-radius: 10px;
-  color: rgba(238, 226, 206, 0.55);
+  border-radius: 12px;
+  color: rgba(250, 246, 236, 0.48);
 }
 
 .cc-badge-art {
-  width: clamp(32px, 4.8vmin, 42px);
-  height: clamp(32px, 4.8vmin, 42px);
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  padding: 5px;
-  background: radial-gradient(circle at 50% 45%, rgba(62, 46, 86, 0.56), rgba(32, 22, 52, 0.78));
-  border: 1.5px dashed rgba(226, 204, 162, 0.3);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  background: rgba(26, 20, 54, 0.85);
+  border: 1px solid rgba(234, 196, 111, 0.24);
+  filter: grayscale(0.75) opacity(0.55);
 }
 
-.cc-badge-art svg { width: 100%; height: 100%; overflow: visible; }
-.cc-badge-art polyline { fill: none; stroke: rgba(224, 208, 178, 0.42); stroke-width: 3.5; stroke-dasharray: 5 5; }
-.cc-badge-art circle { fill: rgba(224, 208, 178, 0.4); }
+.cc-badge-pix { width: 26px; height: 26px; }
 
 .cc-wax-badge.is-on {
-  color: #fff2c6;
+  color: var(--gold-hi);
 }
 
-/* 3D embossed crimson & gold wax seal when constellation badge is earned */
 .cc-wax-badge.is-on .cc-badge-art {
-  background: radial-gradient(circle at 34% 28%, #e26275, var(--wax) 58%, var(--wax-deep) 100%);
-  border: 2px solid var(--brass-hi);
-  box-shadow:
-    inset 0 0 0 2.5px rgba(109, 27, 41, 0.65),
-    0 3px 8px rgba(0, 0, 0, 0.55),
-    0 0 12px rgba(255, 212, 59, 0.48);
+  background: radial-gradient(circle at 35% 28%, rgba(234, 196, 111, 0.35), rgba(50, 36, 99, 0.96) 75%);
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 14px rgba(234, 196, 111, 0.55);
+  filter: none;
 }
-
-.cc-wax-badge.is-on polyline { stroke: #ffe9a6; stroke-dasharray: none; }
-.cc-wax-badge.is-on circle { fill: var(--gold); filter: drop-shadow(0 0 3px #ffd43b); }
 
 .cc-badge-name {
   font-family: var(--font-ui);
-  font-size: clamp(9.5px, 1.25vmin, 11.5px);
+  font-size: clamp(9.5px, 1.2vmin, 11.5px);
   font-weight: 700;
   text-align: center;
   line-height: 1.12;
@@ -2062,26 +2135,28 @@ button,
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .cc-shelf-nav {
-  background: radial-gradient(circle at 35% 28%, #fff1bd, var(--brass) 68%, var(--brass-deep) 100%);
-  color: var(--ink);
+  background: rgba(37, 27, 75, 0.88);
+  border-color: var(--gold-line);
+  color: var(--gold-hi);
 }
 
-/* Deep recessed walnut alcove & solid wooden shelf ledge */
 .cc-book-spines {
   flex: 1 1 auto;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
-  padding: 14px 14px 20px;
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(16, 8, 10, 0.56) calc(100% - 14px), #a66c43 calc(100% - 14px), #784829 calc(100% - 6px), #442414 100%);
-  border: 2px solid #22100a;
-  box-shadow: inset 0 8px 18px rgba(8, 3, 2, 0.7);
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(11, 10, 30, 0.68);
+  border: 1px solid var(--gold-line-dim);
+  overflow-y: auto;
+  touch-action: pan-y;
 }
 
 .cc-shelf-empty {
@@ -2090,7 +2165,7 @@ button,
   text-align: center;
   font-family: var(--font-hand);
   font-size: 19px;
-  color: rgba(255, 244, 218, 0.88);
+  color: var(--ivory-muted);
 }
 
 .cc-book-slot {
@@ -2099,28 +2174,20 @@ button,
   gap: 8px;
 }
 
-/* Cloth-bound embossed hardcover storybook spine + HERO 72x96 cover art + crimson ribbon tail */
 .cc-book-spine {
   flex: 1 1 auto;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 5px 12px 12px 5px;
-  background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 3px),
-    linear-gradient(90deg, var(--spine-shadow, #3a1d4f) 0 10px, var(--spine-bg, #5d3478) 10px 100%);
-  color: var(--spine-foil, #f5d98c);
-  border: 2px solid #1b112c;
-  box-shadow:
-    0 5px 0 #180e28,
-    0 10px 16px rgba(8, 4, 16, 0.52),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  border-radius: 6px 14px 14px 6px;
+  background: linear-gradient(90deg, var(--spine-shadow, #2d184d) 0 10px, var(--spine-bg, #4c2c7a) 10px 100%);
+  color: var(--spine-foil, #eac46f);
+  border: 1px solid rgba(234, 196, 111, 0.55);
+  box-shadow: 0 8px 18px rgba(4, 3, 18, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
   display: flex;
   align-items: center;
 }
 
-.cc-book-spine:hover {
-  transform: translateY(-3px);
-}
+.cc-book-spine:hover { transform: translateY(-2px); }
 
 .cc-spine-inner {
   position: relative;
@@ -2134,36 +2201,32 @@ button,
 .cc-spine-band {
   position: absolute;
   left: -5px;
-  width: 8px;
-  height: 3.5px;
+  width: 7px;
+  height: 3px;
   border-radius: 1px;
-  background: var(--spine-foil, #f5d98c);
-  opacity: 0.85;
+  background: var(--spine-foil, #eac46f);
 }
 
 .cc-spine-band.top { top: 4px; }
 .cc-spine-band.bot { bottom: 4px; }
 
-/* Peeking crimson silk bookmark ribbon tail at bottom of book */
 .cc-spine-ribbon {
   position: absolute;
   right: 10px;
-  bottom: -16px;
-  width: 11px;
-  height: 15px;
-  background: linear-gradient(180deg, var(--wax-hi), var(--wax-deep));
+  bottom: -14px;
+  width: 10px;
+  height: 14px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
   pointer-events: none;
 }
 
-/* HERO hardcover book art (66x88 displaying 72x96 with crescent hill silhouettes!) */
 .cc-cover-pix {
   width: 66px;
   height: 88px;
   flex: none;
   border-radius: 4px;
-  border: 1.5px solid var(--spine-foil, #f5d98c);
-  box-shadow: 0 3px 8px rgba(12, 6, 26, 0.5);
+  border: 1px solid var(--spine-foil, #eac46f);
 }
 
 .cc-spine-meta {
@@ -2179,63 +2242,36 @@ button,
   font-size: 15px;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.01em;
   text-align: left;
-  text-shadow: 0 1px 2px rgba(14, 8, 28, 0.72);
+  color: var(--gold-hi);
   overflow-wrap: anywhere;
 }
 
 .cc-spine-pages {
   font-family: var(--font-hand);
   font-size: 14px;
-  font-weight: 400;
-  opacity: 0.88;
+  color: var(--ivory-muted);
 }
 
-/* Hammered antique brass keepsake stamp seal beside each book */
 .cc-book-keepsake {
   align-self: center;
-  background: radial-gradient(circle at 34% 28%, #fff3c6, var(--brass) 64%, var(--brass-deep) 100%);
-  box-shadow: 0 4px 0 #1b1026, inset 0 1.5px 0 rgba(255, 250, 224, 0.8);
+  background: rgba(37, 27, 75, 0.88);
+  border-color: var(--gold-line);
 }
 
-/* --- Drawer 4: Velvet-Lined Hammered Burnished-Brass Trinket Dish --- */
+/* Trinkets Drawer */
 .cc-drawer-trinkets {
-  width: min(92vw, 560px);
-  color: #2b1a0c;
-  border-radius: 34px;
-  background:
-    radial-gradient(ellipse at 26% 16%, rgba(255, 250, 220, 0.6), transparent 52%),
-    linear-gradient(180deg, #f1d287 0%, #c8953e 54%, #91631f 100%);
-  border: 3px solid #2a190b;
-  box-shadow:
-    0 10px 0 #2a190b,
-    0 26px 52px rgba(8, 4, 20, 0.7),
-    inset 0 2.5px 0 rgba(255, 252, 232, 0.82),
-    inset 0 -3px 6px rgba(64, 38, 10, 0.45);
+  width: min(92vw, 540px);
 }
 
-.cc-drawer-trinkets .cc-drawer-title {
-  color: #26160b;
-  text-shadow: 0 1px 0 rgba(255, 248, 218, 0.7);
-}
-
-.cc-drawer-trinkets .cc-drawer-sub {
-  color: #3f2612;
-}
-
-/* Plush twilight-plum velvet interior dish lining */
 .cc-trinket-dish-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border-radius: 22px;
-  background:
-    radial-gradient(ellipse at 50% 25%, rgba(86, 56, 126, 0.55), transparent 72%),
-    linear-gradient(180deg, #2b1d45 0%, #1c1332 100%);
-  border: 2px solid #5a3c16;
-  box-shadow: inset 0 6px 16px rgba(6, 3, 16, 0.72), 0 1px 0 rgba(255, 246, 206, 0.52);
+  border-radius: 18px;
+  background: rgba(11, 10, 30, 0.65);
+  border: 1px solid var(--gold-line-dim);
 }
 
 .cc-trinket-row {
@@ -2246,23 +2282,21 @@ button,
   gap: 10px;
 }
 
-.cc-trinket-install-row:has(> [hidden]) {
-  display: none;
-}
+.cc-trinket-install-row:has(> [hidden]) { display: none; }
 
 .cc-trinket-audio {
   width: 100%;
   padding: 10px 16px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fcf4df 0%, #ebd6aa 100%);
-  border: 2px solid var(--brass-deep);
-  box-shadow: 0 4px 0 #140d28, inset 0 1.5px 0 rgba(255, 255, 255, 0.82);
+  border-radius: 14px;
+  background: rgba(37, 27, 75, 0.85);
+  border: 1px solid var(--gold-line);
+  color: var(--gold-hi);
 }
 
 .cc-trinket-audio[data-level="0"] {
-  background: linear-gradient(180deg, #3c3068 0%, #241b47 100%);
-  border-color: #6b5aa8;
-  color: #f3ecff;
+  background: rgba(19, 16, 42, 0.92);
+  border-color: rgba(182, 156, 255, 0.42);
+  color: var(--ivory-muted);
 }
 
 .cc-trinket-audio-inner {
@@ -2273,25 +2307,25 @@ button,
 
 .cc-trinket-audio-label {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 
-/* Install Sketchbook star-charm medallion */
 .cc-install-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .cc-install {
   padding: 6px 18px 6px 12px;
   border-radius: 999px;
-  border: 2px solid var(--brass-hi);
-  background: linear-gradient(180deg, #fff6cf 0%, #f3cd6d 100%);
+  border: 1px solid var(--gold-hi);
+  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  color: var(--ink);
   font-family: var(--font-display);
   font-size: 15px;
-  box-shadow: 0 4px 0 #140d28, 0 0 14px rgba(255, 212, 59, 0.35);
+  box-shadow: 0 0 18px rgba(234, 196, 111, 0.42);
 }
 
 .cc-install-inner {
@@ -2302,50 +2336,38 @@ button,
 }
 
 .cc-install-star {
-  width: 26px;
-  height: 26px;
-  animation: cc-spin-slow 10s linear infinite;
+  width: 24px;
+  height: 24px;
+  animation: cc-spin-slow 12s linear infinite;
 }
 
 .cc-install-x {
   width: var(--hit);
   height: var(--hit);
   padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+  border-radius: 50%;
+  background: rgba(37, 27, 75, 0.85);
+  border: 1px solid var(--gold-line);
   display: grid;
   place-items: center;
 }
 
-.cc-install-x .cc-ico {
-  width: 24px;
-  height: 24px;
-  padding: 4px;
-  border-radius: 50%;
-  background: #fbf2db;
-  border: 2px solid var(--ink);
-}
-
-/* Twine-tied Backup / Restore parchment scrolls */
 .cc-scroll-btn {
   flex: 1 1 170px;
   padding: 8px 14px;
-  border-radius: 10px 14px 10px 14px;
-  background:
-    linear-gradient(90deg, rgba(168, 128, 66, 0.25) 0 6px, transparent 6px calc(100% - 6px), rgba(168, 128, 66, 0.25) calc(100% - 6px) 100%),
-    linear-gradient(180deg, #fcf4de 0%, #ebd6aa 100%);
-  border: 2px solid #593e24;
+  border-radius: 14px;
+  background: rgba(37, 27, 75, 0.85);
+  border: 1px solid var(--gold-line);
+  color: var(--ivory-text);
   font-family: var(--font-display);
   font-size: 14px;
-  box-shadow: 0 4px 0 #140d28, inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .cc-chip {
-  padding: 5px 16px;
-  border-radius: 10px 14px 10px 14px;
+  padding: 6px 16px;
+  border-radius: 999px;
   font-family: var(--font-display);
-  font-size: clamp(13px, 1.9vmin, 16px);
+  font-size: clamp(13px, 1.85vmin, 15px);
 }
 
 .cc-chip-inner {
@@ -2369,20 +2391,21 @@ button,
   pointer-events: none;
 }
 
-/* ---------- 7. Book Viewer: Embossed Hand-Stitched Vellum & Brass Bookmark Ribbon ---------- */
+/* ---------- 11. Book Viewer Controls ---------- */
 .cc-book-nav {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   z-index: 12;
-  width: calc(var(--hit) + 6px);
-  height: calc(var(--hit) + 6px);
-  background: radial-gradient(circle at 34% 28%, #fff4c4, var(--brass) 68%, var(--brass-deep) 100%);
-  border: 2px solid var(--ink);
-  box-shadow: 0 4px 0 rgba(35, 25, 66, 0.85), 0 8px 16px rgba(18, 11, 36, 0.35), inset 0 1.5px 0 rgba(255, 252, 234, 0.8);
+  width: calc(var(--hit) + 4px);
+  height: calc(var(--hit) + 4px);
+  background: var(--enamel-glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
 }
 
-.cc-book-prev { left: 28px; }
+.cc-book-prev { left: 26px; }
 .cc-book-next { right: 18px; }
 
 .cc-bookbar {
@@ -2395,29 +2418,15 @@ button,
   align-items: center;
   gap: 14px;
   padding: 6px 14px;
-  border-radius: 8px 14px 10px 12px;
-  background:
-    repeating-linear-gradient(90deg, rgba(180, 140, 74, 0.06) 0 2px, transparent 2px 10px),
-    linear-gradient(180deg, #fcf4de 0%, #ead5a8 100%);
-  border: 2px solid var(--brass-deep);
-  box-shadow:
-    0 4px 0 rgba(35, 25, 66, 0.82),
-    0 12px 24px rgba(18, 12, 34, 0.38),
-    inset 0 0 0 2px rgba(255, 252, 240, 0.72);
-}
-
-/* Delicate stitched gold hem along the book viewer ribbon */
-.cc-bookbar::before {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 5px 11px 7px 9px;
-  border: 1.2px dashed rgba(133, 91, 30, 0.45);
-  pointer-events: none;
+  border-radius: 999px;
+  background: var(--enamel-glass-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 10px 26px rgba(4, 3, 18, 0.56);
 }
 
 .cc-bookbar-info {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2427,30 +2436,29 @@ button,
 .cc-bookbar-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(14px, 2.1vmin, 18px);
-  letter-spacing: -0.015em;
+  font-size: clamp(14px, 2vmin, 17px);
   text-align: center;
-  color: var(--ink);
+  color: var(--gold-hi);
 }
 
 .cc-bookbar-page {
   font-family: var(--font-hand);
-  font-weight: 400;
-  font-size: clamp(14px, 1.9vmin, 17px);
-  color: var(--ink-sepia);
+  font-size: clamp(14px, 1.8vmin, 16px);
+  color: var(--ivory-muted);
 }
 
 .cc-book-back {
-  background: linear-gradient(180deg, #fffaf0 0%, #ead8b2 100%);
-  border-color: #5b402a;
+  background: rgba(37, 27, 75, 0.88);
+  border-color: var(--gold-line);
 }
 
 .cc-keepsake {
-  background: linear-gradient(180deg, #fff1c2 0%, var(--brass) 100%);
-  border-color: var(--ink);
+  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  border-color: var(--gold-hi);
+  color: var(--ink);
 }
 
-/* ---------- mode-driven visibility & serene spatial layout ---------- */
+/* ---------- 12. Mode-driven visibility & serene spatial layout ---------- */
 .cc-voyage-ribbon,
 .cc-desk-stations,
 .cc-book-prev,
@@ -2462,15 +2470,16 @@ button,
 .cc-root[data-mode="hub"] .cc-voyage-ribbon { display: inline-flex; }
 .cc-root[data-mode="hub"] .cc-desk-stations { display: flex; }
 .cc-root[data-mode="hub"] .cc-book.cc-spread {
-  bottom: clamp(102px, 14.5dvh, 120px);
-  padding: clamp(12px, 1.8dvh, 18px) clamp(16px, 1.8vw, 24px) clamp(12px, 1.8dvh, 18px) clamp(28px, 2.7vw, 38px);
+  bottom: clamp(102px, 14dvh, 118px);
+  padding: clamp(12px, 1.8dvh, 18px) clamp(18px, 2vw, 26px) clamp(12px, 1.8dvh, 18px) clamp(24px, 2.4vw, 34px);
 }
-/* Zero duplicate Hub audio bell: Trinket Dish owns the Brass Bell on the Hub! */
-.cc-root[data-mode="hub"] .cc-bookmark,
-.cc-root[data-mode="hub"] .cc-relics,
+/* Zero duplicate Hub audio control: Astrolabe Trinkets owns the Hub audio switch */
+.cc-root[data-mode="hub"] .cc-voyage-spine,
 .cc-root[data-mode="hub"] .cc-audio,
 .cc-root[data-mode="hub"] .cc-corner-right,
-.cc-root[data-mode="hub"] .cc-dogear,
+.cc-root[data-mode="hub"] .cc-quest-rail,
+.cc-root[data-mode="hub"] .cc-relic-strip,
+.cc-root[data-mode="hub"] .cc-auto-turn-ribbon,
 .cc-root[data-mode="hub"] .cc-dock {
   display: none;
 }
@@ -2482,37 +2491,40 @@ button,
 .cc-root[data-mode="book"] .cc-book-prev,
 .cc-root[data-mode="book"] .cc-book-next { display: inline-grid; }
 .cc-root[data-mode="book"] .cc-bookbar { display: inline-flex; }
-.cc-root[data-mode="book"] .cc-bookmark,
+.cc-root[data-mode="book"] .cc-voyage-spine,
 .cc-root[data-mode="book"] .cc-crystal-jar,
-.cc-root[data-mode="book"] .cc-relics,
-.cc-root[data-mode="book"] .cc-dogear,
+.cc-root[data-mode="book"] .cc-quest-rail,
+.cc-root[data-mode="book"] .cc-relic-strip,
+.cc-root[data-mode="book"] .cc-auto-turn-ribbon,
 .cc-root[data-mode="book"] .cc-dock {
   display: none;
 }
 
-.cc-root[data-mode="boot"] .cc-bookmark,
+.cc-root[data-mode="boot"] .cc-voyage-spine,
 .cc-root[data-mode="boot"] .cc-crystal-jar,
 .cc-root[data-mode="boot"] .cc-corner-right,
-.cc-root[data-mode="boot"] .cc-dogear,
+.cc-root[data-mode="boot"] .cc-quest-rail,
+.cc-root[data-mode="boot"] .cc-relic-strip,
+.cc-root[data-mode="boot"] .cc-auto-turn-ribbon,
 .cc-root[data-mode="boot"] .cc-dock {
   display: none;
 }
 
-/* Keep the open sketchbook canvas stable without reflow during turning/modals */
-.cc-root:is([data-mode="turning"], [data-mode="draft"], [data-mode="doors"], [data-mode="finale"]) :is(.cc-dock, .cc-dogear, .cc-bookmark, .cc-corner-right, .cc-crystal-jar) {
+/* Keep canvas geometry rock-steady during page turns & modals */
+.cc-root:is([data-mode="turning"], [data-mode="draft"], [data-mode="doors"], [data-mode="finale"])
+  :is(.cc-dock, .cc-voyage-spine, .cc-corner-right, .cc-crystal-jar, .cc-quest-rail, .cc-relic-strip, .cc-auto-turn-ribbon) {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
 
-/* Softly hush peripheral chrome during Sleepy Hush prologue while spotlighting the Enchanted Pencil */
-.cc-root[data-prologue="true"] .cc-bookmark,
-.cc-root[data-prologue="true"] .cc-corner-right,
-.cc-root[data-prologue="true"] .cc-dogear-early {
-  opacity: 0.6;
+/* Softly hush peripheral chrome during Chapter 1 prologue while spotlighting Enchanted Pencil */
+.cc-root[data-prologue="true"] .cc-voyage-spine,
+.cc-root[data-prologue="true"] .cc-corner-right {
+  opacity: 0.62;
 }
 
-/* ---------- Starlight Thread FX overlay ---------- */
+/* ---------- 13. Starlight Thread & Firefly Hint Beam FX Overlay (ZERO inline SVG) ---------- */
 .cc-fx-overlay {
   position: fixed;
   inset: 0;
@@ -2521,38 +2533,51 @@ button,
   overflow: hidden;
 }
 
-.cc-star-thread {
+.cc-star-thread,
+.cc-hint-beam {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.cc-star-thread svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.cc-thread-glow,
-.cc-thread-core {
-  stroke-dasharray: var(--thread-len, 600);
-  stroke-dashoffset: var(--thread-len, 600);
-  animation: cc-thread-draw 0.56s cubic-bezier(0.22, 0.85, 0.32, 1) forwards, cc-thread-fade 0.42s ease 0.52s forwards;
-}
-
-.cc-thread-burst {
-  transform-box: fill-box;
-  transform-origin: center;
+.cc-arc-mote {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffbe2 0%, #eac46f 52%, transparent 100%);
+  box-shadow: 0 0 12px 3px rgba(234, 196, 111, 0.85);
   opacity: 0;
-  animation: cc-thread-arrive 0.52s ease-out 0.44s forwards;
+  animation: cc-arc-mote 0.56s ease-out forwards;
+  animation-delay: var(--delay, 0ms);
 }
 
-.cc-thread-spark {
+.cc-hint-beam .cc-arc-mote {
+  background: radial-gradient(circle, #fffbe2 0%, #7ce8ff 52%, transparent 100%);
+  box-shadow: 0 0 14px 3px rgba(124, 232, 255, 0.85);
+}
+
+.cc-arc-burst {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  margin-top: -12px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-hi);
+  box-shadow: 0 0 18px 6px rgba(234, 196, 111, 0.78);
   opacity: 0;
-  animation: cc-thread-arrive 0.48s ease-out 0.48s forwards;
+  animation: cc-thread-arrive 0.52s ease-out 0.36s forwards;
 }
 
-/* ---------- 8. Heirloom Modals (Riveted Enamel Astral Pencil Tin, Velvet Star-Doors, Illuminated Finale) ---------- */
+.cc-hint-beam .cc-arc-burst {
+  border-color: var(--aurora);
+  box-shadow: 0 0 20px 6px rgba(124, 232, 255, 0.82);
+}
+
+/* ---------- 14. Midnight Cloisonne Modals (Astral Pencil Tin, Star-Doors, Finale) ---------- */
 .cc-modal-layer {
   position: fixed;
   inset: 0;
@@ -2560,9 +2585,9 @@ button,
   display: grid;
   place-items: center;
   padding: max(12px, env(safe-area-inset-top)) 14px;
-  background: radial-gradient(ellipse at 50% 42%, rgba(38, 25, 74, 0.6), rgba(12, 8, 28, 0.9));
-  -webkit-backdrop-filter: blur(3.5px);
-  backdrop-filter: blur(3.5px);
+  background: radial-gradient(ellipse at 50% 42%, rgba(28, 22, 60, 0.72), rgba(9, 10, 28, 0.92));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   animation: cc-fade 0.24s ease both;
 }
 
@@ -2585,7 +2610,7 @@ button,
   flex-direction: column;
   align-items: center;
   gap: clamp(6px, 1.2vmin, 12px);
-  width: min(100%, 1040px);
+  width: min(100%, 1020px);
   max-height: 100%;
   padding: clamp(12px, 2vmin, 22px) clamp(14px, 2.4vmin, 28px);
   border-radius: 26px;
@@ -2600,31 +2625,30 @@ button,
 .cc-modal-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(22px, 4.2vmin, 36px);
+  font-size: clamp(22px, 4vmin, 34px);
   font-weight: 700;
   line-height: 1.05;
   text-align: center;
   letter-spacing: -0.015em;
-  text-shadow: 0 2px 6px rgba(10, 6, 26, 0.68);
+  color: var(--gold-hi);
 }
 
 .cc-head-star {
-  width: clamp(20px, 3.2vmin, 30px);
-  height: clamp(20px, 3.2vmin, 30px);
+  width: clamp(20px, 3vmin, 28px);
+  height: clamp(20px, 3vmin, 28px);
   animation: cc-twinkle 2.4s ease-in-out infinite;
 }
 
 .cc-modal-sub {
   margin: 0;
   font-family: var(--font-hand);
-  font-size: clamp(16px, 2.3vmin, 21px);
+  font-size: clamp(16px, 2.2vmin, 20px);
   font-weight: 400;
-  letter-spacing: 0.015em;
+  color: var(--ivory-muted);
   text-align: center;
-  opacity: 0.92;
 }
 
-/* --- Hinged Vintage Brushed Midnight-Enamel Astral Pencil Tin --- */
+/* Astral Pencil Tin (Midnight-Enamel & Gold Astrolabe) */
 .cc-pencil-tin {
   padding: 0;
   gap: 0;
@@ -2635,165 +2659,143 @@ button,
 .cc-tin-lid-top {
   position: relative;
   width: 100%;
-  padding: clamp(10px, 1.6vmin, 16px) clamp(16px, 2.6vmin, 30px);
-  border-radius: 26px 26px 9px 9px;
-  color: #fff4d8;
-  /* Brushed midnight-enamel painted metal with subtle directional specular gradient */
+  padding: clamp(10px, 1.5vmin, 16px) clamp(16px, 2.4vmin, 28px);
+  border-radius: 26px 26px 10px 10px;
   background:
-    linear-gradient(108deg, transparent 14%, rgba(255, 244, 210, 0.1) 28%, rgba(255, 244, 210, 0.03) 36%, transparent 52%),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 4px),
-    radial-gradient(circle at 12% 30%, rgba(255, 246, 214, 0.8) 0 1.4px, transparent 2px),
-    radial-gradient(circle at 88% 26%, rgba(255, 246, 214, 0.72) 0 1.4px, transparent 2px),
-    linear-gradient(180deg, #352b69 0%, #231b4d 54%, #171136 100%);
-  border: 3px solid var(--brass);
-  box-shadow:
-    0 0 0 2px var(--ink),
-    inset 0 2px 0 rgba(255, 244, 204, 0.56),
-    inset 0 -3px 8px rgba(10, 6, 24, 0.55);
+    linear-gradient(112deg, transparent 14%, rgba(234, 196, 111, 0.08) 30%, transparent 52%),
+    linear-gradient(180deg, #2b215a 0%, #1a143a 60%, #130f2b 100%);
+  border: 1px solid rgba(234, 196, 111, 0.65);
+  box-shadow: 0 12px 32px rgba(4, 3, 18, 0.6), inset 0 1px 0 rgba(255, 246, 214, 0.25);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   transform-origin: 50% 100%;
   animation: cc-tin-open 0.42s cubic-bezier(0.22, 1.25, 0.45, 1) both;
 }
 
-/* Gilded inner filigree frame stamped onto the enamel tin lid */
 .cc-tin-lid-top::before {
   content: "";
   position: absolute;
   inset: 7px 10px;
-  border-radius: 18px 18px 4px 4px;
-  border: 1.2px solid rgba(247, 223, 153, 0.34);
+  border-radius: 18px 18px 5px 5px;
+  border: 1px solid rgba(234, 196, 111, 0.24);
   pointer-events: none;
 }
 
-.cc-tin-emboss {
-  width: min(280px, 64%);
-  height: 24px;
-  display: block;
-}
-
-.cc-tin-emboss svg { width: 100%; height: 100%; }
-
-/* Riveted antique-brass twin hinges & center clasp */
-.cc-tin-hinges {
-  width: 92%;
-  height: 16px;
+.cc-tin-constellation {
+  position: relative;
+  width: min(260px, 60%);
+  height: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10%;
+}
+
+.cc-tin-constellation::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(234, 196, 111, 0.65) 20%, rgba(124, 232, 255, 0.55) 50%, rgba(234, 196, 111, 0.65) 80%, transparent);
+}
+
+.cc-tin-star {
+  position: relative;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold-hi);
+  box-shadow: 0 0 8px var(--gold);
+}
+
+.cc-tin-star.s3 { background: var(--aurora); box-shadow: 0 0 10px var(--aurora); }
+
+.cc-tin-hinges {
+  width: 90%;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12%;
   z-index: 2;
 }
 
 .cc-tin-hinge {
-  position: relative;
-  width: 52px;
-  height: 12px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, var(--brass-hi), var(--brass) 52%, var(--brass-deep));
-  border: 2px solid var(--ink);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  width: 48px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  border: 1px solid var(--ink);
+  box-shadow: 0 2px 6px rgba(4, 3, 18, 0.55);
 }
-
-.cc-tin-hinge::before,
-.cc-tin-hinge::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 4px;
-  height: 4px;
-  margin-top: -2px;
-  border-radius: 50%;
-  background: #4e3312;
-  box-shadow: 0 0 0 1px rgba(255, 244, 200, 0.5);
-}
-
-.cc-tin-hinge::before { left: 7px; }
-.cc-tin-hinge::after { right: 7px; }
 
 .cc-tin-clasp-ico {
-  width: 34px;
-  height: 34px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 0 8px rgba(234, 196, 111, 0.65));
 }
 
-/* Plush dark plum-indigo velvet molded interior tray */
 .cc-tin-tray {
   width: 100%;
-  padding: clamp(16px, 2.4vmin, 26px) clamp(16px, 2.6vmin, 28px) clamp(18px, 2.6vmin, 28px);
+  padding: clamp(16px, 2.2vmin, 26px) clamp(16px, 2.4vmin, 28px);
   border-radius: 10px 10px 26px 26px;
   background:
-    radial-gradient(ellipse at 50% 18%, rgba(123, 63, 160, 0.34), transparent 68%),
-    radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.025) 1px, transparent 1.5px) 0 0 / 6px 6px,
-    linear-gradient(180deg, #211744 0%, #140e2d 100%);
-  border: 3px solid var(--brass);
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 9px 0 2px var(--ink),
-    0 26px 52px rgba(0, 0, 0, 0.68),
-    inset 0 10px 22px rgba(6, 3, 18, 0.74);
+    radial-gradient(ellipse at 50% 18%, rgba(124, 232, 255, 0.08), transparent 65%),
+    linear-gradient(180deg, #1b143b 0%, #100d26 100%);
+  border: 1px solid rgba(234, 196, 111, 0.62);
+  box-shadow: 0 24px 56px rgba(4, 3, 18, 0.78), inset 0 8px 24px rgba(4, 3, 18, 0.68);
 }
 
 .cc-cards {
   display: grid;
   grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
-  gap: clamp(12px, 2.2vmin, 24px);
+  gap: clamp(12px, 2vmin, 22px);
   width: 100%;
 }
 
-/* Scalloped / deckle-edged heirloom collector cards fanned organically inside velvet */
 .cc-deckle-card {
   position: relative;
   min-width: 0;
-  padding: clamp(10px, 1.6vmin, 16px);
-  border-radius: 16px 20px 17px 19px / 18px 16px 20px 17px;
-  border: 2.5px solid var(--brass-deep);
-  background:
-    radial-gradient(circle at 1px 1px, rgba(58, 39, 72, 0.05) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    linear-gradient(180deg, #fcf5e3 0%, #f1e0bb 100%);
+  padding: clamp(10px, 1.5vmin, 16px);
+  border-radius: 20px;
+  border: 1px solid rgba(234, 196, 111, 0.62);
+  background: linear-gradient(180deg, #fffdf8 0%, var(--paper) 100%);
+  color: var(--ink);
   transform: rotate(var(--fan, 0deg));
-  box-shadow:
-    0 0 0 2.5px #fffaf0,
-    0 7px 0 var(--ink),
-    0 14px 26px rgba(8, 4, 22, 0.56),
-    inset 0 0 0 4px rgba(255, 251, 240, 0.65),
-    inset 0 0 0 5.5px rgba(201, 152, 72, 0.52);
+  box-shadow: 0 12px 28px rgba(4, 3, 18, 0.56), inset 0 0 0 3px rgba(234, 196, 111, 0.16);
   display: flex;
   align-items: stretch;
   overflow: hidden;
-  transition: transform 0.22s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .cc-deckle-card.is-relic {
-  background:
-    radial-gradient(circle at 1px 1px, rgba(58, 39, 72, 0.05) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    linear-gradient(180deg, #fff8df 0%, #f6d994 100%);
+  background: linear-gradient(180deg, #fffdf5 0%, #f8f0dc 100%);
+  border-color: var(--gold);
 }
 
 .cc-deckle-card:hover {
   transform: translateY(-7px) rotate(0deg) scale(1.025);
-  box-shadow:
-    0 0 0 2.5px var(--brass-hi),
-    0 9px 0 var(--ink),
-    0 18px 34px rgba(255, 212, 82, 0.36),
-    inset 0 0 0 4px rgba(255, 251, 240, 0.72),
-    inset 0 0 0 5.5px rgba(210, 161, 72, 0.72);
+  border-color: var(--gold-hi);
+  box-shadow: 0 18px 36px rgba(4, 3, 18, 0.64), 0 0 24px rgba(234, 196, 111, 0.48);
 }
 
 .cc-card-holo {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(120deg, transparent 26%, rgba(255, 206, 240, 0.26) 40%, rgba(154, 244, 255, 0.28) 50%, rgba(255, 238, 156, 0.26) 60%, transparent 72%);
+  background: linear-gradient(120deg, transparent 26%, rgba(255, 158, 207, 0.22) 40%, rgba(124, 232, 255, 0.24) 50%, rgba(234, 196, 111, 0.22) 60%, transparent 72%);
   background-size: 240% 100%;
   animation: cc-gleam 5s ease-in-out infinite;
 }
 
 .cc-card.is-chosen {
   transform: translateY(-6px) rotate(0deg) scale(1.03);
-  box-shadow: 0 7px 0 var(--ink), 0 0 0 4px var(--gold), 0 0 32px 10px rgba(255, 212, 59, 0.82);
+  box-shadow: 0 0 0 3px var(--gold), 0 0 32px 8px rgba(234, 196, 111, 0.78);
 }
 
 .cc-card-inner {
@@ -2801,50 +2803,44 @@ button,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(5px, 0.9vmin, 9px);
+  gap: clamp(5px, 0.85vmin, 9px);
   width: 100%;
   min-width: 0;
 }
 
-/* HERO 120x90 pixel trading-card illustration filling the collector card */
 .cc-card-art {
   display: block;
-  height: clamp(86px, 24dvh, 192px);
+  height: clamp(86px, 23dvh, 184px);
   aspect-ratio: 4 / 3;
   max-width: 100%;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 2.5px solid var(--ink);
-  box-shadow: 0 3px 10px rgba(24, 15, 48, 0.36);
-  background: var(--night);
+  border: 1px solid rgba(35, 25, 66, 0.42);
+  background: var(--night-deep);
 }
 
 .cc-card-art canvas,
-.cc-door-art canvas {
-  width: 100%;
-  height: 100%;
-}
+.cc-door-art canvas { width: 100%; height: 100%; }
 
-/* Embossed silk-ribbon category tag */
 .cc-card-type {
-  padding: 2px 14px;
-  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);
+  padding: 2px 12px;
+  border-radius: 999px;
   font-family: var(--font-ui);
-  font-size: clamp(10px, 1.45vmin, 12px);
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: linear-gradient(180deg, #e5d8ff 0%, #c8b2f8 100%);
+  background: rgba(35, 25, 66, 0.1);
   color: var(--ink);
 }
 
 .cc-card.is-relic .cc-card-type {
-  background: linear-gradient(180deg, #ffecb0 0%, #f0c45c 100%);
+  background: rgba(234, 196, 111, 0.34);
 }
 
 .cc-card-name {
   font-family: var(--font-display);
-  font-size: clamp(16px, 2.5vmin, 22px);
+  font-size: clamp(16px, 2.3vmin, 21px);
   font-weight: 700;
   letter-spacing: -0.015em;
   line-height: 1.1;
@@ -2854,67 +2850,56 @@ button,
 
 .cc-card-desc {
   font-family: var(--font-ui);
-  font-size: clamp(12px, 1.75vmin, 15px);
+  font-size: clamp(12px, 1.65vmin, 14.5px);
   font-weight: 600;
   line-height: 1.28;
   text-align: center;
-  color: rgba(35, 25, 66, 0.85);
+  color: rgba(35, 25, 66, 0.84);
 }
 
-/* --- Pleated Starlight-Indigo Velvet Curtains & Gilded Archway Star-Doors --- */
+/* Star-Doors Route Choice (Midnight-Velvet Observatory Archways) */
 .cc-door-wall {
   width: min(100%, 920px);
-  color: #fff4da;
   overflow: hidden;
-  padding: clamp(16px, 2.4vmin, 26px) clamp(38px, 6.5vw, 84px);
+  padding: clamp(16px, 2.4vmin, 26px) clamp(38px, 6.2vw, 80px);
   background:
-    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.85) 0 1.4px, transparent 2px),
-    radial-gradient(circle at 74% 12%, rgba(255, 255, 255, 0.8) 0 1.2px, transparent 1.8px),
-    radial-gradient(circle at 86% 62%, rgba(255, 255, 255, 0.72) 0 1.4px, transparent 2px),
-    radial-gradient(ellipse at 50% 112%, rgba(255, 206, 126, 0.36), transparent 62%),
-    linear-gradient(180deg, #271d52 0%, #171038 100%);
-  border: 3px solid var(--brass);
-  box-shadow:
-    0 0 0 3px var(--ink),
-    0 0 0 9px #56311c,
-    0 0 0 12px var(--ink),
-    0 28px 56px rgba(0, 0, 0, 0.68);
+    radial-gradient(circle at 18% 18%, rgba(255, 248, 220, 0.85) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 74% 12%, rgba(124, 232, 255, 0.8) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 86% 62%, rgba(234, 196, 111, 0.72) 0 1.4px, transparent 2px),
+    radial-gradient(ellipse at 50% 108%, rgba(182, 156, 255, 0.24), transparent 62%),
+    linear-gradient(180deg, #211948 0%, #100d26 100%);
+  border: 1px solid rgba(234, 196, 111, 0.65);
+  box-shadow: 0 28px 64px rgba(4, 3, 18, 0.8), inset 0 0 0 6px rgba(234, 196, 111, 0.06);
 }
 
-/* Richly pleated starlight-indigo velvet stage curtains */
 .cc-curtain {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: clamp(40px, 7.6vw, 88px);
+  width: clamp(38px, 7vw, 82px);
   pointer-events: none;
   z-index: 2;
   background:
-    radial-gradient(circle at 38% 24%, rgba(255, 232, 166, 0.7) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 64% 58%, rgba(255, 232, 166, 0.6) 0 1.1px, transparent 2px),
     repeating-linear-gradient(
       90deg,
-      rgba(16, 9, 40, 0.56) 0 3px,
-      rgba(90, 68, 162, 0.42) 5px 10px,
-      rgba(255, 236, 186, 0.14) 11px 13px,
-      rgba(34, 22, 74, 0.65) 14px 19px
+      rgba(13, 16, 38, 0.56) 0 3px,
+      rgba(68, 50, 134, 0.42) 5px 10px,
+      rgba(234, 196, 111, 0.12) 11px 13px,
+      rgba(24, 18, 56, 0.65) 14px 19px
     ),
-    linear-gradient(180deg, #3c2b78 0%, #241752 65%, #180e3b 100%);
-  box-shadow: inset 0 14px 20px rgba(10, 6, 26, 0.55);
+    linear-gradient(180deg, #322466 0%, #1d1544 68%, #120d2e 100%);
 }
 
 .cc-curtain-l {
   left: 0;
   border-radius: 0 0 92% 0 / 0 0 46% 0;
-  border-right: 3px solid var(--brass);
-  box-shadow: 10px 0 22px rgba(8, 4, 24, 0.65);
+  border-right: 1px solid var(--gold);
 }
 
 .cc-curtain-r {
   right: 0;
   border-radius: 0 0 0 92% / 0 0 0 46%;
-  border-left: 3px solid var(--brass);
-  box-shadow: -10px 0 22px rgba(8, 4, 24, 0.65);
+  border-left: 1px solid var(--gold);
 }
 
 .cc-door-row {
@@ -2923,42 +2908,33 @@ button,
   display: grid;
   grid-template-columns: repeat(var(--n, 2), minmax(0, 300px));
   justify-content: center;
-  gap: clamp(16px, 4.2vmin, 46px);
+  gap: clamp(16px, 4vmin, 44px);
   width: 100%;
   margin-top: 10px;
 }
 
-/* Ornate gilded archway portal framing HERO 80x120 Star-Door pixel art */
 .cc-parchment-arch {
   position: relative;
   min-width: 0;
   padding: clamp(16px, 2vmin, 22px) clamp(12px, 1.6vmin, 18px) clamp(12px, 1.6vmin, 16px);
-  border-radius: 150px 150px 16px 16px;
-  border: 3px solid var(--brass);
+  border-radius: 150px 150px 18px 18px;
+  border: 1px solid rgba(234, 196, 111, 0.72);
   background:
-    radial-gradient(ellipse at 50% 18%, rgba(255, 242, 186, 0.36), transparent 58%),
-    linear-gradient(180deg, #523b8c 0%, #31215e 45%, #231645 100%);
-  color: var(--ink);
-  box-shadow:
-    0 0 0 2.5px var(--ink),
-    0 8px 0 var(--ink),
-    0 0 28px rgba(255, 212, 82, 0.34),
-    inset 0 0 0 3px rgba(247, 223, 153, 0.42);
+    radial-gradient(ellipse at 50% 18%, rgba(234, 196, 111, 0.2), transparent 58%),
+    linear-gradient(180deg, #362870 0%, #201748 52%, #151033 100%);
+  box-shadow: 0 14px 32px rgba(4, 3, 18, 0.62), 0 0 24px rgba(234, 196, 111, 0.22);
   display: flex;
   align-items: stretch;
 }
 
 .cc-parchment-arch:hover {
   transform: translateY(-5px);
-  box-shadow:
-    0 0 0 2.5px var(--gold),
-    0 10px 0 var(--ink),
-    0 0 38px 6px rgba(255, 218, 98, 0.56),
-    inset 0 0 0 3px rgba(255, 242, 186, 0.65);
+  border-color: var(--gold-hi);
+  box-shadow: 0 18px 36px rgba(4, 3, 18, 0.68), 0 0 34px rgba(234, 196, 111, 0.48);
 }
 
 .cc-door.is-chosen {
-  box-shadow: 0 8px 0 var(--ink), 0 0 0 5px var(--gold), 0 0 42px 14px rgba(255, 212, 59, 0.88);
+  box-shadow: 0 0 0 3px var(--gold), 0 0 42px 12px rgba(234, 196, 111, 0.8);
 }
 
 .cc-door-inner {
@@ -2970,32 +2946,33 @@ button,
   width: 100%;
 }
 
-/* Luminous metallic-gold keystone star crowning the archway apex */
 .cc-door-keystone {
   position: absolute;
-  top: -31px;
+  top: -28px;
   left: 50%;
   transform: translateX(-50%);
-  width: 38px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3b2c78, #19133a);
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 14px rgba(234, 196, 111, 0.72);
   z-index: 3;
-  filter: drop-shadow(0 2px 6px rgba(255, 212, 59, 0.78));
 }
 
-.cc-door-keystone svg { width: 100%; height: 100%; }
+.cc-door-keystone canvas { width: 22px; height: 22px; }
 
 .cc-door-art {
   display: block;
-  height: clamp(118px, 34dvh, 276px);
+  height: clamp(118px, 34dvh, 270px);
   aspect-ratio: 2 / 3;
   max-width: 100%;
-  border-radius: 120px 120px 8px 8px;
+  border-radius: 120px 120px 10px 10px;
   overflow: hidden;
-  border: 2.5px solid var(--brass-hi);
-  box-shadow: 0 0 0 2px var(--ink), 0 0 20px rgba(255, 218, 98, 0.48);
+  border: 1px solid var(--gold-hi);
+  box-shadow: 0 0 20px rgba(234, 196, 111, 0.32);
 }
 
-/* Warm cotton-vellum title plaque below the Star-Door portal */
 .cc-door-plaque {
   display: flex;
   flex-direction: column;
@@ -3003,17 +2980,16 @@ button,
   gap: 2px;
   width: 100%;
   padding: 7px 10px 6px;
-  border-radius: 10px 12px 10px 12px;
-  background: linear-gradient(180deg, #fcf4df 0%, #ead6ab 100%);
-  border: 2px solid var(--ink);
-  box-shadow: inset 0 0 0 2px rgba(255, 252, 240, 0.65), 0 3px 6px rgba(10, 5, 24, 0.45);
+  border-radius: 12px;
+  background: var(--paper);
+  border: 1px solid rgba(234, 196, 111, 0.72);
+  color: var(--ink);
 }
 
 .cc-door-title {
   font-family: var(--font-display);
-  font-size: clamp(15px, 2.3vmin, 20px);
+  font-size: clamp(15px, 2.2vmin, 19px);
   font-weight: 700;
-  letter-spacing: -0.015em;
   line-height: 1.1;
   text-align: center;
   color: var(--ink);
@@ -3021,14 +2997,13 @@ button,
 
 .cc-door-sub {
   font-family: var(--font-hand);
-  font-size: clamp(14px, 1.95vmin, 17px);
-  font-weight: 400;
+  font-size: clamp(14px, 1.9vmin, 17px);
   line-height: 1.15;
   text-align: center;
-  color: var(--ink-sepia);
+  color: var(--ink-soft);
 }
 
-/* --- Illuminated Stitched Storybook Title-Plate Finale --- */
+/* Galaxy Finale Title Plate */
 .cc-finale {
   cursor: pointer;
   position: relative;
@@ -3037,50 +3012,61 @@ button,
 .cc-finale-plate {
   position: relative;
   width: min(92vw, 760px);
-  padding: clamp(24px, 4.4vmin, 48px) clamp(22px, 4.2vmin, 46px);
+  padding: clamp(26px, 4.2vmin, 46px) clamp(22px, 4vmin, 44px);
   color: var(--ink);
   text-align: center;
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 1px 1px, rgba(58, 39, 72, 0.04) 1px, transparent 1.6px) 0 0 / 5px 5px,
-    radial-gradient(ellipse at 50% 40%, #fffdf8 0%, #f7ebd0 70%, #ead4a6 100%);
-  border: 3px solid var(--brass);
+  border-radius: 26px;
+  background: radial-gradient(ellipse at 50% 38%, #fffdf8 0%, var(--paper) 78%, #f0eadc 100%);
+  border: 1px solid var(--gold);
   box-shadow:
-    0 0 0 3px var(--ink),
-    0 16px 46px rgba(10, 4, 24, 0.68),
-    inset 0 0 0 8px rgba(255, 250, 238, 0.8),
-    inset 0 0 0 10px rgba(180, 134, 62, 0.44);
+    0 24px 60px rgba(4, 3, 18, 0.78),
+    0 0 42px rgba(234, 196, 111, 0.34),
+    inset 0 0 0 8px rgba(234, 196, 111, 0.14);
 }
 
 .cc-plate-filigree {
   position: absolute;
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   pointer-events: none;
 }
 
-.cc-plate-filigree.tl { top: 12px; left: 12px; }
-.cc-plate-filigree.tr { top: 12px; right: 12px; transform: scaleX(-1); }
-.cc-plate-filigree.bl { bottom: 12px; left: 12px; transform: scaleY(-1); }
-.cc-plate-filigree.br { bottom: 12px; right: 12px; transform: scale(-1); }
+.cc-plate-filigree::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid rgba(234, 196, 111, 0.85);
+  border-left: 1px solid rgba(234, 196, 111, 0.85);
+  border-top-left-radius: 8px;
+}
+
+.cc-plate-filigree.tl { top: 14px; left: 14px; }
+.cc-plate-filigree.tr { top: 14px; right: 14px; transform: scaleX(-1); }
+.cc-plate-filigree.bl { bottom: 14px; left: 14px; transform: scaleY(-1); }
+.cc-plate-filigree.br { bottom: 14px; right: 14px; transform: scale(-1); }
+
+.cc-finale-crest {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 0 10px rgba(234, 196, 111, 0.65));
+}
 
 .cc-finale-kicker {
   margin: 0;
   font-family: var(--font-hand);
-  font-size: clamp(19px, 3vmin, 26px);
-  font-weight: 400;
-  color: var(--wax);
+  font-size: clamp(19px, 2.9vmin, 25px);
+  color: #5b3286;
 }
 
 .cc-finale-name {
   margin: 6px 0;
   font-family: var(--font-display);
-  font-size: clamp(28px, 6.2vmin, 58px);
+  font-size: clamp(28px, 6vmin, 54px);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.08;
   overflow-wrap: anywhere;
-  background: linear-gradient(90deg, #4b2a7d, #9a458e, #c87b22, #38798a, #4b2a7d);
+  background: linear-gradient(90deg, #3c2272, #8c3c8c, #eac46f, #2c7890, #3c2272);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -3091,7 +3077,7 @@ button,
 .cc-finale-hint {
   margin: 10px 0 0;
   font-family: var(--font-ui);
-  font-size: clamp(13px, 1.9vmin, 16px);
+  font-size: clamp(13px, 1.85vmin, 16px);
   font-weight: 700;
   color: var(--ink-soft);
   animation: cc-breathe 2.4s ease-in-out infinite;
@@ -3108,25 +3094,25 @@ button,
 
 .cc-burst-star {
   position: absolute;
-  left: -9px;
-  top: -9px;
-  width: 18px;
-  height: 18px;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
   background: var(--gold);
   clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  filter: drop-shadow(0 0 6px #ffd43b);
+  filter: drop-shadow(0 0 6px #eac46f);
   animation: cc-burst 2.6s ease-out infinite;
   animation-delay: var(--d, 0s);
 }
 
 .cc-burst-star:nth-child(3n) { background: var(--aurora); }
-.cc-burst-star:nth-child(3n + 1) { background: var(--pink); }
+.cc-burst-star:nth-child(3n + 1) { background: var(--rose); }
 
-/* ---------- Single Calm Vellum Whisper Slip Toast (max 1 at a time, zero stacking!) ---------- */
+/* ---------- 15. Single Calm Whisper Toast ---------- */
 .cc-toasts {
   position: fixed;
   left: 50%;
-  top: clamp(56px, 7.8dvh, 74px);
+  top: clamp(62px, 8.4dvh, 76px);
   transform: translateX(-50%);
   z-index: 48;
   display: flex;
@@ -3145,44 +3131,41 @@ button,
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 18px 5px 12px;
-  border-radius: 7px 14px 9px 13px / 11px 7px 12px 8px;
-  background:
-    repeating-linear-gradient(20deg, rgba(164, 124, 68, 0.05) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #fffcf2 0%, #f1e1bc 100%);
-  border: 1.5px solid rgba(90, 66, 50, 0.52);
-  box-shadow:
-    0 5px 14px rgba(18, 10, 32, 0.32),
-    0 1.5px 0 rgba(58, 39, 72, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  padding: 6px 18px 6px 12px;
+  border-radius: 999px;
+  background: var(--enamel-glass-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gold-line);
+  box-shadow: 0 10px 26px rgba(4, 3, 18, 0.56);
   font-family: var(--font-hand);
   font-weight: 400;
-  font-size: clamp(16px, 2.2vmin, 19px);
-  letter-spacing: 0.015em;
-  color: var(--ink);
-  transform: rotate(-0.6deg);
+  font-size: clamp(16px, 2.1vmin, 19px);
+  color: var(--gold-hi);
   transition: opacity 0.32s ease, transform 0.32s ease;
 }
 
 .cc-toast.is-leaving {
   opacity: 0;
-  transform: translateY(-8px) rotate(-0.6deg);
+  transform: translateY(-8px);
 }
 
 .cc-toast-star {
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
 }
 
-/* ---------- Compact viewport adjustments ---------- */
-@media (max-width: 820px) {
-  .cc-bookmark-title {
-    display: none;
+/* ---------- 16. Compact viewport adjustments ---------- */
+@media (max-width: 860px) {
+  .cc-spine-title { display: none; }
+
+  .cc-book.cc-spread {
+    padding: 54px 76px 10px 62px;
   }
 
   .cc-station {
-    min-width: clamp(84px, 21vw, 122px);
-    padding: 2px;
+    min-width: clamp(86px, 21vw, 128px);
+    padding: 4px 6px;
   }
 
   .cc-wax-badges {
@@ -3193,27 +3176,15 @@ button,
     width: 60px;
     height: 70px;
   }
-
-  .cc-item-art,
-  .cc-item-art.cc-swatch-body,
-  .cc-sticker-art {
-    width: 56px;
-    height: 56px;
-  }
 }
 
-/* ---------- animations ---------- */
-.cc-boing {
-  animation: cc-boing 0.48s cubic-bezier(0.3, 1.8, 0.5, 1);
-}
-
-.cc-shake {
-  animation: cc-shake 0.38s ease;
-}
+/* ---------- 17. Animations ---------- */
+.cc-boing { animation: cc-boing 0.48s cubic-bezier(0.3, 1.8, 0.5, 1); }
+.cc-shake { animation: cc-shake 0.38s ease; }
 
 @keyframes cc-boing {
-  0% { transform: scale(0.84); }
-  45% { transform: scale(1.08); }
+  0% { transform: scale(0.86); }
+  45% { transform: scale(1.07); }
   72% { transform: scale(0.97); }
   100% { transform: scale(1); }
 }
@@ -3225,14 +3196,36 @@ button,
   75% { translate: -3px 0; }
 }
 
-@keyframes cc-lamp {
-  from { opacity: 0.82; }
-  to { opacity: 1; transform: scale(1.05); }
+@keyframes cc-nebula-breathe {
+  from { opacity: 0.72; }
+  to { opacity: 1; transform: scale(1.06); }
 }
 
-@keyframes cc-dust-drift {
-  0%, 100% { transform: translate(0, 0) scale(0.85); opacity: 0.28; }
-  50% { transform: translate(14px, -16px) scale(1.15); opacity: 0.72; }
+@keyframes cc-star-drift {
+  0%, 100% { transform: translate(0, 0) scale(0.85); opacity: 0.3; }
+  50% { transform: translate(12px, -14px) scale(1.18); opacity: 0.78; }
+}
+
+@keyframes cc-gold-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(234, 196, 111, 0.55); transform: scale(1); }
+  50% { box-shadow: 0 0 18px rgba(255, 242, 194, 0.92); transform: scale(1.04); }
+}
+
+@keyframes cc-lantern-glow {
+  0%, 100% { opacity: 0.65; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes cc-medallion-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(234, 196, 111, 0.6), 0 0 16px rgba(234, 196, 111, 0.55); transform: scale(1); }
+  50% { box-shadow: 0 0 0 3px var(--gold-hi), 0 0 26px 4px rgba(124, 232, 255, 0.72); transform: scale(1.08); }
+}
+
+@keyframes cc-whisper-pop {
+  0% { opacity: 0; transform: translate(-8px, -50%) scale(0.9); }
+  14% { opacity: 1; transform: translate(0, -50%) scale(1); }
+  78% { opacity: 1; transform: translate(0, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(8px, -50%) scale(0.96); }
 }
 
 @keyframes cc-gleam {
@@ -3246,67 +3239,51 @@ button,
 }
 
 @keyframes cc-twinkle {
-  0%, 100% { opacity: 0.4; transform: scale(0.84); }
-  50% { opacity: 1; transform: scale(1.14); }
+  0%, 100% { opacity: 0.48; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1.12); }
 }
 
-@keyframes cc-spin-slow {
-  to { transform: rotate(360deg); }
-}
+@keyframes cc-spin-slow { to { transform: rotate(360deg); } }
 
 @keyframes cc-wisp-halo {
-  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 12px 3px rgba(255, 214, 82, 0.7); }
-  50% { box-shadow: 0 0 0 3px #fff8cf, 0 0 24px 8px rgba(255, 220, 102, 1); }
-}
-
-@keyframes cc-dogear-glow {
-  0%, 100% { filter: drop-shadow(-4px -4px 10px rgba(255, 212, 82, 0.62)); }
-  50% { filter: drop-shadow(-6px -6px 18px rgba(255, 224, 110, 0.96)); }
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 14px 3px rgba(234, 196, 111, 0.72); }
+  50% { box-shadow: 0 0 0 3px var(--gold-hi), 0 0 24px 8px rgba(255, 242, 194, 0.96); }
 }
 
 @keyframes cc-seal-glow {
-  0%, 100% { filter: drop-shadow(0 5px 10px rgba(24, 14, 44, 0.44)) drop-shadow(0 2px 0 rgba(35, 25, 66, 0.8)); }
-  50% { filter: drop-shadow(0 6px 16px rgba(255, 206, 98, 0.54)) drop-shadow(0 2px 0 rgba(35, 25, 66, 0.82)); }
+  0%, 100% { box-shadow: 0 8px 24px rgba(6, 5, 22, 0.52), 0 0 14px rgba(234, 196, 111, 0.32); }
+  50% { box-shadow: 0 8px 28px rgba(6, 5, 22, 0.56), 0 0 26px rgba(234, 196, 111, 0.62); }
 }
 
 @keyframes cc-jar-tumble {
   0% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(-7deg) scale(1.06); }
-  55% { transform: rotate(5deg) scale(1.03); }
-  80% { transform: rotate(-2deg) scale(1.01); }
+  28% { transform: rotate(-7deg) scale(1.06); }
+  58% { transform: rotate(5deg) scale(1.03); }
   100% { transform: rotate(0deg) scale(1); }
 }
 
-@keyframes cc-shard-shimmer {
-  0% { transform: translateY(0) rotate(0deg); }
-  45% { transform: translateY(-4px) rotate(10deg); }
-  100% { transform: translateY(0) rotate(0deg); }
-}
-
 @keyframes cc-crystal-fall {
-  0% { transform: translate(var(--dx, 0px), -14px) scale(0.75) rotate(0deg); opacity: 0; }
+  0% { transform: translate(var(--dx, 0px), -12px) scale(0.75) rotate(0deg); opacity: 0; }
   20% { opacity: 1; }
   85% { opacity: 1; }
   100% { transform: translate(calc(var(--dx, 0px) * 0.3), 24px) scale(0.9) rotate(130deg); opacity: 0; }
 }
 
 @keyframes cc-socket-pop {
-  0% { transform: scale(0.8); filter: drop-shadow(0 0 2px #ffd43b); }
-  45% { transform: scale(1.36); filter: drop-shadow(0 0 16px #fff3a8); }
-  100% { transform: scale(1); filter: drop-shadow(0 0 7px rgba(255, 212, 59, 0.9)); }
+  0% { transform: scale(0.85); }
+  45% { transform: scale(1.24); }
+  100% { transform: scale(1); }
 }
 
-@keyframes cc-thread-draw {
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes cc-thread-fade {
-  to { opacity: 0; }
+@keyframes cc-arc-mote {
+  0% { opacity: 0; transform: scale(0.2); }
+  25% { opacity: 1; transform: scale(var(--scale, 1)); }
+  100% { opacity: 0; transform: scale(0.35); }
 }
 
 @keyframes cc-thread-arrive {
   0% { transform: scale(0.2); opacity: 0; }
-  35% { transform: scale(1.35); opacity: 1; }
+  35% { transform: scale(1.3); opacity: 1; }
   100% { transform: scale(2.1); opacity: 0; }
 }
 
@@ -3316,8 +3293,8 @@ button,
 }
 
 @keyframes cc-boot {
-  0%, 100% { opacity: 0.55; rotate: 0deg; scale: 0.9; }
-  50% { opacity: 1; rotate: 20deg; scale: 1.08; }
+  0%, 100% { opacity: 0.58; rotate: 0deg; scale: 0.9; }
+  50% { opacity: 1; rotate: 18deg; scale: 1.08; }
 }
 
 @keyframes cc-breathe {
@@ -3334,9 +3311,7 @@ button,
   to { opacity: 0; transform: scale(0.97); }
 }
 
-@keyframes cc-aurora-text {
-  to { background-position: 200% 0; }
-}
+@keyframes cc-aurora-text { to { background-position: 200% 0; } }
 
 @keyframes cc-burst {
   0% { transform: rotate(var(--a)) translateY(0) scale(0.2); opacity: 0; }
@@ -3344,7 +3319,7 @@ button,
   100% { transform: rotate(var(--a)) translateY(calc(var(--r, 34vmin) * -1)) scale(1); opacity: 0; }
 }
 
-/* ---------- reduced motion ---------- */
+/* ---------- 18. Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3357,7 +3332,7 @@ button,
   }
 
   .cc-burst,
-  .cc-dust-mote {
+  .cc-star-mote {
     display: none;
   }
 }

@@ -3,21 +3,26 @@
 export class MockParam {
   value = 0;
   targets: number[] = [];
-  setValueAtTime(v: number, _t: number): this {
+  events: Array<{ op: 'set' | 'lin' | 'exp' | 'target'; value: number; time: number }> = [];
+  setValueAtTime(v: number, t: number): this {
     this.value = v;
+    this.events.push({ op: 'set', value: v, time: t });
     return this;
   }
-  linearRampToValueAtTime(v: number, _t: number): this {
+  linearRampToValueAtTime(v: number, t: number): this {
     this.value = v;
+    this.events.push({ op: 'lin', value: v, time: t });
     return this;
   }
-  exponentialRampToValueAtTime(v: number, _t: number): this {
+  exponentialRampToValueAtTime(v: number, t: number): this {
     this.value = v;
+    this.events.push({ op: 'exp', value: v, time: t });
     return this;
   }
-  setTargetAtTime(v: number, _t: number, _tc: number): this {
+  setTargetAtTime(v: number, t: number, _tc: number): this {
     this.value = v;
     this.targets.push(v);
+    this.events.push({ op: 'target', value: v, time: t });
     return this;
   }
   cancelScheduledValues(_t: number): this {

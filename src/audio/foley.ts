@@ -6,6 +6,7 @@
  * voices disconnect and release cleanly on `onended`.
  */
 import type { UiFoleyKind } from '../contracts/audio';
+import { playHintLantern, playPageFinale, playStoryMedallion } from './events';
 import { expTo, linTo, setAt, type Rig } from './graph';
 import { lydianFreq } from './scale';
 import { envAD } from './voices';
@@ -14,6 +15,9 @@ interface FoleyState {
   step: number;
   jar: number;
   wisp: number;
+  crystal: number;
+  harp: number;
+  medallion: number;
 }
 
 const foleyState = new WeakMap<Rig, FoleyState>();
@@ -21,7 +25,7 @@ const foleyState = new WeakMap<Rig, FoleyState>();
 function stateFor(rig: Rig): FoleyState {
   let st = foleyState.get(rig);
   if (!st) {
-    st = { step: 0, jar: 0, wisp: 0 };
+    st = { step: 0, jar: 0, wisp: 0, crystal: 0, harp: 0, medallion: 0 };
     foleyState.set(rig, st);
   }
   return st;
@@ -288,6 +292,153 @@ function playTinSnap(rig: Rig, t: number, step: number): void {
   });
 }
 
+/** Stacked F-Lydian perfect fifths for stained-glass crystal chimes. */
+const CRYSTAL_FIFTHS: ReadonlyArray<readonly [number, number, number]> = [
+  [7, 11, 15],  // F5 - C6 - G6
+  [8, 12, 16],  // G5 - D6 - A6
+  [4, 8, 12],   // C5 - G5 - D6
+  [9, 13, 17],  // A5 - E6 - B6
+];
+
+/** Rapid ascending 5-note F-Lydian harp glissandos for magnet attraction. */
+const MAGNET_HARP_RUNS: ReadonlyArray<readonly number[]> = [
+  [0, 2, 4, 6, 8],   // F4 A4 C5 E5 G5
+  [4, 6, 8, 10, 11], // C5 E5 G5 B5 C6
+];
+
+/** Gentle resonant upward sine pitch-pop (280 -> 760 Hz over 55 ms) + F-Lydian micro sparkle. */
+function playBubblePop(rig: Rig, t: number): void {
+  rig.build((g) => {
+    const lp = g.filter('lowpass', 3400, 1.2);
+    lp.connect(rig.out);
+
+    const pop = g.osc('sine', 280);
+    const popEnv = g.gain(0);
+    setAt(pop.frequency, 280, t);
+    expTo(pop.frequency, 760, t + 0.055);
+    const popEnd = envAD(popEnv.gain, t, 0.115, 0.004, 0.065) + 0.02;
+    pop.connect(popEnv);
+    popEnv.connect(lp);
+    g.play(pop, t, popEnd);
+
+    const t1 = t + 0.048;
+    const sp1 = g.osc('sine', lydianFreq(12)); // D6 micro droplet sparkle
+    const e1 = g.gain(0);
+    const end1 = envAD(e1.gain, t1, 0.045, 0.002, 0.14) + 0.02;
+    sp1.connect(e1);
+    e1.connect(lp);
+    g.play(sp1, t1, end1);
+
+    const t2 = t + 0.082;
+    const sp2 = g.osc('sine', lydianFreq(14)); // F6 upper sparkle
+    const e2 = g.gain(0);
+    const end2 = envAD(e2.gain, t2, 0.032, 0.002, 0.18) + 0.02;
+    sp2.connect(e2);
+    e2.connect(lp);
+    g.play(sp2, t2, end2);
+  });
+}
+
+/** Cozy low-frequency warm triangle purr trill (F2/C3 amplitude-modulated gentle purr + tiny bell). */
+function playCatPurr(rig: Rig, t: number): void {
+  rig.build((g) => {
+    const purrLp = g.filter('lowpass', 620, 0.8);
+    purrLp.connect(rig.out);
+
+    const purrEnv = g.gain(0);
+    const purrEnd = envAD(purrEnv.gain, t, 0.125, 0.06, 0.42) + 0.04;
+    purrEnv.connect(purrLp);
+
+    const trem = g.gain(0.65);
+    trem.connect(purrEnv);
+
+    const f2 = g.osc('triangle', lydianFreq(-14)); // F2 (87.31 Hz)
+    f2.connect(trem);
+
+    const c3 = g.osc('triangle', lydianFreq(-10)); // C3 (130.81 Hz)
+    const c3Gain = g.gain(0.45);
+    c3.connect(c3Gain);
+    c3Gain.connect(trem);
+
+    const lfo = g.osc('sine', lydianFreq(-27)); // 24.5 Hz (G0 sub-harmonic purr trill)
+    const depth = g.gain(0.35);
+    lfo.connect(depth);
+    depth.connect(trem.gain);
+
+    g.play(f2, t, purrEnd);
+    g.play(c3, t, purrEnd);
+    g.play(lfo, t, purrEnd);
+
+    const bellLp = g.filter('lowpass', 3600, 0.6);
+    bellLp.connect(rig.out);
+
+    const tb1 = t + 0.08;
+    const b1 = g.osc('sine', lydianFreq(11)); // C6 tiny collar bell
+    const b1Env = g.gain(0);
+    const b1End = envAD(b1Env.gain, tb1, 0.042, 0.003, 0.24) + 0.03;
+    b1.connect(b1Env);
+    b1Env.connect(bellLp);
+    g.play(b1, tb1, b1End);
+
+    const tb2 = t + 0.095;
+    const b2 = g.osc('sine', lydianFreq(14)); // F6 delicate bell overtone
+    const b2Env = g.gain(0);
+    const b2End = envAD(b2Env.gain, tb2, 0.022, 0.003, 0.18) + 0.03;
+    b2.connect(b2Env);
+    b2Env.connect(bellLp);
+    g.play(b2, tb2, b2End);
+  });
+}
+
+/** Shimmering stained-glass F-Lydian stacked fifths overtone chime. */
+function playCrystalChime(rig: Rig, t: number, step: number): void {
+  const triad = CRYSTAL_FIFTHS[step % CRYSTAL_FIFTHS.length] ?? CRYSTAL_FIFTHS[0]!;
+  const [d0, d1, d2] = triad;
+  rig.build((g) => {
+    const lp = g.filter('lowpass', 4800, 0.65);
+    lp.connect(rig.out);
+
+    const notes: ReadonlyArray<readonly [number, number, number, number]> = [
+      [d0, 0.0, 0.062, 0.52],
+      [d1, 0.032, 0.048, 0.58],
+      [d2, 0.068, 0.032, 0.66],
+      [d0 + 7, 0.012, 0.018, 0.36],
+    ];
+    for (const [deg, offset, peak, decay] of notes) {
+      const start = t + offset;
+      const osc = g.osc('sine', lydianFreq(deg));
+      const env = g.gain(0);
+      const end = envAD(env.gain, start, peak, 0.003, decay) + 0.03;
+      osc.connect(env);
+      env.connect(lp);
+      g.play(osc, start, end);
+    }
+  });
+}
+
+/** Rapid silky ascending 5-note F-Lydian harp glissando. */
+function playMagnetHarp(rig: Rig, t: number, step: number): void {
+  const degrees = MAGNET_HARP_RUNS[step % MAGNET_HARP_RUNS.length] ?? MAGNET_HARP_RUNS[0]!;
+  rig.build((g) => {
+    const lp = g.filter('lowpass', 3600, 0.55);
+    setAt(lp.frequency, 3600, t);
+    expTo(lp.frequency, 1500, t + 0.55);
+    lp.connect(rig.out);
+
+    degrees.forEach((deg, i) => {
+      const start = t + i * 0.034;
+      const osc = g.osc('triangle', lydianFreq(deg));
+      const env = g.gain(0);
+      const peak = 0.068 - i * 0.004;
+      const decay = 0.42 + i * 0.035;
+      const end = envAD(env.gain, start, peak, 0.004, decay) + 0.03;
+      osc.connect(env);
+      env.connect(lp);
+      g.play(osc, start, end);
+    });
+  });
+}
+
 /** Play one procedural tabletop ASMR foley gesture, ignoring unknown kinds safely. */
 export function playUiFoley(rig: Rig, kind: UiFoleyKind): void {
   const t = rig.now() + 0.006;
@@ -310,6 +461,27 @@ export function playUiFoley(rig: Rig, kind: UiFoleyKind): void {
       return;
     case 'tinSnap':
       playTinSnap(rig, t, st.step++);
+      return;
+    case 'lanternChime':
+      playHintLantern(rig);
+      return;
+    case 'bubblePop':
+      playBubblePop(rig, t);
+      return;
+    case 'catPurr':
+      playCatPurr(rig, t);
+      return;
+    case 'crystalChime':
+      playCrystalChime(rig, t, st.crystal++);
+      return;
+    case 'magnetHarp':
+      playMagnetHarp(rig, t, st.harp++);
+      return;
+    case 'medallionStep':
+      playStoryMedallion(rig, st.medallion++ % 4, 4);
+      return;
+    case 'pageFinale':
+      playPageFinale(rig);
       return;
     default:
       return;

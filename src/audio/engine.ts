@@ -10,7 +10,17 @@ import { AUDIO_LEVEL_GAIN } from '../contracts/constants';
 import type { MaterialId } from '../contracts/materials';
 import type { RegionKind } from '../contracts/regions';
 import { Brush } from './brush';
-import { playActorAwake, playAutoBloom, playCausality, playPageTurn, playPoke, playStage } from './events';
+import {
+  playActorAwake,
+  playAutoBloom,
+  playCausality,
+  playHintLantern,
+  playPageFinale,
+  playPageTurn,
+  playPoke,
+  playStage,
+  playStoryMedallion,
+} from './events';
 import { playUiFoley } from './foley';
 import { glide, Rig, setVal } from './graph';
 import { BEAT_SEC, Pulse } from './pulse';
@@ -176,6 +186,15 @@ class AudioEngine implements AudioPort {
   }
   pageTurn(): void {
     this.run((r) => playPageTurn(r));
+  }
+  storyMedallion(stepIndex: number, total: number): void {
+    this.run((r) => playStoryMedallion(r, stepIndex, total));
+  }
+  pageFinale(): void {
+    this.run((r) => playPageFinale(r));
+  }
+  hintLantern(): void {
+    this.run((r) => playHintLantern(r));
   }
   uiFoley(kind: UiFoleyKind): void {
     this.run((r) => playUiFoley(r, kind));

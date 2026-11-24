@@ -21,9 +21,28 @@ interface Voice {
 }
 
 /** Per-material tonal tweaks inside a family (multiplier on filter centre). */
-const TONE: Partial<Record<number, number>> = { 4: 1.15, 6: 1.0, 7: 0.82, 1: 1.0, 3: 0.9, 10: 0.72, 12: 1.12 };
+const TONE: Partial<Record<number, number>> = {
+  1: 1.0,
+  3: 0.9,
+  4: 1.15,
+  6: 1.0,
+  7: 0.82,
+  10: 0.72,
+  12: 1.12,
+  15: 1.16,
+  17: 0.78,
+};
 /** Bell degree ranges: deg 7..13 = x2 octave, 14..20 = x4 octave. */
-const BELL_RANGE: Partial<Record<number, readonly [number, number]>> = { 2: [7, 13], 5: [11, 20], 8: [9, 15], 9: [10, 17], 11: [8, 14] };
+const BELL_RANGE: Partial<Record<number, readonly [number, number]>> = {
+  2: [7, 13],
+  5: [11, 20],
+  8: [9, 15],
+  9: [10, 17],
+  11: [8, 14],
+  13: [8, 15],
+  14: [12, 19],
+  16: [10, 18],
+};
 
 export class Brush {
   private voice: Voice | null = null;

@@ -7,16 +7,32 @@ import type { CausalityKind } from '../../../src/contracts/causality';
 import { AUDIO_LEVEL_GAIN, BPM, F_LYDIAN_HZ } from '../../../src/contracts/constants';
 import { MATERIALS, type MaterialId } from '../../../src/contracts/materials';
 import type { RegionKind } from '../../../src/contracts/regions';
-import { createAudio, quantizeToLydian } from '../../../src/audio';
+import { createAudio, lydianFreq, quantizeToLydian } from '../../../src/audio';
 import { MockAudioContext, MockCompressor, MockFilter, MockGain, MockNode } from './mockAudio';
 
-const ACTORS: ActorKind[] = ['violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem'];
+const ACTORS: ActorKind[] = [
+  'violet', 'lumi', 'nova', 'moonCat', 'comet', 'whale', 'gazelle', 'cometCar', 'flower', 'gem', 'butterfly', 'bubble',
+];
 const CAUSALITY: CausalityKind[] = ['rainbowSlide', 'starlightFlowerRain', 'zeroGTrampoline', 'cheetahRacetrack', 'discoMirage', 'gentleSparkle'];
 const KINDS: RegionKind[] = [
   'violet', 'lumi', 'nova', 'planet', 'rings', 'cloud', 'comet', 'moonCat', 'milkshake', 'whale', 'asteroid', 'star', 'rocket', 'flora', 'prop', 'ghost', 'system',
 ];
 const ALL_STEMS: StemId[] = ['pad', 'marimba', 'harp', 'celesta'];
-const UI_FOLEYS: UiFoleyKind[] = ['paperRustle', 'woodTap', 'jarClink', 'stickerPeel', 'wispChime', 'tinSnap'];
+const UI_FOLEYS: UiFoleyKind[] = [
+  'paperRustle',
+  'woodTap',
+  'jarClink',
+  'stickerPeel',
+  'wispChime',
+  'tinSnap',
+  'lanternChime',
+  'bubblePop',
+  'catPurr',
+  'crystalChime',
+  'magnetHarp',
+  'medallionStep',
+  'pageFinale',
+];
 const BEAT = 60 / BPM;
 
 function isScaleMember(hz: number): boolean {
@@ -45,6 +61,11 @@ function hammer(a: AudioPort): void {
   for (const c of CAUSALITY) a.causality(c);
   a.causality('nope' as CausalityKind);
   a.pageTurn();
+  for (const step of [-1, 0, 1, 2, 3, 9, NaN]) a.storyMedallion?.(step, 4);
+  a.storyMedallion?.(2, 0);
+  a.storyMedallion?.(3, NaN);
+  a.pageFinale?.();
+  a.hintLantern?.();
   for (const f of UI_FOLEYS) a.uiFoley?.(f);
   a.uiFoley?.('nope' as UiFoleyKind);
   a.setStems(ALL_STEMS);
@@ -227,6 +248,10 @@ describe('master chain and level', () => {
     }
     for (const c of CAUSALITY) audio.causality(c);
     audio.pageTurn();
+    audio.storyMedallion?.(0, 4);
+    audio.storyMedallion?.(3, 4);
+    audio.pageFinale?.();
+    audio.hintLantern?.();
     for (const f of UI_FOLEYS) audio.uiFoley?.(f);
     audio.poke('nova');
     audio.autoBloom();
@@ -287,6 +312,9 @@ describe('node lifetime', () => {
     };
     measure('autoBloom', () => audio.autoBloom());
     measure('pageTurn', () => audio.pageTurn());
+    for (let step = 0; step < 4; step++) measure(`storyMedallion ${step}`, () => audio.storyMedallion?.(step, 4));
+    measure('pageFinale', () => audio.pageFinale?.());
+    measure('hintLantern', () => audio.hintLantern?.());
     for (const f of UI_FOLEYS) measure(`uiFoley ${f}`, () => audio.uiFoley?.(f));
     for (const a of ACTORS) {
       measure(`poke ${a}`, () => audio.poke(a));
@@ -297,14 +325,16 @@ describe('node lifetime', () => {
     for (const m of MATERIALS) measure(`stroke ${m.key}`, () => audio.stroke(true, 1, m.id));
   });
 
-  it('stroke on/off leaves no leaked nodes after the fade, for every asmr family and material', async () => {
+  it('stroke on/off leaves no leaked nodes after the fade, for every asmr family and all 17 materials', async () => {
     vi.stubGlobal('AudioContext', MockAudioContext);
     const { audio, ctx } = await unlocked();
     const baseline = audio.stats().liveNodes;
+    expect(MATERIALS).toHaveLength(17);
     const families = new Set(MATERIALS.map((m) => m.asmr));
     expect([...families].sort()).toEqual(['bell', 'grain', 'sweep']);
     for (const m of MATERIALS) {
       const created = audio.stats().totalCreated;
+      const nodesBefore = ctx.nodes.length;
       let sawLive = false;
       for (let f = 0; f < 40; f++) {
         audio.stroke(true, 0.2 + (f % 6) * 0.25, m.id);
@@ -313,6 +343,14 @@ describe('node lifetime', () => {
       }
       expect(audio.stats().totalCreated, `${m.key} made sound`).toBeGreaterThan(created);
       expect(sawLive, `${m.key} had live nodes`).toBe(true);
+      const fresh = ctx.nodes.slice(nodesBefore);
+      if (m.asmr === 'sweep') {
+        expect(fresh.some((n) => n instanceof MockFilter && n.type === 'bandpass'), `${m.key} sweep uses bandpass`).toBe(true);
+      } else if (m.asmr === 'grain') {
+        expect(fresh.some((n) => n instanceof MockFilter && n.type === 'lowpass'), `${m.key} grain uses lowpass`).toBe(true);
+      } else {
+        expect(fresh.some((n) => n.kind === 'oscillator'), `${m.key} bell spawns sine grains`).toBe(true);
+      }
       audio.stroke(false, 0, m.id);
       ctx.advance(2);
       expect(audio.stats().liveNodes, `${m.key} leaked`).toBe(baseline);
@@ -460,7 +498,7 @@ describe('96-BPM scheduler', () => {
 });
 
 describe('tabletop UI ASMR foley (uiFoley)', () => {
-  it('spawns bounded low-pass F-Lydian nodes for all 6 variants and disconnects every node on onended', async () => {
+  it('spawns bounded low-pass F-Lydian nodes for all 13 variants and disconnects every node on onended', async () => {
     vi.stubGlobal('AudioContext', MockAudioContext);
     const { audio, ctx } = await unlocked();
     expect(typeof audio.uiFoley).toBe('function');
@@ -475,7 +513,7 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
 
       const spawned = audio.stats().totalCreated - createdBefore;
       expect(spawned, `${kind} spawns nodes`).toBeGreaterThan(0);
-      expect(spawned, `${kind} stays bounded`).toBeLessThan(20);
+      expect(spawned, `${kind} stays bounded`).toBeLessThan(kind === 'pageFinale' ? 40 : 20);
       expect(audio.stats().liveNodes, `${kind} live nodes rise`).toBe(baseline + spawned);
 
       const freshNodes = ctx.nodes.slice(nodesBefore);
@@ -488,13 +526,17 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
       for (const s of freshSources) {
         if (s.kind === 'oscillator') {
           expect(['sine', 'triangle'], `${kind} warm waveform`).toContain(s.type);
-          expect(isScaleMember(s.frequency.value), `${kind} F-Lydian freq ${s.frequency.value}`).toBe(true);
+          // bubblePop's pitch-pop body intentionally sweeps 280 -> 760 Hz; all other oscillators are strictly F-Lydian.
+          const isBubbleSweep = kind === 'bubblePop' && s.frequency.events.some((e) => e.op === 'set' && e.value === 280);
+          if (!isBubbleSweep) {
+            expect(isScaleMember(s.frequency.value), `${kind} F-Lydian freq ${s.frequency.value}`).toBe(true);
+          }
         }
         expect(s.stopTime, `${kind} schedules finite stop`).not.toBeNull();
       }
 
       // Advance clock so all sources fire onended; every transient node must disconnect with zero leak.
-      ctx.advance(2);
+      ctx.advance(4);
       expect(audio.stats().liveNodes, `${kind} returns to baseline`).toBe(baseline);
       expect(freshNodes.every((n) => n.disconnected), `${kind} disconnects all transient nodes`).toBe(true);
     }
@@ -529,12 +571,12 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
       [880, 1319],
     ]);
 
-    // Rapid burst of all 6 foley kinds stays within node cap and drains strictly to baseline.
-    for (let i = 0; i < 120; i++) {
+    // Rapid burst of all 13 foley kinds stays within node cap and drains strictly to baseline.
+    for (let i = 0; i < 130; i++) {
       audio.uiFoley!(UI_FOLEYS[i % UI_FOLEYS.length]!);
     }
     expect(audio.stats().liveNodes).toBeLessThan(400);
-    ctx.advance(5);
+    ctx.advance(6);
     expect(audio.stats().liveNodes).toBe(baseline);
   });
 
@@ -544,6 +586,9 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
 
     // Before unlock: creates nothing and never instantiates AudioContext
     for (const kind of UI_FOLEYS) a.uiFoley!(kind);
+    a.storyMedallion!(0, 4);
+    a.pageFinale!();
+    a.hintLantern!();
     expect(MockAudioContext.instances).toHaveLength(0);
     expect(a.stats()).toEqual({ liveNodes: 0, totalCreated: 0 });
 
@@ -559,6 +604,9 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
     a.setLevel(0);
     const beforeMute = a.stats();
     for (const kind of UI_FOLEYS) a.uiFoley!(kind);
+    a.storyMedallion!(1, 4);
+    a.pageFinale!();
+    a.hintLantern!();
     expect(a.stats()).toEqual(beforeMute);
 
     // Unmuted works, then dispose silences all future calls
@@ -571,6 +619,9 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
     const afterDispose = a.stats();
     expect(afterDispose.liveNodes).toBe(0);
     for (const kind of UI_FOLEYS) a.uiFoley!(kind);
+    a.storyMedallion!(2, 4);
+    a.pageFinale!();
+    a.hintLantern!();
     expect(a.stats()).toEqual(afterDispose);
   });
 
@@ -587,8 +638,14 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
     vi.stubGlobal('AudioContext', MockAudioContext);
 
     const { audio, ctx } = await unlocked();
+    audio.storyMedallion!(0, 4);
+    audio.storyMedallion!(1, 4);
+    audio.storyMedallion!(2, 4);
+    audio.storyMedallion!(3, 4);
+    audio.pageFinale!();
+    audio.hintLantern!();
     for (const kind of UI_FOLEYS) audio.uiFoley!(kind);
-    ctx.advance(2);
+    ctx.advance(5);
     audio.dispose();
     expect(speak).not.toHaveBeenCalled();
 
@@ -600,5 +657,217 @@ describe('tabletop UI ASMR foley (uiFoley)', () => {
       const src = readFileSync(join(audioDir, file), 'utf8');
       expect(src, `${file} must not reference speechSynthesis`).not.toMatch(/speechsynthesis/i);
     }
+  });
+});
+
+describe('Sprint 2 progression harmony, page finale, hint lantern & item foley', () => {
+  it('storyMedallion ascends Fmaj9 -> G6/Gadd9 -> Am11 -> F-Lydian Cmaj9 apex with zero leaks', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    expect(typeof audio.storyMedallion).toBe('function');
+    const baseline = audio.stats().liveNodes;
+
+    const expectedDegrees: ReadonlyArray<readonly number[]> = [
+      [0, 2, 4, 6, 8],          // Step 0: Fmaj9 (F4 A4 C5 E5 G5)
+      [1, 3, 5, 6, 9],          // Step 1: G6/Gadd9 (G4 B4 D5 E5 A5)
+      [2, 4, 6, 8, 10, 12],     // Step 2: Am11 (A4 C5 E5 G5 B5 D6)
+      [4, 6, 8, 10, 12, 14],    // Step 3: Cmaj9 F-Lydian apex (C5 E5 G5 B5 D6 F6)
+    ];
+
+    const rootFreqs: number[] = [];
+    for (let step = 0; step < 4; step++) {
+      const beforeSrc = ctx.sources.length;
+      const beforeNodes = ctx.nodes.length;
+      audio.storyMedallion!(step, 4);
+
+      const oscs = ctx.sources.slice(beforeSrc).filter((s) => s.kind === 'oscillator');
+      const freqs = oscs.map((o) => o.frequency.value);
+      expect(freqs.every((hz) => isScaleMember(hz)), `step ${step} strictly F-Lydian`).toBe(true);
+
+      for (const deg of expectedDegrees[step]!) {
+        const target = lydianFreq(deg);
+        expect(freqs.some((hz) => Math.abs(hz - target) < 1e-6), `step ${step} contains degree ${deg} (${target} Hz)`).toBe(true);
+      }
+
+      // Strictly NO non-diatonic F#6 (~1479.98 Hz) on step 3
+      expect(freqs.every((hz) => Math.abs(hz - 1479.98) > 10)).toBe(true);
+      rootFreqs.push(oscs[0]!.frequency.value);
+
+      const freshNodes = ctx.nodes.slice(beforeNodes);
+      ctx.advance(2.5);
+      expect(audio.stats().liveNodes, `step ${step} returns to baseline`).toBe(baseline);
+      expect(freshNodes.every((n) => n.disconnected), `step ${step} disconnects all nodes`).toBe(true);
+    }
+
+    // Bass root strictly ascends across steps 0 -> 1 -> 2 -> 3 (F3 < G3 < A3 < C4)
+    expect(rootFreqs[0]!).toBeLessThan(rootFreqs[1]!);
+    expect(rootFreqs[1]!).toBeLessThan(rootFreqs[2]!);
+    expect(rootFreqs[2]!).toBeLessThan(rootFreqs[3]!);
+
+    // 3-medallion chapter clamps step 3 gracefully to Step 2 (Am11, bass A3)
+    const before3 = ctx.sources.length;
+    audio.storyMedallion!(3, 3);
+    const clampedBass = ctx.sources.slice(before3).find((s) => s.kind === 'oscillator')!.frequency.value;
+    expect(clampedBass).toBeCloseTo(lydianFreq(-5), 6); // A3
+    ctx.advance(2.5);
+    expect(audio.stats().liveNodes).toBe(baseline);
+  });
+
+  it('pageFinale blooms with warm F-Lydian ensemble + sparkling top bells + cotton rustle and zero leaks', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    expect(typeof audio.pageFinale).toBe('function');
+    const baseline = audio.stats().liveNodes;
+
+    const beforeNodes = ctx.nodes.length;
+    const beforeSrc = ctx.sources.length;
+    audio.pageFinale!();
+
+    const freshNodes = ctx.nodes.slice(beforeNodes);
+    const freshSources = ctx.sources.slice(beforeSrc);
+    expect(freshNodes.length).toBeGreaterThan(15);
+    expect(freshNodes.length).toBeLessThan(40);
+
+    // Has silky cotton page-rustle noise undertone + bandpass/lowpass filters
+    expect(freshSources.some((s) => s.kind === 'bufferSource')).toBe(true);
+    const filters = freshNodes.filter((n): n is MockFilter => n instanceof MockFilter);
+    expect(filters.some((f) => f.type === 'bandpass')).toBe(true);
+    expect(filters.some((f) => f.type === 'lowpass')).toBe(true);
+
+    // Has warm low/mid bloom + sparkling upper F-Lydian bells (> 900 Hz)
+    const oscs = freshSources.filter((s) => s.kind === 'oscillator');
+    expect(oscs.length).toBeGreaterThanOrEqual(10);
+    expect(oscs.every((o) => ['sine', 'triangle'].includes(o.type))).toBe(true);
+    expect(oscs.every((o) => isScaleMember(o.frequency.value))).toBe(true);
+    expect(oscs.some((o) => o.frequency.value < 250)).toBe(true); // warm F3 anchor
+    expect(oscs.some((o) => o.frequency.value > 1100)).toBe(true); // sparkling top bells
+
+    ctx.advance(4);
+    expect(audio.stats().liveNodes).toBe(baseline);
+    expect(freshNodes.every((n) => n.disconnected)).toBe(true);
+  });
+
+  it('hintLantern and uiFoley(lanternChime) produce crystalline F-Lydian bells + fairy-dust puff with zero leaks', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    expect(typeof audio.hintLantern).toBe('function');
+    const baseline = audio.stats().liveNodes;
+
+    const verifyLantern = (trigger: () => void, label: string): void => {
+      const beforeNodes = ctx.nodes.length;
+      const beforeSrc = ctx.sources.length;
+      trigger();
+      const freshNodes = ctx.nodes.slice(beforeNodes);
+      const freshSources = ctx.sources.slice(beforeSrc);
+
+      expect(freshSources.some((s) => s.kind === 'bufferSource'), `${label} fairy-dust puff`).toBe(true);
+      const oscs = freshSources.filter((s) => s.kind === 'oscillator');
+      expect(oscs.length, `${label} music-box bells`).toBeGreaterThanOrEqual(4);
+      expect(oscs.every((o) => isScaleMember(o.frequency.value)), `${label} F-Lydian`).toBe(true);
+      expect(freshNodes.length, `${label} bounded`).toBeLessThan(20);
+
+      ctx.advance(2.5);
+      expect(audio.stats().liveNodes, `${label} returns to baseline`).toBe(baseline);
+      expect(freshNodes.every((n) => n.disconnected), `${label} disconnects all nodes`).toBe(true);
+    };
+
+    verifyLantern(() => audio.hintLantern!(), 'hintLantern()');
+    verifyLantern(() => audio.uiFoley!('lanternChime'), 'uiFoley(lanternChime)');
+  });
+
+  it('bubblePop sweeps 280 -> 760 Hz over 55 ms with F-Lydian micro sparkle', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    const baseline = audio.stats().liveNodes;
+
+    const beforeSrc = ctx.sources.length;
+    audio.uiFoley!('bubblePop');
+    const oscs = ctx.sources.slice(beforeSrc).filter((s) => s.kind === 'oscillator');
+    expect(oscs.length).toBeGreaterThanOrEqual(2);
+
+    const pop = oscs[0]!;
+    expect(pop.type).toBe('sine');
+    const setEv = pop.frequency.events.find((e) => e.op === 'set');
+    const expEv = pop.frequency.events.find((e) => e.op === 'exp');
+    expect(setEv?.value).toBe(280);
+    expect(expEv?.value).toBe(760);
+    expect((expEv?.time ?? 0) - (setEv?.time ?? 0)).toBeCloseTo(0.055, 6);
+
+    // Sparkle oscillators are strictly F-Lydian
+    for (const sparkle of oscs.slice(1)) {
+      expect(isScaleMember(sparkle.frequency.value)).toBe(true);
+      expect(sparkle.frequency.value).toBeGreaterThan(1000);
+    }
+
+    ctx.advance(2);
+    expect(audio.stats().liveNodes).toBe(baseline);
+  });
+
+  it('catPurr generates warm triangle F2/C3 amplitude-modulated purr trill + tiny F-Lydian bell', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    const baseline = audio.stats().liveNodes;
+
+    const beforeSrc = ctx.sources.length;
+    audio.uiFoley!('catPurr');
+    const oscs = ctx.sources.slice(beforeSrc).filter((s) => s.kind === 'oscillator');
+    const freqs = oscs.map((o) => o.frequency.value);
+
+    // F2 (~87.31 Hz) and C3 (~130.81 Hz) triangle purr carriers
+    const f2 = oscs.find((o) => Math.abs(o.frequency.value - lydianFreq(-14)) < 1e-4);
+    const c3 = oscs.find((o) => Math.abs(o.frequency.value - lydianFreq(-10)) < 1e-4);
+    expect(f2?.type).toBe('triangle');
+    expect(c3?.type).toBe('triangle');
+    // Low-frequency AM LFO (~24.5 Hz) modulating a gain param
+    const lfo = oscs.find((o) => o.frequency.value > 15 && o.frequency.value < 35);
+    expect(lfo).toBeDefined();
+    // Tiny collar bell above 900 Hz
+    expect(freqs.some((hz) => hz > 900 && isScaleMember(hz))).toBe(true);
+
+    ctx.advance(2);
+    expect(audio.stats().liveNodes).toBe(baseline);
+  });
+
+  it('crystalChime rings in shimmering F-Lydian stacked fifths and magnetHarp sweeps 5 ascending F-Lydian notes', async () => {
+    vi.stubGlobal('AudioContext', MockAudioContext);
+    const { audio, ctx } = await unlocked();
+    const baseline = audio.stats().liveNodes;
+
+    // crystalChime: stacked perfect fifths
+    const beforeCrystal = ctx.sources.length;
+    audio.uiFoley!('crystalChime');
+    const cOscs = ctx.sources.slice(beforeCrystal).filter((s) => s.kind === 'oscillator');
+    expect(cOscs.length).toBeGreaterThanOrEqual(3);
+    expect(cOscs[1]!.frequency.value / cOscs[0]!.frequency.value).toBeCloseTo(1.4983, 2);
+    expect(cOscs[2]!.frequency.value / cOscs[1]!.frequency.value).toBeCloseTo(1.4983, 2);
+
+    // magnetHarp: rapid ascending 5-note triangle glissando
+    const beforeHarp = ctx.sources.length;
+    audio.uiFoley!('magnetHarp');
+    const hOscs = ctx.sources.slice(beforeHarp).filter((s) => s.kind === 'oscillator');
+    expect(hOscs).toHaveLength(5);
+    for (let i = 0; i < hOscs.length; i++) {
+      expect(hOscs[i]!.type).toBe('triangle');
+      expect(isScaleMember(hOscs[i]!.frequency.value)).toBe(true);
+      if (i > 0) {
+        expect(hOscs[i]!.frequency.value).toBeGreaterThan(hOscs[i - 1]!.frequency.value);
+        expect((hOscs[i]!.startTime ?? 0) - (hOscs[i - 1]!.startTime ?? 0)).toBeLessThan(0.05);
+      }
+    }
+
+    // medallionStep cycles upward cleanly through uiFoley
+    const stepRoots: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const beforeMed = ctx.sources.length;
+      audio.uiFoley!('medallionStep');
+      const mOscs = ctx.sources.slice(beforeMed).filter((s) => s.kind === 'oscillator');
+      stepRoots.push(mOscs[0]!.frequency.value);
+    }
+    expect(stepRoots[0]!).toBeLessThan(stepRoots[1]!);
+    expect(stepRoots[1]!).toBeLessThan(stepRoots[2]!);
+    expect(stepRoots[2]!).toBeLessThan(stepRoots[3]!);
+
+    ctx.advance(4);
+    expect(audio.stats().liveNodes).toBe(baseline);
   });
 });

@@ -152,7 +152,93 @@ const NOVA_STAND = parseGrid(
   LEG,
 );
 
-// Playful play-bow (wiggle!) — front chest low, rump high, wagging tail!
+// Perked-ear standing Nova with sky-high joyful tail flick (idle / peek / wiggle contrast)
+const NOVA_STAND_PERK = parseGrid(
+  [
+    '....................................................................', // 0
+    '..............................................BBB...BBB.............', // 1  wide perked cheetah ears!
+    '..........TTTTT...............................BBBBBBBBB.............', // 2  high joyful tail curl!
+    '........TTTTTTTTT............................BBBBBBBBBBB............', // 3
+    '.......TTTT#TTTTTT..........................BBBBBBBB##EBB...........', // 4
+    '.......TTTT..TTTTTT........................BBBBBBBBB###BBB..........', // 5
+    '........TTT...TTTTT.......................BBBBBBBBBB#AABBB#.........', // 6
+    '...............TTTTT......................BBBBBBBBBBBBBBBBB.........', // 7
+    '................TTTTT.....................BBBBBBBBBBB###BBB.........', // 8
+    '.................TTTTT...................BBBBBBBBBBBB...............', // 9
+    '..................TTTTT..................BBBBBBBBBBB................', // 10
+    '..................TTTTT..........BBBSSSS.BBBBSSSBBBBB...............', // 11
+    '...................TTTT....BBBBBBBBSSSSBBBBBBSSSBBBBBB..............', // 12
+    '...................TTTT.BBBBSSSBBBBSSSSBBBBBBSSSBBBBBBB.............', // 13
+    '....................TTBBBBBBSSSBBBBBBBBBBSSSSBBBBBBBBBBB............', // 14
+    '.....................BBBSSSSBBBBBBBSSSSBBSSSSBBBBBBBBBBB............', // 15
+    '.....................BBBSSSSBBBBBBBSSSSBBBBBBBBBBBBBBBBBB...........', // 16
+    '....................BBBBSSSSBBBBBBBBBBBBBBSSSBBBBBBBBBBBB...........', // 17
+    '....................BBBBBBBBBBBBBBBSSSBBBBSSSBBBBBBBBBBB............', // 18
+    '...................BBBBBBSSSSBBBBBBSSSBBBBBBBBBBBBBBBBBB............', // 19
+    '...................BBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBBB.............', // 20
+    '...................BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB..............', // 21
+    '...................BBBBBB..BBBB...........BBBB..BBBBBB..............', // 22
+    '...................BBBBB...BBBB...........BBBB...BBBBB..............', // 23
+    '..................BBBBB....BBBB...........BBBB...BBBBB..............', // 24
+    '..................BBBBB....BBBB...........BBBB...BBBBB..............', // 25
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 26
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 27
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 28
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 29
+    '..................BBBBB....BBBBB..........BBBBB...BBBBB.............', // 30
+    '..................BBBBB....BBBBB..........BBBBB...BBBBB.............', // 31
+    '....................................................................', // 32
+    '....................................................................', // 33
+    '....................................................................', // 34
+    '....................................................................', // 35
+  ],
+  LEG,
+);
+
+// Playful ear-flick standing Nova with low swishing tail thump (idle / peek / wiggle contrast)
+const NOVA_STAND_FLICK = parseGrid(
+  [
+    '....................................................................', // 0
+    '.............................................BBB.....BB.............', // 1  playful asymmetric ear flick!
+    '.............................................BBBBBBBBBB.............', // 2
+    '.............................................BBBBBBBBBBB............', // 3
+    '............................................BBBBBBBB##EBB...........', // 4
+    '...........................................BBBBBBBBB###BBB..........', // 5
+    '..........................................BBBBBBBBBB#AABBB#.........', // 6
+    '..........................................BBBBBBBBBBBBBBBBB.........', // 7
+    '..........................................BBBBBBBBBBB###BBB.........', // 8
+    '.........................................BBBBBBBBBBBB...............', // 9
+    '.........................................BBBBBBBBBBB................', // 10
+    '.................................BBBSSSS.BBBBSSSBBBBB...............', // 11
+    '...........................BBBBBBBBSSSSBBBBBBSSSBBBBBB..............', // 12
+    '........................BBBBSSSBBBBSSSSBBBBBBSSSBBBBBBB.............', // 13
+    '......................BBBBBBSSSBBBBBBBBBBSSSSBBBBBBBBBBB............', // 14
+    '....TTTTT............BBBSSSSBBBBBBBSSSSBBSSSSBBBBBBBBBBB............', // 15 low swishing tail arc!
+    '..TTTTTTTTT..........BBBSSSSBBBBBBBSSSSBBBBBBBBBBBBBBBBBB...........', // 16
+    '.TTTT#TTTTTT........BBBBSSSSBBBBBBBBBBBBBBSSSBBBBBBBBBBBB...........', // 17
+    '.TTTT..TTTTTTT.....TBBBBBBBBBBBBBBBSSSBBBBSSSBBBBBBBBBBB............', // 18
+    '..TTT...TTTTTTTTTTTTBBBBBBSSSSBBBBBBSSSBBBBBBBBBBBBBBBBB............', // 19
+    '..........TTTTTTTTTTBBBBBBSSSSBBBBBBBBBBBBBBBBBBBBBBBBB.............', // 20
+    '..............TTTTTBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB..............', // 21
+    '...................BBBBBB..BBBB...........BBBB..BBBBBB..............', // 22
+    '...................BBBBB...BBBB...........BBBB...BBBBB..............', // 23
+    '..................BBBBB....BBBB...........BBBB...BBBBB..............', // 24
+    '..................BBBBB....BBBB...........BBBB...BBBBB..............', // 25
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 26
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 27
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 28
+    '..................BBBB.....BBBB...........BBBB....BBBB..............', // 29
+    '..................BBBBB....BBBBB..........BBBBB...BBBBB.............', // 30
+    '..................BBBBB....BBBBB..........BBBBB...BBBBB.............', // 31
+    '....................................................................', // 32
+    '....................................................................', // 33
+    '....................................................................', // 34
+    '....................................................................', // 35
+  ],
+  LEG,
+);
+
+// Playful play-bow (wiggle!) — front chest low, rump high, wagging tail left!
 const NOVA_BOW = parseGrid(
   [
     '....................................................................', // 0
@@ -178,6 +264,49 @@ const NOVA_BOW = parseGrid(
     '..................BBBBB............BBBBBBBBBBBBBBBBBBBBB............', // 20
     '..................BBBBB.............BBBBBBBBBBBBBBBBBBBB............', // 21
     '..................BBBBB..............BBBBBBBBBBBBBBBBBBBBBB.........', // 22 front paws stretched forward!
+    '..................BBBB................BBBBBBBBBBBBBBBBBBBBBBB.......', // 23
+    '..................BBBB.................BBBBBBBBBBBBBBBBBBBBBBB......', // 24
+    '..................BBBB..................BBBBBBBBBBBBBBBBBBBBBB......', // 25
+    '..................BBBB..............................................', // 26
+    '..................BBBB..............................................', // 27
+    '..................BBBB..............................................', // 28
+    '..................BBBB..............................................', // 29
+    '..................BBBBB.............................................', // 30
+    '..................BBBBB.............................................', // 31
+    '....................................................................', // 32
+    '....................................................................', // 33
+    '....................................................................', // 34
+    '....................................................................', // 35
+  ],
+  LEG,
+);
+
+// Alternate joyful play-bow tail-wag right + perked flicked ears + sparkle happy eye!
+const NOVA_BOW_WAG = parseGrid(
+  [
+    '....................................................................', // 0
+    '...................TTTTT............................................', // 1  tail wags excitedly right!
+    '.................TTTTTTTTT..........................................', // 2
+    '................TTTT#TTTTTT.........................................', // 3
+    '...............TTTTT...TTTTT........................................', // 4
+    '...............TTTT.....TTTT........................................', // 5
+    '...............TTTT.................................................', // 6
+    '................TTTT................................................', // 7
+    '.................TTTT..BBBBSSBBBB...................BBB...BBB.......', // 8  ears perked tall!
+    '..................TTTBBBBBBSSBBBBBBB...............BBBBBBBBBB.......', // 9
+    '....................BBBSSSBBBBBBBSSSBBB............BBBBBBBBBB.......', // 10
+    '...................BBBBSSSBBBBBBBSSSBBBB..........BBBBBBBBBBB.......', // 11
+    '...................BBBBSSSBBBBBBBBBBBBBBB........BBBBBBBBB##EBB.....', // 12 joyful ^ sparkle eye!
+    '..................BBBBBBBBBBBBSSBBBBBBBBBB......BBBBBBBB#BBB#BB.....', // 13
+    '..................BBBBBBSSSBBBSSBBBBBBBBBBB....BBBBBBBBBB#AABBB#....', // 14
+    '..................BBBBBBSSSBBBBBBBBBBSSSBBBB..BBBBBBBBBBBBBBBBBB....', // 15
+    '..................BBBBBBBBBBBBBBBBBBBSSSBBBBBBBBBBBBBBBBB###BBB.....', // 16
+    '..................BBBBBBBBB....BBBBBBBBBBBBBBBBBBBBBBBBBBBB.........', // 17
+    '..................BBBBBBB........BBBBBBBSSBBBBBBBBBBBBBBBB..........', // 18
+    '..................BBBBBB..........BBBBBBSSBBBBBBBBBBBBBBB...........', // 19
+    '..................BBBBB............BBBBBBBBBBBBBBBBBBBBB............', // 20
+    '..................BBBBB.............BBBBBBBBBBBBBBBBBBBB............', // 21
+    '..................BBBBB..............BBBBBBBBBBBBBBBBBBBBBB.........', // 22
     '..................BBBB................BBBBBBBBBBBBBBBBBBBBBBB.......', // 23
     '..................BBBB.................BBBBBBBBBBBBBBBBBBBBBBB......', // 24
     '..................BBBB..................BBBBBBBBBBBBBBBBBBBBBB......', // 25
@@ -353,11 +482,11 @@ export function buildNova(w: WardrobeState): SpriteSheet {
   const idle = anim(
     [
       buildFrame(w, NOVA_STAND, { dy: 0, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND, { dy: 1, blink: true, boosterY: 8, scarfY: 7 }),
-      buildFrame(w, NOVA_STAND, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 1, blink: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
     ],
-    240,
+    220,
   );
 
   const walk = anim(
@@ -395,13 +524,24 @@ export function buildNova(w: WardrobeState): SpriteSheet {
 
   const wiggle = anim(
     [
-      buildFrame(w, NOVA_STAND, { dy: 0, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, boosterY: 8, scarfY: 7 }),
       buildFrame(w, NOVA_BOW, { dy: 0, scarfB: true, boosterY: 7, scarfY: 12 }),
-      buildFrame(w, NOVA_BOW, { dy: 1, boosterY: 7, scarfY: 12 }),
-      buildFrame(w, NOVA_STAND, { dy: -1, scarfB: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_BOW_WAG, { dy: 1, boosterY: 7, scarfY: 12 }),
+      buildFrame(w, NOVA_BOW, { dy: 0, scarfB: true, boosterY: 7, scarfY: 12 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 0, scarfB: true, boosterY: 8, scarfY: 7 }),
     ],
-    140,
+    125,
   );
 
-  return makeSheet(W, H, { sleep, idle, walk, run, leap, wiggle });
+  const peek = anim(
+    [
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 1, blink: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_PERK, { dy: 0, dx: 1, scarfB: true, boosterY: 8, scarfY: 7 }),
+      buildFrame(w, NOVA_STAND_FLICK, { dy: 0, boosterY: 8, scarfY: 7 }),
+    ],
+    170,
+  );
+
+  return makeSheet(W, H, { sleep, idle, walk, run, leap, wiggle, peek });
 }

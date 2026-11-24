@@ -57,6 +57,9 @@ const SYSTEM: Record<number, string> = {
   228: '#ffb3d9',
   229: '#fff6d8',
   230: '#ffd1a6',
+  231: '#fff4c2',
+  232: '#d8b8ff',
+  233: '#5a4a7a',
 };
 
 const KIND: Record<string, readonly string[]> = {

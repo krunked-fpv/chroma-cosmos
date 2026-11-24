@@ -78,7 +78,7 @@ export function encodePng(width, height, rgbaBuffer) {
   return Buffer.concat([signature, ihdrChunk, idatChunk, iendChunk]);
 }
 
-// 32x32 pixel art grid: crayon-tipped golden star with sparkle on #120d2b
+// 32x32 pixel art grid: crayon-tipped celestial gold star with sparkle on #0d1026 Midnight Cloisonne
 // Maskable safe zone: strictly within central 80% (dist from (15.5, 15.5) <= 12.8)
 export const GRID_32 = [
   '................................', // 0
@@ -116,18 +116,18 @@ export const GRID_32 = [
 ];
 
 export const PALETTE = {
-  '.': [0x12, 0x0d, 0x2b, 0xff], // Background #120d2b
-  '#': [0xb4, 0x53, 0x09, 0xff], // Star outline / shadow #b45309
-  'G': [0xfb, 0xbf, 0x24, 0xff], // Star body golden #fbbf24
-  'L': [0xfe, 0xf0, 0x8a, 0xff], // Star highlight #fef08a
-  't': [0xf4, 0x72, 0xb6, 0xff], // Crayon wax tip highlight #f472b6
-  'T': [0xdb, 0x27, 0x77, 0xff], // Crayon wax tip body #db2777
-  'W': [0x8b, 0x5c, 0xf6, 0xff], // Crayon wrapper violet #8b5cf6
-  'E': [0x18, 0x0e, 0x29, 0xff], // Cute star eyes
-  'C': [0xfb, 0x71, 0x85, 0xff], // Rosy blush cheeks #fb7185
-  'S': [0xb4, 0x53, 0x09, 0xff], // Smile
-  '+': [0x67, 0xe8, 0xf9, 0xff], // Sparkle cyan glow #67e8f9
-  '*': [0xff, 0xff, 0xff, 0xff], // Sparkle center white #ffffff
+  '.': [0x0d, 0x10, 0x26, 0xff], // Midnight-Velvet Stargazer Backdrop #0d1026
+  '#': [0x9e, 0x6f, 0x26, 0xff], // Burnished cloisonne gold outline #9e6f26
+  'G': [0xea, 0xc4, 0x6f, 0xff], // Burnished Celestial Gold star body #eac46f
+  'L': [0xff, 0xf3, 0xc4, 0xff], // Starlight ivory-gold highlight #fff3c4
+  't': [0xff, 0x9e, 0xc2, 0xff], // Strawberry Supernova crayon tip highlight #ff9ec2
+  'T': [0xff, 0x5e, 0x8e, 0xff], // Strawberry Supernova crayon tip body #ff5e8e
+  'W': [0x6f, 0x4b, 0xd8, 0xff], // Royal Astral violet crayon collar #6f4bd8
+  'E': [0x23, 0x19, 0x42, 0xff], // Cosmic Ink cute star eyes #231942
+  'C': [0xff, 0x7b, 0xa8, 0xff], // Rosy blush cheeks #ff7ba8
+  'S': [0x8a, 0x5d, 0x20, 0xff], // Burnished bronze smile #8a5d20
+  '+': [0x7c, 0xe8, 0xff, 0xff], // Celestial aurora cyan sparkle #7ce8ff
+  '*': [0xfa, 0xf6, 0xec, 0xff], // Warm Starlight Paper sparkle core #faf6ec
 };
 
 export function render32x32Rgba() {
@@ -180,7 +180,7 @@ export function generateIconBuffers() {
     }
   }
 
-  // apple-touch-icon 180x180: x5 (160px art) centred on #120d2b padding
+  // apple-touch-icon 180x180: x5 (160px art) centred on #0d1026 padding
   const buf180 = Buffer.alloc(180 * 180 * 4);
   const bg = PALETTE['.'];
   for (let i = 0; i < 180 * 180; i++) {

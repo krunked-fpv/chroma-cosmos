@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'chroma-cosmos-v2';
+const CACHE_VERSION = 'chroma-cosmos-v3';
 
 const PRECACHE_ASSETS = [
   './',

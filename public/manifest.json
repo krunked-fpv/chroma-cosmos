@@ -4,8 +4,8 @@
   "description": "Interactive Hi-Bit Cosmic Coloring Book Roguelike starring Violet, Lumi & Nova",
   "display": "standalone",
   "orientation": "landscape",
-  "background_color": "#120d2b",
-  "theme_color": "#120d2b",
+  "background_color": "#0d1026",
+  "theme_color": "#0d1026",
   "start_url": "./",
   "scope": "./",
   "icons": [

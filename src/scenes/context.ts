@@ -1,8 +1,9 @@
 /** Scene-building context: raster + region-id allocation + actors + paths. Deterministic. */
 import { CANONICAL_REGIONS, type RegionKind } from '../contracts/regions';
-import type { ActorKind, AnimName, PagePath } from '../contracts/art';
+import type { ActorKind, AnimName, HeroQuestId, PagePath } from '../contracts/art';
 import type { MaterialId } from '../contracts/materials';
 import type { SceneId } from '../contracts/roguelike';
+import type { UniverseAmbientKind, UniverseId } from '../contracts/universes';
 import { H, Raster, W, type Pt } from './raster';
 
 export interface Rng {
@@ -59,6 +60,12 @@ export interface PlacedActor {
   pathIndex?: number;
 }
 
+export interface HeroQuestInput {
+  questId: HeroQuestId;
+  label: string;
+  regionIds: number[];
+}
+
 export interface SceneBuild {
   sceneId: SceneId;
   title: string;
@@ -69,6 +76,9 @@ export interface SceneBuild {
   focal: { x: number; y: number };
   sky: { top: string; bottom: string; mist: string };
   preColored: Array<{ id: number; materialId: MaterialId }>;
+  heroQuests: HeroQuestInput[];
+  universeId?: UniverseId;
+  ambient?: UniverseAmbientKind;
   /** allocate one more dynamic region id (used by the compiler when duplicate actors need remapped ids) */
   alloc: (kind: RegionKind, label: string) => number;
 }
@@ -106,6 +116,9 @@ export class SceneCtx {
   readonly actors: PlacedActor[] = [];
   readonly paths: PagePath[] = [];
   readonly preColored: Array<{ id: number; materialId: MaterialId }> = [];
+  readonly heroQuests: HeroQuestInput[] = [];
+  universeId?: UniverseId;
+  ambient?: UniverseAmbientKind;
   title = '';
   focal = { x: W / 2, y: H / 2 };
   sky = { top: '#1b1445', bottom: '#4a2f7a', mist: '#6b5b8a' };
@@ -196,8 +209,13 @@ export class SceneCtx {
     this.preColored.push({ id, materialId });
   }
 
+  /** Register a composite Hero Story Quest (3..4 disjoint quests per chapter, label strictly <= 2 words). */
+  heroQuest(questId: HeroQuestId, label: string, regionIds: number[]): void {
+    this.heroQuests.push({ questId, label, regionIds: regionIds.slice() });
+  }
+
   build(): SceneBuild {
-    return {
+    const out: SceneBuild = {
       sceneId: this.sceneId,
       title: this.title,
       raster: this.r,
@@ -207,7 +225,11 @@ export class SceneCtx {
       focal: this.focal,
       sky: this.sky,
       preColored: this.preColored,
+      heroQuests: this.heroQuests,
       alloc: (kind, label) => this.dyn(kind, label),
     };
+    if (this.universeId !== undefined) out.universeId = this.universeId;
+    if (this.ambient !== undefined) out.ambient = this.ambient;
+    return out;
   }
 }

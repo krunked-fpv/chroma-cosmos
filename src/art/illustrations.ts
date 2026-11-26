@@ -14,6 +14,7 @@ import { drawMaterial } from './illo/material';
 import { drawBookCover } from './illo/cover';
 import { drawPortrait } from './illo/portrait';
 import { drawBrushCanvas, drawQuestMedallionCanvas, drawUiSpriteCanvas } from './illo/uiSprites';
+import { drawUniversePortal } from './illo/universePortal';
 
 /** longest internal side per kind (art-directed chunkiness) */
 const CAP: Record<IllustrationKind['type'], number> = {
@@ -27,6 +28,7 @@ const CAP: Record<IllustrationKind['type'], number> = {
   portrait: 112,
   uiSprite: 32,
   questMedallion: 32,
+  universePortal: 96,
 };
 
 export function internalSize(w: number, h: number, cap: number): { lw: number; lh: number; k: number } {
@@ -69,6 +71,12 @@ export function illustration(kind: IllustrationKind, w: number, h: number): Pixe
       break;
     case 'questMedallion':
       c = drawQuestMedallionCanvas(kind.quest, Boolean(kind.completed), lw, lh);
+      break;
+    case 'universePortal':
+      c = drawUniversePortal(kind.universe, lw, lh, {
+        locked: Boolean(kind.locked),
+        completed: Boolean(kind.completed),
+      });
       break;
   }
   return upscale(c, k, W, H);

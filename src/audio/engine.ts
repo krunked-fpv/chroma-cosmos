@@ -9,6 +9,7 @@ import type { CausalityKind } from '../contracts/causality';
 import { AUDIO_LEVEL_GAIN } from '../contracts/constants';
 import type { MaterialId } from '../contracts/materials';
 import type { RegionKind } from '../contracts/regions';
+import type { UniverseAmbientKind } from '../contracts/universes';
 import { Brush } from './brush';
 import {
   playActorAwake,
@@ -20,6 +21,7 @@ import {
   playPoke,
   playStage,
   playStoryMedallion,
+  playUniverseUnlock,
 } from './events';
 import { playUiFoley } from './foley';
 import { glide, Rig, setVal } from './graph';
@@ -49,6 +51,8 @@ class AudioEngine implements AudioPort {
   private brush: Brush | null = null;
   private pulse: Pulse | null = null;
   private stems: StemId[] = [];
+  private semitoneShift = 0;
+  private ambient: UniverseAmbientKind = 'stardust';
   private disposed = false;
   private totalCreated = 0;
 
@@ -98,6 +102,7 @@ class AudioEngine implements AudioPort {
       return;
     }
     const rig = new Rig(ctx);
+    rig.setTone(this.semitoneShift, this.ambient);
     const master = rig.track(ctx.createGain());
     setVal(master.gain, AUDIO_LEVEL_GAIN[this.lvl]);
     const comp = rig.track(ctx.createDynamicsCompressor());
@@ -198,6 +203,15 @@ class AudioEngine implements AudioPort {
   }
   uiFoley(kind: UiFoleyKind): void {
     this.run((r) => playUiFoley(r, kind));
+  }
+  setUniverseTone(semitoneShift: number, ambient?: UniverseAmbientKind): void {
+    const s = Number.isFinite(semitoneShift) ? Math.max(-12, Math.min(12, semitoneShift)) : 0;
+    this.semitoneShift = s;
+    this.ambient = ambient ?? 'stardust';
+    this.rig?.setTone(this.semitoneShift, this.ambient);
+  }
+  universeUnlock(): void {
+    this.run((r) => playUniverseUnlock(r));
   }
 
   /* ---- pulse ---- */

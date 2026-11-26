@@ -6,7 +6,6 @@
 import { BPM } from '../contracts/constants';
 import type { StemId } from '../contracts/audio';
 import { glide, makeRng, setVal, type Rig } from './graph';
-import { lydianFreq } from './scale';
 import { bell, marimba, padChord, pluck } from './voices';
 
 export const BEAT_SEC = 60 / BPM;
@@ -143,14 +142,14 @@ export class Pulse {
       const slot = ARP[pos / 4] ?? 0;
       const upper = chord.tones.slice(1);
       const deg = upper[slot % upper.length];
-      if (deg !== undefined && this.rng() > 0.12) marimba(this.rig, t, lydianFreq(deg + 7), { dest: mar, gain: 0.12 });
+      if (deg !== undefined && this.rng() > 0.12) marimba(this.rig, t, this.rig.freq(deg + 7), { dest: mar, gain: 0.12 });
     }
 
     const harp = bus('harp');
     if (harp && bar % 4 === 3 && pos < 8) {
       const up = Math.floor(bar / 4) % 2 === 0;
       const deg = chord.root + (up ? pos : 7 - pos);
-      pluck(this.rig, t, lydianFreq(deg + 7), { dest: harp, gain: 0.09, decay: 1.1, rich: false });
+      pluck(this.rig, t, this.rig.freq(deg + 7), { dest: harp, gain: 0.09, decay: 1.1, rich: false });
     }
 
     const cel = bus('celesta');
@@ -158,10 +157,10 @@ export class Pulse {
       const upper = chord.tones.slice(1);
       const deg = (upper[Math.floor(this.rng() * upper.length)] ?? 0) + 14;
       const second = deg + (this.rng() < 0.5 ? 2 : 4);
-      bell(this.rig, t, lydianFreq(deg), { dest: cel, gain: 0.05, decay: 0.7, partials: [[2, 0.3]] });
+      bell(this.rig, t, this.rig.freq(deg), { dest: cel, gain: 0.05, decay: 0.7, partials: [[2, 0.3]] });
       this.deferred.push({
         step: step + 1,
-        fn: (t2) => bell(this.rig, t2, lydianFreq(second), { dest: cel, gain: 0.04, decay: 0.8, partials: [[2, 0.3]] }),
+        fn: (t2) => bell(this.rig, t2, this.rig.freq(second), { dest: cel, gain: 0.04, decay: 0.8, partials: [[2, 0.3]] }),
       });
     }
   }

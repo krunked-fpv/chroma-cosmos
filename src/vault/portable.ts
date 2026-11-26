@@ -1,6 +1,7 @@
 /** Portable vault JSON: `{format:'chroma-cosmos-vault', version:1, exportedAt, vault, storybooks}` (typed arrays as base64). */
-import { CHAPTERS, type ChapterId } from '../contracts/roguelike';
+import type { ChapterId } from '../contracts/roguelike';
 import type { StoryPageSnapshot } from '../contracts/simulation';
+import { ALL_CHAPTERS, UNIVERSE_ORDER, type UniverseId } from '../contracts/universes';
 import type { Storybook, VaultState } from '../contracts/vault';
 import { base64ToBytes, bytesToBase64 } from './codec';
 import { isFiniteNum, isRecord, isUint, parseVaultState } from './schema';
@@ -8,7 +9,8 @@ import { isFiniteNum, isRecord, isUint, parseVaultState } from './schema';
 export const EXPORT_FORMAT = 'chroma-cosmos-vault';
 export const EXPORT_VERSION = 1;
 
-const CHAPTER_IDS: ReadonlySet<string> = new Set(CHAPTERS.map((c) => c.id));
+const CHAPTER_IDS: ReadonlySet<string> = new Set(ALL_CHAPTERS.map((c) => c.id));
+const UNIVERSE_IDS: ReadonlySet<string> = new Set(UNIVERSE_ORDER);
 
 /** Normalises typed-array-ish values (possibly from another realm) to a Uint8Array view. */
 export function asBytes(x: unknown): Uint8Array | null {
@@ -52,6 +54,7 @@ export function buildVaultExport(vault: Readonly<VaultState>, storybooks: readon
       galaxyName: b.galaxyName,
       createdAt: b.createdAt,
       seed: b.seed,
+      ...(b.universeId ? { universeId: b.universeId } : {}),
       pages: b.pages.map(encodePage),
     })),
   });
@@ -81,6 +84,9 @@ export function parseVaultExport(text: string): { vault: VaultState; storybooks:
     if (typeof sb.title !== 'string' || typeof sb.galaxyName !== 'string') throw new Error(`Import failed: ${where} has a bad title or galaxy name.`);
     if (!isFiniteNum(sb.createdAt) || !isFiniteNum(sb.seed)) throw new Error(`Import failed: ${where} has a bad date or seed.`);
     if (!Array.isArray(sb.pages)) throw new Error(`Import failed: ${where}.pages must be a list.`);
+    if (sb.universeId !== undefined && (typeof sb.universeId !== 'string' || !UNIVERSE_IDS.has(sb.universeId))) {
+      throw new Error(`Import failed: ${where} has a bad universeId.`);
+    }
     if (seen.has(sb.id)) throw new Error(`Import failed: duplicate storybook id "${sb.id}".`);
     seen.add(sb.id);
     let pages: StoryPageSnapshot[];
@@ -89,7 +95,15 @@ export function parseVaultExport(text: string): { vault: VaultState; storybooks:
     } catch (e) {
       throw new Error(`Import failed: ${(e as Error).message}`);
     }
-    storybooks.push({ id: sb.id, title: sb.title, galaxyName: sb.galaxyName, createdAt: sb.createdAt, seed: sb.seed, pages });
+    storybooks.push({
+      id: sb.id,
+      title: sb.title,
+      galaxyName: sb.galaxyName,
+      createdAt: sb.createdAt,
+      seed: sb.seed,
+      ...(sb.universeId ? { universeId: sb.universeId as UniverseId } : {}),
+      pages,
+    });
   });
   return { vault, storybooks };
 }

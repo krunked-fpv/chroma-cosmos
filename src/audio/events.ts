@@ -6,7 +6,6 @@ import type { ActorKind } from '../contracts/art';
 import type { CausalityKind } from '../contracts/causality';
 import type { RegionKind } from '../contracts/regions';
 import { expTo, linTo, setAt, type Rig } from './graph';
-import { lydianFreq } from './scale';
 import { bell, bend, envAD, marimba, pluck, purrChime, swell, whoosh } from './voices';
 
 const REGION_KINDS: readonly RegionKind[] = [
@@ -21,16 +20,16 @@ export function playStage(rig: Rig, kind: RegionKind, stage: number): void {
   const offset = Math.max(0, REGION_KINDS.indexOf(kind)) % 7;
   const deg = ((offset + (s - 1) * 2) % 7) + (s >= 3 ? 7 : 0);
   const t = rig.now() + 0.01;
-  pluck(rig, t, lydianFreq(deg), { gain: 0.1 + s * 0.015, decay: 0.6 + s * 0.15, rich: s >= 3 });
-  if (s === 4) bell(rig, t + 0.09, lydianFreq(deg + 4), { gain: 0.06, decay: 0.7 });
+  pluck(rig, t, rig.freq(deg), { gain: 0.1 + s * 0.015, decay: 0.6 + s * 0.15, rich: s >= 3 });
+  if (s === 4) bell(rig, t + 0.09, rig.freq(deg + 4), { gain: 0.06, decay: 0.7 });
 }
 
 /** Triumphant Fmaj7(#11)/9 swell: F3 sub, then F A C E G B rising, with two glass sparkles on top. */
 export function playAutoBloom(rig: Rig): void {
   const t = rig.now() + 0.01;
   swell(rig, t, [-7, 0, 2, 4, 6, 8, 10], 0.9, [0.1, 0.085, 0.075, 0.07, 0.065, 0.06, 0.05]);
-  bell(rig, t + 0.55, lydianFreq(14), { gain: 0.05, decay: 1.6, partials: [[2, 0.25]] });
-  bell(rig, t + 0.75, lydianFreq(18), { gain: 0.04, decay: 1.8, partials: [[2, 0.25]] });
+  bell(rig, t + 0.55, rig.freq(14), { gain: 0.05, decay: 1.6, partials: [[2, 0.25]] });
+  bell(rig, t + 0.75, rig.freq(18), { gain: 0.04, decay: 1.8, partials: [[2, 0.25]] });
 }
 
 const ACTOR_BELL: Record<ActorKind, { deg: number[]; gain: number; decay: number }> = {
@@ -51,24 +50,24 @@ const ACTOR_BELL: Record<ActorKind, { deg: number[]; gain: number; decay: number
 export function playPoke(rig: Rig, actor: ActorKind): void {
   const t = rig.now() + 0.01;
   if (actor === 'nova') {
-    purrChime(rig, t, lydianFreq(2));
-    purrChime(rig, t + 0.16, lydianFreq(6), { gain: 0.09 });
+    purrChime(rig, t, rig.freq(2));
+    purrChime(rig, t + 0.16, rig.freq(6), { gain: 0.09 });
     return;
   }
   if (actor === 'lumi') {
-    for (let i = 0; i < 8; i++) pluck(rig, t + i * 0.055, lydianFreq(i), { gain: 0.1, decay: 0.8, bright: 4 });
+    for (let i = 0; i < 8; i++) pluck(rig, t + i * 0.055, rig.freq(i), { gain: 0.1, decay: 0.8, bright: 4 });
     return;
   }
   const b = ACTOR_BELL[actor] ?? { deg: [2], gain: 0.1, decay: 0.7 };
-  b.deg.forEach((d, i) => bell(rig, t + i * 0.11, lydianFreq(d), { gain: b.gain, decay: b.decay, partials: [[2, 0.25], [4, 0.08]] }));
+  b.deg.forEach((d, i) => bell(rig, t + i * 0.11, rig.freq(d), { gain: b.gain, decay: b.decay, partials: [[2, 0.25], [4, 0.08]] }));
 }
 
 /** A creature waking up: a rising triad on its own degree with a sparkle on top. */
 export function playActorAwake(rig: Rig, actor: ActorKind): void {
   const t = rig.now() + 0.01;
   const base = (ACTOR_BELL[actor] ?? ACTOR_BELL.violet).deg[0] ?? 2;
-  [0, 2, 4].forEach((o, i) => bell(rig, t + i * 0.1, lydianFreq(base + o), { gain: 0.09, decay: 0.9, partials: [[2, 0.2]] }));
-  bell(rig, t + 0.34, lydianFreq(base + 7), { gain: 0.05, decay: 1.2 });
+  [0, 2, 4].forEach((o, i) => bell(rig, t + i * 0.1, rig.freq(base + o), { gain: 0.09, decay: 0.9, partials: [[2, 0.2]] }));
+  bell(rig, t + 0.34, rig.freq(base + 7), { gain: 0.05, decay: 1.2 });
 }
 
 type Voice = 'pluck' | 'bell' | 'marimba';
@@ -96,12 +95,12 @@ const MOTIFS: Record<Exclude<CausalityKind, 'zeroGTrampoline'>, Note[]> = {
 export function playCausality(rig: Rig, kind: CausalityKind): void {
   const t = rig.now() + 0.01;
   if (kind === 'zeroGTrampoline') {
-    [[0, 4], [2, 6], [4, 8]].forEach(([a, b], i) => bend(rig, t + i * 0.22, lydianFreq(a ?? 0), lydianFreq(b ?? 4), 0.3, { gain: 0.09 }));
+    [[0, 4], [2, 6], [4, 8]].forEach(([a, b], i) => bend(rig, t + i * 0.22, rig.freq(a ?? 0), rig.freq(b ?? 4), 0.3, { gain: 0.09 }));
     return;
   }
   const motif = MOTIFS[kind] ?? MOTIFS.gentleSparkle;
   for (const n of motif) {
-    const f = lydianFreq(n.deg);
+    const f = rig.freq(n.deg);
     const at = t + n.at;
     if (n.v === 'pluck') pluck(rig, at, f, { gain: n.g, decay: 0.7 });
     else if (n.v === 'marimba') marimba(rig, at, f, { gain: n.g, decay: 0.35 });
@@ -148,10 +147,10 @@ export function playStoryMedallion(rig: Rig, stepIndex: number, total: number): 
   const t = rig.now() + 0.008;
 
   rig.build((g) => {
-    const lp = g.filter('lowpass', 3400 + idx * 450, 0.65);
+    const lp = g.filter('lowpass', rig.lpFreq(3400 + idx * 450), 0.65);
     lp.connect(rig.out);
 
-    const bassOsc = g.osc('sine', lydianFreq(voicing.bass));
+    const bassOsc = g.osc('sine', rig.freq(voicing.bass));
     const bassEnv = g.gain(0);
     const bassEnd = envAD(bassEnv.gain, t, 0.068, 0.02, 1.05 + idx * 0.1) + 0.04;
     bassOsc.connect(bassEnv);
@@ -161,7 +160,7 @@ export function playStoryMedallion(rig: Rig, stepIndex: number, total: number): 
     const decay = 0.92 + idx * 0.12;
     voicing.notes.forEach((deg, i) => {
       const tNote = t + i * 0.052;
-      const osc = g.osc(i < 2 ? 'triangle' : 'sine', lydianFreq(deg));
+      const osc = g.osc(i < 2 ? 'triangle' : 'sine', rig.freq(deg));
       const env = g.gain(0);
       const peak = Math.max(0.042, 0.072 - i * 0.005);
       const end = envAD(env.gain, tNote, peak, 0.01, decay) + 0.04;
@@ -171,7 +170,7 @@ export function playStoryMedallion(rig: Rig, stepIndex: number, total: number): 
     });
 
     const tShim = t + voicing.notes.length * 0.052 + 0.03;
-    const shimOsc = g.osc('sine', lydianFreq(voicing.shimmer));
+    const shimOsc = g.osc('sine', rig.freq(voicing.shimmer));
     const shimEnv = g.gain(0);
     const shimEnd = envAD(shimEnv.gain, tShim, 0.036 + idx * 0.004, 0.004, 0.95 + idx * 0.12) + 0.04;
     shimOsc.connect(shimEnv);
@@ -192,7 +191,7 @@ export function playPageFinale(rig: Rig): void {
     // Silky cotton page-rustle undertone
     const rustle = g.noise(0.96);
     const bp = g.filter('bandpass', 680, 1.0);
-    const rustleLp = g.filter('lowpass', 2000, 0.6);
+    const rustleLp = g.filter('lowpass', rig.lpFreq(2000), 0.6);
     const rustleEnv = g.gain(0);
     setAt(bp.frequency, 680, t);
     expTo(bp.frequency, 1520, t + 0.32);
@@ -208,9 +207,11 @@ export function playPageFinale(rig: Rig): void {
     g.play(rustle, t, t + 1.04, rustleOffset);
 
     // Warm harp & marimba harmonic bloom (F3 anchor + Fmaj9 rising chord + A5/C6 lift)
-    const warmLp = g.filter('lowpass', 4200, 0.6);
-    setAt(warmLp.frequency, 4200, t);
-    expTo(warmLp.frequency, 1850, t + 1.65);
+    const warmStart = rig.lpFreq(4200);
+    const warmEnd = rig.lpFreq(1850);
+    const warmLp = g.filter('lowpass', warmStart, 0.6);
+    setAt(warmLp.frequency, warmStart, t);
+    expTo(warmLp.frequency, warmEnd, t + 1.65);
     warmLp.connect(rig.out);
 
     const bloomNotes: ReadonlyArray<readonly [number, number, OscillatorType, number, number]> = [
@@ -225,7 +226,7 @@ export function playPageFinale(rig: Rig): void {
     ];
     for (const [deg, offset, type, peak, decay] of bloomNotes) {
       const start = t + offset;
-      const osc = g.osc(type, lydianFreq(deg));
+      const osc = g.osc(type, rig.freq(deg));
       const env = g.gain(0);
       const end = envAD(env.gain, start, peak, 0.006, decay) + 0.04;
       osc.connect(env);
@@ -234,7 +235,7 @@ export function playPageFinale(rig: Rig): void {
     }
 
     // Celesta & sparkling top bells crowning halo (B5 -> D6 -> E6 -> F6 -> A6)
-    const bellLp = g.filter('lowpass', 5400, 0.55);
+    const bellLp = g.filter('lowpass', rig.lpFreq(5400), 0.55);
     bellLp.connect(rig.out);
 
     const crownBells: ReadonlyArray<readonly [number, number, number, number]> = [
@@ -246,7 +247,7 @@ export function playPageFinale(rig: Rig): void {
     ];
     for (const [deg, offset, peak, decay] of crownBells) {
       const start = t + offset;
-      const osc = g.osc('sine', lydianFreq(deg));
+      const osc = g.osc('sine', rig.freq(deg));
       const env = g.gain(0);
       const end = envAD(env.gain, start, peak, 0.003, decay) + 0.05;
       osc.connect(env);
@@ -268,7 +269,7 @@ export function playHintLantern(rig: Rig): void {
     // Soft fairy-dust flutter noise puff
     const puff = g.noise(1.16);
     const bp = g.filter('bandpass', 1450, 1.6);
-    const puffLp = g.filter('lowpass', 3600, 0.6);
+    const puffLp = g.filter('lowpass', rig.lpFreq(3600), 0.6);
     const puffEnv = g.gain(0);
     setAt(bp.frequency, 1450, t);
     expTo(bp.frequency, 2650, t + 0.09);
@@ -284,7 +285,7 @@ export function playHintLantern(rig: Rig): void {
     g.play(puff, t, t + 0.28, puffOffset);
 
     // Warm crystalline music-box bell motif (F5 -> A5 -> C6 -> E6 + F6 glint)
-    const bellLp = g.filter('lowpass', 4200, 0.55);
+    const bellLp = g.filter('lowpass', rig.lpFreq(4200), 0.55);
     bellLp.connect(rig.out);
 
     const motif: ReadonlyArray<readonly [number, number, OscillatorType, number, number]> = [
@@ -296,11 +297,80 @@ export function playHintLantern(rig: Rig): void {
     ];
     for (const [deg, offset, type, peak, decay] of motif) {
       const start = t + offset;
-      const osc = g.osc(type, lydianFreq(deg));
+      const osc = g.osc(type, rig.freq(deg));
       const env = g.gain(0);
       const end = envAD(env.gain, start, peak, 0.004, decay) + 0.04;
       osc.connect(env);
       env.connect(bellLp);
+      g.play(osc, start, end);
+    }
+  });
+}
+
+/**
+ * Celebratory Multiverse Unlock Fanfare: soft paper/starlight swoosh + warm pad shimmer
+ * + ascending Lydian arpeggio + twin halo chimes. Strictly < 36 bounded nodes (30 nodes), zero leaks.
+ */
+export function playUniverseUnlock(rig: Rig): void {
+  const t = rig.now() + 0.01;
+  const swooshOffset = nextEventOffset(rig, 0.61);
+
+  rig.build((g) => {
+    // 1. Soft paper/starlight swoosh (4 nodes)
+    const swoosh = g.noise(1.02);
+    const bp = g.filter('bandpass', 720, 1.1);
+    const swooshLp = g.filter('lowpass', rig.lpFreq(2800), 0.6);
+    const swooshEnv = g.gain(0);
+    setAt(bp.frequency, 720, t);
+    expTo(bp.frequency, 2100, t + 0.42);
+    expTo(bp.frequency, 1080, t + 1.1);
+    setAt(swooshEnv.gain, 0, t);
+    linTo(swooshEnv.gain, 0.095, t + 0.2);
+    expTo(swooshEnv.gain, 0.01, t + 0.9);
+    linTo(swooshEnv.gain, 0, t + 1.12);
+    swoosh.connect(bp);
+    bp.connect(swooshLp);
+    swooshLp.connect(swooshEnv);
+    swooshEnv.connect(rig.out);
+    g.play(swoosh, t, t + 1.18, swooshOffset);
+
+    // 2. Warm pad shimmer chord (5 nodes)
+    const padLp = g.filter('lowpass', rig.lpFreq(1400), 0.6);
+    const padEnv = g.gain(0);
+    setAt(padEnv.gain, 0, t);
+    linTo(padEnv.gain, 0.056, t + 0.42);
+    setAt(padEnv.gain, 0.056, t + 1.15);
+    linTo(padEnv.gain, 0, t + 2.15);
+    padLp.connect(padEnv);
+    padEnv.connect(rig.out);
+    for (const deg of [-7, 0, 4]) {
+      const padOsc = g.osc('triangle', rig.freq(deg));
+      padOsc.connect(padLp);
+      g.play(padOsc, t, t + 2.2);
+    }
+
+    // 3. Ascending multiverse arpeggio + twin halo chimes (1 + 20 = 21 nodes; total 30 < 36)
+    const arpLp = g.filter('lowpass', rig.lpFreq(4800), 0.55);
+    arpLp.connect(rig.out);
+    const arpNotes: ReadonlyArray<readonly [number, number, OscillatorType, number, number]> = [
+      [0, 0.04, 'triangle', 0.068, 0.85],
+      [2, 0.125, 'triangle', 0.064, 0.88],
+      [4, 0.21, 'triangle', 0.062, 0.92],
+      [6, 0.295, 'sine', 0.058, 0.96],
+      [8, 0.38, 'sine', 0.056, 1.02],
+      [10, 0.465, 'sine', 0.052, 1.08],
+      [12, 0.55, 'sine', 0.05, 1.15],
+      [14, 0.64, 'sine', 0.052, 1.28],
+      [16, 0.78, 'sine', 0.042, 1.38],
+      [18, 0.92, 'sine', 0.036, 1.45],
+    ];
+    for (const [deg, offset, type, peak, decay] of arpNotes) {
+      const start = t + offset;
+      const osc = g.osc(type, rig.freq(deg));
+      const env = g.gain(0);
+      const end = envAD(env.gain, start, peak, 0.005, decay) + 0.04;
+      osc.connect(env);
+      env.connect(arpLp);
       g.play(osc, start, end);
     }
   });

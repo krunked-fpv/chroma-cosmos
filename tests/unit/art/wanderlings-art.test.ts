@@ -4,12 +4,12 @@ import type { HeroQuestId } from '../../../src/contracts/art';
 import type { CausalityKind } from '../../../src/contracts/causality';
 import { PAGE_H, PAGE_W } from '../../../src/contracts/constants';
 import { WARDROBE_ITEMS, type WardrobeState } from '../../../src/contracts/progression';
-import { CHAPTERS, type ChapterId, type SceneId } from '../../../src/contracts/roguelike';
+import { CHAPTERS, type ChapterId, type LegacyChapterId, type SceneId } from '../../../src/contracts/roguelike';
 
 const NONE = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, false])) as WardrobeState;
 const ALL = Object.fromEntries(WARDROBE_ITEMS.map((w) => [w.id, true])) as WardrobeState;
 
-const CHAPTER_IDS: ChapterId[] = CHAPTERS.map((c) => c.id);
+const CHAPTER_IDS: LegacyChapterId[] = CHAPTERS.map((c) => c.id as LegacyChapterId);
 const ALL_SCENES: SceneId[] = [...CHAPTER_IDS, 'bedroomHub'];
 const ACTIVE_CAUSALITY: CausalityKind[] = [
   'rainbowSlide',
@@ -23,7 +23,7 @@ const VALID_QUESTS = new Set<HeroQuestId>([
   'rocket', 'milkshake', 'asteroid', 'moonCat', 'suns', 'boba', 'whale', 'heart', 'comet',
 ]);
 
-const EXPECTED_CHAPTER_QUESTS: Record<ChapterId, readonly HeroQuestId[]> = {
+const EXPECTED_CHAPTER_QUESTS: Record<LegacyChapterId, readonly HeroQuestId[]> = {
   rooftop: ['violet', 'lumi', 'nova', 'rocket'],
   milkshakeNebula: ['violet', 'milkshake', 'planet', 'cloud'],
   asteroidGarden: ['lumi', 'asteroid', 'planet', 'moonCat'],

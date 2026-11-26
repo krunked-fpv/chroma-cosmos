@@ -13,7 +13,8 @@ import '../styles/main.css';
 import type { HeroQuestId, StoryMilestoneKind } from '../contracts/art';
 import { APP_NAME } from '../contracts/constants';
 import type { ChapterId, DraftCardId, RelicId } from '../contracts/roguelike';
-import type { AppMode, HubState, HudState, UiCallbacks, UiDeps, UiPort } from '../contracts/ui';
+import type { AppMode, FinaleMeta, HubState, HudState, UiCallbacks, UiDeps, UiPort } from '../contracts/ui';
+import type { UniverseId } from '../contracts/universes';
 import type { StorybookSummary } from '../contracts/vault';
 import { button, h, setShown, spriteBox } from './dom';
 import { HubPanel, computeHubAffordable } from './hub';
@@ -173,6 +174,7 @@ class SketchbookUi implements UiPort {
       h('span', { class: 'cc-corner-filigree br', 'aria-hidden': 'true' }),
       this.hud.voyageSpine,
       this.hub.crestEl,
+      this.hub.universeStripEl,
       stage,
       this.hub.voyageEl,
       this.bookPrev,
@@ -268,6 +270,7 @@ class SketchbookUi implements UiPort {
     else this.hud.setTitle(this.hudTitle);
     if (m === 'chapter' && (force || prev !== 'chapter')) this.hud.appear();
     if (m === 'hub' && prev !== 'hub') {
+      boing(this.hub.universeStripEl, 'appear');
       boing(this.hub.voyageEl, 'appear');
       boing(this.hub.stationsEl, 'appear');
     }
@@ -299,9 +302,9 @@ class SketchbookUi implements UiPort {
     return this.modals.showDoors(o);
   }
 
-  showFinale(name: string): Promise<void> {
+  showFinale(name: string, meta?: FinaleMeta): Promise<UniverseId | null | void> {
     this.input?.abort();
-    return this.modals.showFinale(name, () => this.cb?.onFinaleDone());
+    return this.modals.showFinale(name, () => this.cb?.onFinaleDone(), meta);
   }
 
   showBook(b: StorybookSummary, page: number, count: number): void {

@@ -15,7 +15,14 @@ import { CANONICAL_REGIONS, SYSTEM_REGIONS, type RegionKind, type RegionMeta } f
 import type { SceneId } from '../contracts/roguelike';
 import type { WardrobeState } from '../contracts/progression';
 import { CHAPTERS } from '../contracts/roguelike';
-import { buildScene, CANON_LABEL, inkPass, isColourable, isGhostId, isSystemId, type PlacedActor, type RegionDef } from '../scenes';
+import {
+  ALL_CHAPTERS,
+  HUB_TO_UNIVERSE,
+  SCENE_TO_UNIVERSE,
+  UNIVERSE_BY_ID,
+  type UniverseId,
+} from '../contracts/universes';
+import { buildScene, CANON_LABEL, inkPass, isColourable, isGhostId, isSystemId, type PlacedActor, type RegionDef, type SceneBuild } from '../scenes';
 import { buildSprites } from './sprites';
 
 const KIND_OF_ACTOR: Record<ActorKind, RegionKind> = {
@@ -48,7 +55,52 @@ const QUEST_THUMB: Record<HeroQuestId, UiSpriteId> = {
   whale: 'quest_whale',
   heart: 'quest_heart',
   comet: 'quest_comet',
+  shell: 'quest_shell',
+  jelly: 'quest_jelly',
+  cake: 'quest_cake',
+  mushroom: 'quest_mushroom',
+  crane: 'quest_crane',
+  dino: 'quest_dino',
+  igloo: 'quest_igloo',
+  airship: 'quest_airship',
+  koi: 'quest_koi',
+  piano: 'quest_piano',
+  geode: 'quest_geode',
+  pyramid: 'quest_pyramid',
+  book: 'quest_book',
+  tent: 'quest_tent',
+  teacup: 'quest_teacup',
+  pumpkin: 'quest_pumpkin',
+  sunflower: 'quest_sunflower',
+  arcade: 'quest_arcade',
+  dragon: 'quest_dragon',
+  lotus: 'quest_lotus',
+  portal: 'quest_portal',
+  lantern: 'quest_lantern',
 };
+
+const FALLBACK_QUEST_POOL: ReadonlyArray<readonly [HeroQuestId, string]> = [
+  ['portal', 'Star Portal'],
+  ['lantern', 'Sky Lantern'],
+  ['cloud', 'Dream Clouds'],
+  ['planet', 'Star Planet'],
+  ['suns', 'Bright Stars'],
+  ['comet', 'Star Comet'],
+  ['heart', 'Star Heart'],
+  ['geode', 'Prism Gem'],
+  ['lotus', 'Gold Lotus'],
+  ['book', 'Story Tome'],
+  ['shell', 'Pearl Shell'],
+  ['violet', 'Violet'],
+  ['lumi', 'Lumi'],
+  ['nova', 'Nova'],
+];
+
+function clampQuestLabel(raw: string, fallback: string): string {
+  const words = raw.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return fallback;
+  return words.slice(0, 2).join(' ');
+}
 
 function clampCoord(v: number, max: number): number {
   return Math.max(0, Math.min(max - 1, Math.round(v)));
@@ -58,8 +110,11 @@ function buildHeroQuests(
   sceneId: SceneId,
   regions: readonly (RegionMeta | undefined)[],
   spawns: readonly ActorSpawn[],
+  customQuests: SceneBuild['heroQuests'],
+  totals: Uint32Array,
 ): HeroStoryQuestSpec[] {
   const used = new Set<number>();
+  const usedQuestIds = new Set<HeroQuestId>();
   const out: HeroStoryQuestSpec[] = [];
 
   const isValid = (id: number): boolean => {
@@ -83,6 +138,7 @@ function buildHeroQuests(
   };
 
   const addQuest = (questId: HeroQuestId, label: string, candidateIds: Iterable<number>): boolean => {
+    if (usedQuestIds.has(questId)) return false;
     const picked: number[] = [];
     const seenLocal = new Set<number>();
     for (const id of candidateIds) {
@@ -93,6 +149,7 @@ function buildHeroQuests(
     if (picked.length === 0) return false;
     picked.sort((a, b) => a - b);
     for (const id of picked) used.add(id);
+    usedQuestIds.add(questId);
 
     let sx = 0;
     let sy = 0;
@@ -121,6 +178,32 @@ function buildHeroQuests(
     });
     return true;
   };
+
+  const ensureMinimumQuests = (minCount: number): void => {
+    if (out.length >= minCount) return;
+    const remaining = findRegions((m) => !used.has(m.id)).sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0));
+    let cursor = 0;
+    for (const [fallbackId, fallbackLabel] of FALLBACK_QUEST_POOL) {
+      if (out.length >= minCount || cursor >= remaining.length) break;
+      if (usedQuestIds.has(fallbackId)) continue;
+      const slotsLeft = minCount - out.length;
+      const available = remaining.length - cursor;
+      const take = available > slotsLeft ? Math.min(2, available - (slotsLeft - 1)) : 1;
+      const chunk = remaining.slice(cursor, cursor + take);
+      cursor += take;
+      addQuest(fallbackId, fallbackLabel, chunk);
+    }
+  };
+
+  // New multiverse scenes supply explicit composite Hero Quests directly on SceneCtx
+  if (customQuests.length > 0) {
+    for (const q of customQuests) {
+      if (out.length >= 4) break;
+      addQuest(q.questId, clampQuestLabel(q.label, q.questId), q.regionIds);
+    }
+    ensureMinimumQuests(3);
+    return out;
+  }
 
   switch (sceneId) {
     case 'rooftop':
@@ -210,6 +293,13 @@ function buildHeroQuests(
       addQuest('planet', 'Ringed Planet', [12, 13]);
       addQuest('suns', 'Star Garlands', findRegions((m) => m.kind === 'star'));
       break;
+
+    default:
+      addQuest('violet', 'Violet', [1, 2, 3, 4]);
+      addQuest('lumi', 'Lumi', [5, 6, 7, 8]);
+      addQuest('nova', 'Nova', [9, 10, 11]);
+      ensureMinimumQuests(3);
+      break;
   }
 
   return out;
@@ -228,7 +318,9 @@ function toStoryMilestones(quests: readonly HeroStoryQuestSpec[]): StoryMileston
 
 export function sceneTitle(id: SceneId): string {
   if (id === 'bedroomHub') return "Violet's Starlight Bedroom";
-  return CHAPTERS.find((c) => c.id === id)?.title ?? id;
+  const hubUniId = (HUB_TO_UNIVERSE as Partial<Record<SceneId, UniverseId>>)[id];
+  if (hubUniId) return UNIVERSE_BY_ID[hubUniId].hubTitle;
+  return ALL_CHAPTERS.find((c) => c.id === id)?.title ?? CHAPTERS.find((c) => c.id === id)?.title ?? id;
 }
 
 function sheetIds(lib: SpriteLibrary, kind: ActorKind): number[] {
@@ -470,8 +562,11 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     if (core) coreRegionIds.push(a);
   }
 
-  const heroQuests = buildHeroQuests(sceneId, regions, spawns);
+  const heroQuests = buildHeroQuests(sceneId, regions, spawns, build.heroQuests, totals);
   const storyMilestones = toStoryMilestones(heroQuests);
+  const resolvedUniverseId = build.universeId ?? SCENE_TO_UNIVERSE[sceneId];
+  const resolvedUniverse = UNIVERSE_BY_ID[resolvedUniverseId];
+  const resolvedAmbient = build.ambient ?? resolvedUniverse.ambient;
 
   const page: CompiledPage = {
     sceneId,
@@ -489,8 +584,10 @@ export function compile(sceneId: SceneId, seed: number, wardrobe: WardrobeState)
     paths: build.paths,
     focal: build.focal,
     sky: build.sky,
+    universeId: resolvedUniverseId,
+    ambient: resolvedAmbient,
   };
-  if (sceneId === 'bedroomHub') page.preColored = build.preColored.filter((p) => (totals[p.id] as number) > 0);
+  if (sceneId in HUB_TO_UNIVERSE) page.preColored = build.preColored.filter((p) => (totals[p.id] as number) > 0);
   void isColourable;
   return page;
 }

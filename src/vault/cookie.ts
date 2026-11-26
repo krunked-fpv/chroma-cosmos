@@ -2,7 +2,8 @@
 import { VAULT_COOKIE_ATTRS, VAULT_COOKIE_NAME } from '../contracts/constants';
 import { MATERIALS, type MaterialId } from '../contracts/materials';
 import { BADGE_ORDER, WARDROBE_ITEMS, type WardrobeItemId } from '../contracts/progression';
-import { CHAPTERS, type ChapterId, type DraftCardId, type RunCore } from '../contracts/roguelike';
+import { type ChapterId, type DraftCardId, type RunCore } from '../contracts/roguelike';
+import { ALL_CHAPTERS, CHAPTER_TO_UNIVERSE, UNIVERSE_BY_ID, UNIVERSE_ORDER, type UniverseId } from '../contracts/universes';
 import type { CompactCookieV1, VaultState } from '../contracts/vault';
 import { base64UrlToText, fnv1a32Hex, textToBase64Url } from './codec';
 import { BRUSH_ORDER, DRAFT_CARD_ORDER, PHASE_ORDER, RELIC_ORDER, defaultVaultState, emptyWardrobe, isFiniteNum, isRecord, isUint } from './schema';
@@ -26,8 +27,10 @@ function fromBits<T>(bits: number, order: readonly T[]): T[] {
 
 const MATERIAL_ORDER: readonly number[] = MATERIALS.map((m) => m.id); // ids 1..17, bit = id - 1
 const WARDROBE_ORDER: readonly WardrobeItemId[] = WARDROBE_ITEMS.map((w) => w.id);
-const CHAPTER_BY_CODE = new Map<string, ChapterId>(CHAPTERS.map((c) => [c.code, c.id]));
-const CODE_BY_CHAPTER = new Map<ChapterId, string>(CHAPTERS.map((c) => [c.id, c.code]));
+const CODE_BY_CHAPTER = new Map<ChapterId, string>(ALL_CHAPTERS.map((c) => [c.id, c.code]));
+const CHAPTER_BY_UNIVERSE_CODE = new Map<UniverseId, Map<string, ChapterId>>(
+  UNIVERSE_ORDER.map((uId) => [uId, new Map<string, ChapterId>(UNIVERSE_BY_ID[uId].chapters.map((c) => [c.code, c.id]))]),
+);
 
 export type CompactCookiePayload = CompactCookieV1;
 
@@ -36,8 +39,14 @@ export function toCompactCookie(s: Readonly<VaultState>): CompactCookiePayload {
   for (const id of s.unlockedMaterials) if (id >= 1 && id <= 31) m |= 1 << (id - 1);
   const equipped = WARDROBE_ORDER.filter((id) => s.wardrobe[id]);
   const dBits = bitsOf(s.discoveredCards ?? [], DRAFT_CARD_ORDER);
+  const uBits = bitsOf(s.completedUniverses ?? [], UNIVERSE_ORDER);
+  const cuIdx = s.activeUniverse ? UNIVERSE_ORDER.indexOf(s.activeUniverse) : 0;
+  let ruIdx = 0;
   let r: CompactCookieV1['r'] = 0;
   if (s.run) {
+    const runUniverse: UniverseId =
+      s.run.universeId ?? (s.run.path[0] ? CHAPTER_TO_UNIVERSE[s.run.path[0]] : undefined) ?? 'chromaCosmos';
+    ruIdx = Math.max(0, UNIVERSE_ORDER.indexOf(runUniverse));
     r = [
       s.run.seed,
       s.run.chapterIndex,
@@ -60,6 +69,9 @@ export function toCompactCookie(s: Readonly<VaultState>): CompactCookiePayload {
     t: s.updatedAt,
   };
   if (dBits !== 0) out.d = dBits;
+  if (uBits !== 0) out.u = uBits;
+  if (cuIdx > 0) out.cu = cuIdx;
+  if (s.run && ruIdx > 0) out.ru = ruIdx;
   if (s.prologueSeen === true) out.p = 1;
   return out;
 }
@@ -145,6 +157,22 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
     if (!isUint(raw.d, INT)) return null;
     discoveredCards = fromBits(raw.d, DRAFT_CARD_ORDER);
   }
+  let completedUniverses: UniverseId[] | undefined;
+  if (has('u')) {
+    if (!isUint(raw.u, INT)) return null;
+    const list = fromBits(raw.u, UNIVERSE_ORDER);
+    if (list.length > 0) completedUniverses = list;
+  }
+  let activeUniverse: UniverseId | undefined;
+  if (has('cu')) {
+    if (!isUint(raw.cu, UNIVERSE_ORDER.length - 1)) return null;
+    if (raw.cu > 0) activeUniverse = UNIVERSE_ORDER[raw.cu]!;
+  }
+  let runUniverse: UniverseId = 'chromaCosmos';
+  if (has('ru')) {
+    if (!isUint(raw.ru, UNIVERSE_ORDER.length - 1)) return null;
+    runUniverse = UNIVERSE_ORDER[raw.ru]!;
+  }
   let audioLevel = def.audioLevel;
   if (has('a')) {
     const a = raw.a;
@@ -159,9 +187,11 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
     if (!isUint(seed, 0xffffffff) || !isUint(chapterIndex, 4)) return null;
     if (typeof pathCodes !== 'string' || pathCodes.length > 5) return null;
     if (!isUint(brushBits, INT) || !isUint(relicBits, INT) || !isUint(phaseCode, PHASE_ORDER.length - 1)) return null;
+    const codeMap = CHAPTER_BY_UNIVERSE_CODE.get(runUniverse);
+    if (!codeMap) return null;
     const path: ChapterId[] = [];
     for (const ch of pathCodes) {
-      const id = CHAPTER_BY_CODE.get(ch);
+      const id = codeMap.get(ch);
       if (!id) return null;
       path.push(id);
     }
@@ -172,6 +202,7 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
       brushes: fromBits(brushBits, BRUSH_ORDER),
       relics: fromBits(relicBits, RELIC_ORDER),
       phase: PHASE_ORDER[phaseCode]!,
+      ...(runUniverse !== 'chromaCosmos' ? { universeId: runUniverse } : {}),
     };
   }
   const stats = { ...def.stats };
@@ -191,5 +222,20 @@ export function expandCompactCookie(raw: unknown): VaultState | null {
     if (!isFiniteNum(raw.t) || raw.t < 0) return null;
     updatedAt = raw.t;
   }
-  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, discoveredCards, audioLevel, run, stats, prologueSeen, updatedAt };
+  return {
+    v: 1,
+    gems,
+    badges,
+    unlockedMaterials,
+    wardrobeOwned,
+    wardrobe,
+    discoveredCards,
+    ...(completedUniverses ? { completedUniverses } : {}),
+    ...(activeUniverse ? { activeUniverse } : {}),
+    audioLevel,
+    run,
+    stats,
+    prologueSeen,
+    updatedAt,
+  };
 }

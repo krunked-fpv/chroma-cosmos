@@ -4,11 +4,15 @@ import type { RegionMeta } from './regions';
 import type { MaterialId } from './materials';
 import type { BrushId, ChapterId, DraftCardId, RelicId, SceneId } from './roguelike';
 import type { WardrobeItemId, WardrobeState } from './progression';
+import type { UniverseAmbientKind, UniverseId } from './universes';
 
-/** Legacy milestone kind preserved alongside expanded HeroQuestId. */
+/** Legacy milestone kind preserved alongside expanded multiverse HeroQuestId (14 original + 22 multiverse = 36). */
 export type StoryMilestoneKind =
   | 'violet' | 'lumi' | 'nova' | 'planet' | 'cloud'
-  | 'rocket' | 'milkshake' | 'asteroid' | 'moonCat' | 'suns' | 'boba' | 'whale' | 'heart' | 'comet';
+  | 'rocket' | 'milkshake' | 'asteroid' | 'moonCat' | 'suns' | 'boba' | 'whale' | 'heart' | 'comet'
+  | 'shell' | 'jelly' | 'cake' | 'mushroom' | 'crane' | 'dino' | 'igloo' | 'airship'
+  | 'koi' | 'piano' | 'geode' | 'pyramid' | 'book' | 'tent' | 'teacup' | 'pumpkin'
+  | 'sunflower' | 'arcade' | 'dragon' | 'lotus' | 'portal' | 'lantern';
 
 export type HeroQuestId = StoryMilestoneKind;
 
@@ -42,6 +46,9 @@ export type UiSpriteId =
   | 'tool_hub_bookshelf'
   | 'tool_hub_trinkets'
   | 'tool_voyage_seal'
+  | 'tool_atlas'
+  | 'tool_lock'
+  | 'tool_check'
   | 'quest_violet'
   | 'quest_lumi'
   | 'quest_nova'
@@ -55,7 +62,29 @@ export type UiSpriteId =
   | 'quest_boba'
   | 'quest_whale'
   | 'quest_heart'
-  | 'quest_comet';
+  | 'quest_comet'
+  | 'quest_shell'
+  | 'quest_jelly'
+  | 'quest_cake'
+  | 'quest_mushroom'
+  | 'quest_crane'
+  | 'quest_dino'
+  | 'quest_igloo'
+  | 'quest_airship'
+  | 'quest_koi'
+  | 'quest_piano'
+  | 'quest_geode'
+  | 'quest_pyramid'
+  | 'quest_book'
+  | 'quest_tent'
+  | 'quest_teacup'
+  | 'quest_pumpkin'
+  | 'quest_sunflower'
+  | 'quest_arcade'
+  | 'quest_dragon'
+  | 'quest_lotus'
+  | 'quest_portal'
+  | 'quest_lantern';
 
 /** Static composite Hero Story Quest specification compiled onto each chapter page (3..4 per chapter). */
 export interface HeroStoryQuestSpec {
@@ -158,6 +187,10 @@ export interface CompiledPage {
   paths: PagePath[];
   focal: { x: number; y: number };
   sky: { top: string; bottom: string; mist: string };
+  /** Owning universe ID (defaults to 'chromaCosmos' for legacy Universe 1 scenes). */
+  universeId?: UniverseId;
+  /** Ambient particle / atmosphere motif for the page's universe. */
+  ambient?: UniverseAmbientKind;
   /** hub only */
   preColored?: Array<{ id: number; materialId: MaterialId }>;
 }
@@ -172,7 +205,8 @@ export type IllustrationKind =
   | { type: 'bookCover'; seed: number; title: string }
   | { type: 'portrait'; who: 'violet' | 'lumi' | 'nova' }
   | { type: 'uiSprite'; id: UiSpriteId }
-  | { type: 'questMedallion'; quest: HeroQuestId; completed?: boolean };
+  | { type: 'questMedallion'; quest: HeroQuestId; completed?: boolean }
+  | { type: 'universePortal'; universe: UniverseId; locked?: boolean; completed?: boolean };
 
 /** Deterministic integer-scaled Hi-Bit UI pixel-art sprite atlas bridged from src/art/ to src/ui/. */
 export interface UiPixelSpriteAtlas {

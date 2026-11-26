@@ -7,7 +7,6 @@
  */
 import { MATERIALS, type AsmrFamily, type MaterialId } from '../contracts/materials';
 import { cancelFrom, glide, makeRng, type Group, type Rig } from './graph';
-import { lydianFreq } from './scale';
 import { bell } from './voices';
 
 const FAMILY_BY_ID = new Map<number, AsmrFamily>(MATERIALS.map((m) => [m.id, m.asmr]));
@@ -168,7 +167,7 @@ export class Brush {
     if (d > hi) d = hi - 2;
     if (d < lo) d = lo + 2;
     this.bellDeg = d;
-    bell(this.rig, now + 0.004, lydianFreq(d), {
+    bell(this.rig, now + 0.004, this.rig.freq(d), {
       gain: 0.07 + 0.07 * Math.min(1, speed),
       decay: 0.3,
       partials: [[2, 0.22]],

@@ -25,6 +25,14 @@ const CYAN: RGB = rgb('#4ae0cb');
 const SKY: RGB = rgb('#7cc8ff');
 const AMBER: RGB = rgb('#ffb84d');
 const MINT: RGB = rgb('#a8fff0');
+const EMERALD: RGB = rgb('#3be099');
+const JADE: RGB = rgb('#1ea87a');
+const CORAL: RGB = rgb('#ff7366');
+const TANGERINE: RGB = rgb('#ff8c38');
+const RUBY: RGB = rgb('#e83b6b');
+const SAPPHIRE: RGB = rgb('#3c78e8');
+const PLUM: RGB = rgb('#5d2b8a');
+const SILVER: RGB = rgb('#9ea8d4');
 
 function drawCloisonneDisc(c: Canvas, cx: number, cy: number, r: number, innerTop: RGB, innerBot: RGB, rim: RGB = GOLD): void {
   c.obj((l) => {
@@ -348,6 +356,451 @@ export function drawQuestSilhouette(c: Canvas, quest: HeroQuestId, cx: number, c
           [cx - r * 0.84, cy + r * 0.58],
         ], r * 0.24, lgrad(cx + r * 0.25, cy - r * 0.2, cx - r * 0.85, cy + r * 0.6, [CYAN, LAVENDER, PINK]), r * 0.08);
         l.star(cx + r * 0.34, cy - r * 0.28, r * 0.46, r * 0.24, rgrad(cx + r * 0.28, cy - r * 0.34, r * 0.5, [WHITE, GOLD_HI, CYAN]));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'shell': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Scalloped giant coral-pink clam shell cradling a radiant pearl
+      c.obj((l) => {
+        // Upper fanned shell valve
+        l.arc(cx, cy + r * 0.22, 0, r * 0.78, Math.PI * 1.06, Math.PI * 1.94, rgrad(cx, cy - r * 0.2, r * 0.85, [t(PINK), t(ROSE), t(PLUM)]));
+        // Scallop ridge lines
+        l.line(cx, cy + r * 0.18, cx - r * 0.46, cy - r * 0.34, t(GOLD_HI));
+        l.line(cx, cy + r * 0.18, cx, cy - r * 0.5, t(GOLD_HI));
+        l.line(cx, cy + r * 0.18, cx + r * 0.46, cy - r * 0.34, t(GOLD_HI));
+        // Lower shell cradle
+        l.ellipse(cx, cy + r * 0.4, r * 0.72, r * 0.24, t(CORAL));
+        // Luminous iridescent pearl inside
+        l.disc(cx, cy + r * 0.18, r * 0.32, rgrad(cx - r * 0.1, cy + r * 0.08, r * 0.38, [WHITE, t(PAPER), t(MINT)]));
+        l.dot(cx - r * 0.1, cy + r * 0.08, WHITE);
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'jelly': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Glowing bubblegum-pink & cyan-frilled jellyfish with trailing tentacles
+      c.obj((l) => {
+        for (const ox of [-0.4, -0.14, 0.14, 0.4]) {
+          l.stroke([
+            [cx + ox * r, cy + r * 0.04],
+            [cx + (ox - 0.1) * r, cy + r * 0.42],
+            [cx + (ox + 0.08) * r, cy + r * 0.78],
+          ], Math.max(1, r * 0.09), t(CYAN));
+        }
+        l.arc(cx, cy + r * 0.06, 0, r * 0.68, Math.PI, Math.PI * 2, rgrad(cx - r * 0.18, cy - r * 0.24, r * 0.78, [WHITE, t(PINK), t(ROSE)]));
+        l.ellipse(cx, cy + r * 0.06, r * 0.66, r * 0.16, t(MINT));
+        l.dot(cx - r * 0.26, cy - r * 0.26, WHITE);
+        l.dot(cx + r * 0.18, cy - r * 0.3, t(GOLD_HI));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'cake': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Two-tier frosted sky-bakery celebration cake with star candle
+      c.obj((l) => {
+        // Cake plate
+        l.ellipse(cx, cy + r * 0.72, r * 0.76, r * 0.16, t(GOLD));
+        // Lower strawberry tier + white frosting scallops
+        l.rrect(cx - r * 0.64, cy + r * 0.14, cx + r * 0.64, cy + r * 0.68, r * 0.1, vgrad(cy + r * 0.14, cy + r * 0.68, [t(PINK), t(ROSE)]));
+        l.rrect(cx - r * 0.66, cy + r * 0.08, cx + r * 0.66, cy + r * 0.26, r * 0.08, t(PAPER));
+        // Upper buttercream tier
+        l.rrect(cx - r * 0.4, cy - r * 0.36, cx + r * 0.4, cy + r * 0.12, r * 0.08, vgrad(cy - r * 0.36, cy + r * 0.12, [t(GOLD_HI), t(AMBER)]));
+        l.rrect(cx - r * 0.42, cy - r * 0.4, cx + r * 0.42, cy - r * 0.24, r * 0.08, WHITE);
+        // Star candle atop cake
+        l.rect(cx - r * 0.08, cy - r * 0.64, cx + r * 0.08, cy - r * 0.38, t(CYAN));
+        l.star(cx, cy - r * 0.76, r * 0.24, r * 0.1, t(GOLD_HI));
+        // Sprinkles
+        l.dot(cx - r * 0.32, cy + r * 0.42, t(CYAN));
+        l.dot(cx + r * 0.28, cy + r * 0.4, t(GOLD_HI));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'mushroom': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Bioluminescent ruby polka-dot toadstool with glowing mint gills
+      c.obj((l) => {
+        // Plump ivory stalk
+        l.poly([
+          [cx - r * 0.28, cy + r * 0.08],
+          [cx + r * 0.28, cy + r * 0.08],
+          [cx + r * 0.36, cy + r * 0.76],
+          [cx - r * 0.36, cy + r * 0.76],
+        ], lgrad(cx - r * 0.34, cy, cx + r * 0.34, cy, [WHITE, t(PAPER), t(LAVENDER)]));
+        // Luminous emerald-mint gills
+        l.ellipse(cx, cy + r * 0.12, r * 0.76, r * 0.2, t(EMERALD));
+        // Ruby dome cap
+        l.arc(cx, cy + r * 0.12, 0, r * 0.8, Math.PI, Math.PI * 2, rgrad(cx - r * 0.2, cy - r * 0.34, r * 0.88, [t(CORAL), t(RUBY), t(PLUM)]));
+        // Polka dots
+        l.disc(cx - r * 0.38, cy - r * 0.18, r * 0.15, WHITE);
+        l.disc(cx + r * 0.36, cy - r * 0.2, r * 0.14, t(PAPER));
+        l.disc(cx, cy - r * 0.44, r * 0.17, WHITE);
+      }, { rim: 0.18 });
+      c.sparkle(cx + r * 0.64, cy - r * 0.48, 1, t(EMERALD), WHITE);
+      break;
+    }
+
+    case 'crane': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Crisp folded origami paper crane in ivory & vermilion coral
+      c.obj((l) => {
+        // Rear wing
+        l.poly([[cx - r * 0.08, cy + r * 0.06], [cx - r * 0.74, cy - r * 0.46], [cx + r * 0.22, cy - r * 0.2]], t(CORAL));
+        // Folded body diamond
+        l.poly([[cx - r * 0.42, cy + r * 0.32], [cx + r * 0.06, cy - r * 0.08], [cx + r * 0.46, cy + r * 0.28], [cx + r * 0.02, cy + r * 0.5]], t(PAPER));
+        // Front soaring wing
+        l.poly([[cx - r * 0.2, cy + r * 0.2], [cx + r * 0.18, cy - r * 0.72], [cx + r * 0.36, cy + r * 0.1]], WHITE);
+        l.poly([[cx - r * 0.2, cy + r * 0.2], [cx + r * 0.18, cy - r * 0.72], [cx + r * 0.02, cy + r * 0.08]], t(LAVENDER));
+        // Slender crane neck & beak
+        l.poly([[cx - r * 0.38, cy + r * 0.32], [cx - r * 0.72, cy - r * 0.18], [cx - r * 0.56, cy - r * 0.26], [cx - r * 0.22, cy + r * 0.16]], t(PAPER));
+        l.poly([[cx - r * 0.72, cy - r * 0.18], [cx - r * 0.9, cy - r * 0.1], [cx - r * 0.62, cy - r * 0.28]], t(GOLD_HI));
+        // Tail spire
+        l.poly([[cx + r * 0.38, cy + r * 0.24], [cx + r * 0.82, cy - r * 0.16], [cx + r * 0.48, cy + r * 0.36]], t(GOLD_HI));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'dino': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Friendly pastel-emerald baby brontosaurus profile
+      c.obj((l) => {
+        // Tail & plump body
+        l.stroke([[cx - r * 0.78, cy + r * 0.52], [cx - r * 0.44, cy + r * 0.4], [cx - r * 0.12, cy + r * 0.34]], r * 0.14, t(JADE), r * 0.26);
+        l.ellipse(cx - r * 0.16, cy + r * 0.34, r * 0.42, r * 0.3, rgrad(cx - r * 0.26, cy + r * 0.2, r * 0.52, [t(MINT), t(EMERALD), t(JADE)]));
+        // Sturdy dino legs
+        l.rrect(cx - r * 0.42, cy + r * 0.48, cx - r * 0.22, cy + r * 0.78, 1, t(JADE));
+        l.rrect(cx - r * 0.04, cy + r * 0.48, cx + r * 0.16, cy + r * 0.78, 1, t(JADE));
+        // Curved long neck & happy round snout
+        l.stroke([[cx + r * 0.12, cy + r * 0.22], [cx + r * 0.24, cy - r * 0.16], [cx + r * 0.14, cy - r * 0.52]], r * 0.18, t(EMERALD), r * 0.15);
+        l.ellipse(cx + r * 0.32, cy - r * 0.52, r * 0.32, r * 0.22, t(EMERALD));
+        // Eye, rosy cheek & sunny amber spots
+        l.disc(cx + r * 0.36, cy - r * 0.56, Math.max(1, r * 0.1), INK);
+        l.dot(cx + r * 0.34, cy - r * 0.59, WHITE);
+        l.dot(cx + r * 0.44, cy - r * 0.42, t(PINK));
+        l.dot(cx - r * 0.26, cy + r * 0.22, t(AMBER));
+        l.dot(cx - r * 0.06, cy + r * 0.28, t(GOLD_HI));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'igloo': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Frosted glacier-crystal snowglobe igloo with cozy glowing golden doorway
+      c.obj((l) => {
+        // Snowy base drift
+        l.ellipse(cx, cy + r * 0.62, r * 0.84, r * 0.22, t(MINT));
+        // Crystal ice dome
+        l.arc(cx, cy + r * 0.56, 0, r * 0.76, Math.PI, Math.PI * 2, rgrad(cx - r * 0.22, cy - r * 0.1, r * 0.86, [WHITE, t(SKY), t(SAPPHIRE)]));
+        // Horizontal ice-block courses
+        l.line(cx - r * 0.66, cy + r * 0.18, cx + r * 0.66, cy + r * 0.18, t(CYAN));
+        l.line(cx - r * 0.46, cy - r * 0.08, cx + r * 0.46, cy - r * 0.08, t(CYAN));
+        // Arched entrance tunnel with warm golden glow
+        l.arc(cx + r * 0.1, cy + r * 0.58, 0, r * 0.38, Math.PI, Math.PI * 2, WHITE);
+        l.arc(cx + r * 0.1, cy + r * 0.58, 0, r * 0.25, Math.PI, Math.PI * 2, rgrad(cx + r * 0.1, cy + r * 0.46, r * 0.3, [WHITE, t(GOLD_HI), t(AMBER)]));
+      }, { rim: 0.18 });
+      c.sparkle(cx - r * 0.54, cy - r * 0.52, 1, WHITE, t(CYAN));
+      break;
+    }
+
+    case 'airship': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Striped burnished-brass cloud airship with gondola & golden fin
+      c.obj((l) => {
+        // Rigging & gondola basket
+        l.line(cx - r * 0.24, cy + r * 0.18, cx - r * 0.2, cy + r * 0.52, t(GOLD));
+        l.line(cx + r * 0.2, cy + r * 0.18, cx + r * 0.16, cy + r * 0.52, t(GOLD));
+        l.rrect(cx - r * 0.32, cy + r * 0.46, cx + r * 0.28, cy + r * 0.72, r * 0.08, t(GOLD_LO));
+        l.dot(cx - r * 0.1, cy + r * 0.58, t(GOLD_HI));
+        l.dot(cx + r * 0.08, cy + r * 0.58, t(GOLD_HI));
+        // Tail fins right
+        l.poly([[cx + r * 0.46, cy - r * 0.1], [cx + r * 0.86, cy - r * 0.42], [cx + r * 0.74, cy - r * 0.02]], t(ROSE));
+        l.poly([[cx + r * 0.46, cy + r * 0.08], [cx + r * 0.86, cy + r * 0.34], [cx + r * 0.74, cy + r * 0.02]], t(ROSE));
+        // Striped balloon dirigible hull
+        l.ellipse(cx - r * 0.04, cy - r * 0.12, r * 0.72, r * 0.46, (_x, y) => {
+          const dy = (y - (cy - r * 0.12)) / (r * 0.46);
+          return Math.abs(Math.sin(dy * 4.5)) > 0.52 ? t(GOLD_HI) : t(ROSE);
+        });
+        // Gleaming brass nose cone
+        l.disc(cx - r * 0.72, cy - r * 0.12, r * 0.14, t(GOLD));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'koi': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Graceful S-curved calico sakura koi fish with lacy tail & blossom dot
+      c.obj((l) => {
+        // Flowing ribbon tail lower-left
+        l.poly([[cx - r * 0.3, cy + r * 0.3], [cx - r * 0.82, cy + r * 0.14], [cx - r * 0.6, cy + r * 0.52]], t(PINK));
+        l.poly([[cx - r * 0.28, cy + r * 0.34], [cx - r * 0.52, cy + r * 0.82], [cx - r * 0.14, cy + r * 0.6]], t(ROSE));
+        // Curved pectoral fins
+        l.ellipse(cx - r * 0.04, cy - r * 0.34, r * 0.24, r * 0.12, t(PINK), -0.5);
+        l.ellipse(cx + r * 0.32, cy + r * 0.22, r * 0.24, r * 0.12, t(PINK), 0.6);
+        // Sinuous pearl-white & vermilion koi body
+        l.stroke([
+          [cx - r * 0.36, cy + r * 0.34],
+          [cx - r * 0.12, cy - r * 0.06],
+          [cx + r * 0.26, cy - r * 0.28],
+          [cx + r * 0.56, cy - r * 0.12],
+        ], r * 0.14, (x) => (x < cx - r * 0.05 ? t(TANGERINE) : x < cx + r * 0.28 ? WHITE : t(CORAL)), r * 0.28);
+        // Cute koi eye & gold spot
+        l.dot(cx + r * 0.58, cy - r * 0.16, INK);
+        l.dot(cx + r * 0.34, cy - r * 0.3, t(GOLD_HI));
+      }, { rim: 0.18 });
+      c.dot(cx - r * 0.54, cy - r * 0.52, t(PINK));
+      break;
+    }
+
+    case 'piano': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Miniature cosmic piano keyboard crowned with a golden eighth note
+      c.obj((l) => {
+        // Curved violet piano body behind keys
+        l.rrect(cx - r * 0.76, cy - r * 0.18, cx + r * 0.76, cy + r * 0.66, r * 0.14, vgrad(cy - r * 0.18, cy + r * 0.66, [t(VIOLET), t(INDIGO)]));
+        // Ivory piano keybed
+        l.rrect(cx - r * 0.68, cy + r * 0.06, cx + r * 0.68, cy + r * 0.58, r * 0.06, WHITE);
+        // Crisp black sharp keys
+        for (const kx of [-0.46, -0.2, 0.16, 0.42]) {
+          l.rect(cx + (kx - 0.07) * r, cy + r * 0.06, cx + (kx + 0.07) * r, cy + r * 0.36, MIDNIGHT);
+        }
+        // Floating golden musical note above keyboard
+        l.disc(cx - r * 0.16, cy - r * 0.34, r * 0.16, t(GOLD_HI));
+        l.line(cx - r * 0.02, cy - r * 0.34, cx - r * 0.02, cy - r * 0.78, t(GOLD_HI));
+        l.line(cx - r * 0.02, cy - r * 0.78, cx + r * 0.34, cy - r * 0.66, t(GOLD_HI));
+        l.disc(cx + r * 0.22, cy - r * 0.28, r * 0.14, t(CYAN));
+        l.line(cx + r * 0.34, cy - r * 0.28, cx + r * 0.34, cy - r * 0.66, t(GOLD_HI));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'geode': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Cracked amethyst & mint-quartz geode cavity gleaming with crystal facets
+      c.obj((l) => {
+        // Indigo outer geode stone shell
+        l.ellipse(cx, cy, r * 0.8, r * 0.72, rgrad(cx - r * 0.2, cy - r * 0.2, r * 0.86, [t(PLUM), t(INDIGO), MIDNIGHT]));
+        // Glowing mint-white chalcedony band
+        l.ellipse(cx, cy, r * 0.62, r * 0.54, t(MINT));
+        // Deep violet crystal cavity
+        l.ellipse(cx, cy, r * 0.5, r * 0.42, t(VIOLET));
+        // Sparkling faceted amethyst crystal points inside
+        l.poly([[cx - r * 0.36, cy + r * 0.28], [cx - r * 0.18, cy - r * 0.26], [cx, cy + r * 0.28]], t(LAVENDER));
+        l.poly([[cx - r * 0.08, cy + r * 0.3], [cx + r * 0.08, cy - r * 0.36], [cx + r * 0.26, cy + r * 0.3]], WHITE);
+        l.poly([[cx + r * 0.14, cy + r * 0.28], [cx + r * 0.36, cy - r * 0.18], [cx + r * 0.42, cy + r * 0.28]], t(CYAN));
+      }, { rim: 0.18 });
+      c.sparkle(cx + r * 0.08, cy - r * 0.34, 1, WHITE, t(GOLD_HI));
+      break;
+    }
+
+    case 'pyramid': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Sunlit golden Star-Oasis Pyramid with glowing capstone & turquoise dune wave
+      c.obj((l) => {
+        // Turquoise oasis wave at base
+        l.ellipse(cx, cy + r * 0.62, r * 0.82, r * 0.2, t(CYAN));
+        // Lit left pyramid facet
+        l.poly([[cx - r * 0.74, cy + r * 0.52], [cx, cy - r * 0.72], [cx + r * 0.04, cy + r * 0.52]], vgrad(cy - r * 0.72, cy + r * 0.52, [WHITE, t(GOLD_HI), t(AMBER)]));
+        // Shaded twilight-gold right facet
+        l.poly([[cx, cy - r * 0.72], [cx + r * 0.74, cy + r * 0.52], [cx + r * 0.04, cy + r * 0.52]], vgrad(cy - r * 0.72, cy + r * 0.52, [t(GOLD), t(GOLD_LO), t(PLUM)]));
+        // Glowing white-gold capstone star
+        l.poly([[cx - r * 0.22, cy - r * 0.34], [cx, cy - r * 0.72], [cx + r * 0.22, cy - r * 0.34]], WHITE);
+      }, { rim: 0.18 });
+      c.sparkle(cx, cy - r * 0.76, 1, WHITE, t(GOLD_HI));
+      break;
+    }
+
+    case 'book': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Open gilded storybook with outstretched cream pages & dangling gold ribbon
+      c.obj((l) => {
+        // Velvet-rose hardcover binding
+        l.poly([[cx - r * 0.82, cy + r * 0.36], [cx, cy + r * 0.58], [cx + r * 0.82, cy + r * 0.36], [cx + r * 0.72, cy - r * 0.32], [cx, cy - r * 0.14], [cx - r * 0.72, cy - r * 0.32]], t(RUBY));
+        // Left & right open cream pages
+        l.poly([[cx - r * 0.72, cy + r * 0.26], [cx - r * 0.04, cy + r * 0.44], [cx - r * 0.04, cy - r * 0.28], [cx - r * 0.64, cy - r * 0.42]], WHITE);
+        l.poly([[cx + r * 0.72, cy + r * 0.26], [cx + r * 0.04, cy + r * 0.44], [cx + r * 0.04, cy - r * 0.28], [cx + r * 0.64, cy - r * 0.42]], t(PAPER));
+        // Gold bookmark ribbon
+        l.poly([[cx - r * 0.08, cy + r * 0.44], [cx + r * 0.1, cy + r * 0.44], [cx + r * 0.1, cy + r * 0.8], [cx, cy + r * 0.66], [cx - r * 0.08, cy + r * 0.8]], t(GOLD_HI));
+        // Rising golden story star above spine
+        l.star(cx, cy - r * 0.58, r * 0.26, r * 0.12, t(GOLD_HI));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'tent': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Striped rose-and-cream circus big-top pavilion tent with fluttering flag
+      c.obj((l) => {
+        // Vertical striped tent walls
+        l.rrect(cx - r * 0.66, cy + r * 0.08, cx + r * 0.66, cy + r * 0.7, r * 0.06, (x) => (Math.floor((x - (cx - r * 0.66)) / Math.max(2, r * 0.24)) % 2 === 0 ? t(ROSE) : t(PAPER)));
+        // Peaked striped big-top canopy
+        l.poly([[cx - r * 0.78, cy + r * 0.12], [cx, cy - r * 0.64], [cx + r * 0.78, cy + r * 0.12]], (x) => (Math.floor((x - (cx - r * 0.78)) / Math.max(2, r * 0.25)) % 2 === 0 ? t(ROSE) : WHITE));
+        // Gold scalloped valance & glowing arched entrance
+        l.rect(cx - r * 0.76, cy + r * 0.06, cx + r * 0.76, cy + r * 0.2, t(GOLD_HI));
+        l.poly([[cx - r * 0.22, cy + r * 0.7], [cx, cy + r * 0.26], [cx + r * 0.22, cy + r * 0.7]], t(AMBER));
+        // Sky-cyan pennant flag atop peak
+        l.line(cx, cy - r * 0.64, cx, cy - r * 0.9, t(GOLD));
+        l.poly([[cx, cy - r * 0.9], [cx + r * 0.34, cy - r * 0.78], [cx, cy - r * 0.66]], t(CYAN));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'teacup': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Ornate porcelain sky-blue teacup on saucer with golden star & curling steam
+      c.obj((l) => {
+        // Saucer
+        l.ellipse(cx, cy + r * 0.62, r * 0.76, r * 0.18, t(PAPER));
+        // Loop handle right
+        l.ring(cx + r * 0.56, cy + r * 0.16, r * 0.14, r * 0.28, t(GOLD_HI));
+        // Porcelain teacup bowl
+        l.arc(cx - r * 0.04, cy - r * 0.04, 0, r * 0.62, 0, Math.PI, rgrad(cx - r * 0.24, cy + r * 0.06, r * 0.7, [WHITE, t(SKY), t(SAPPHIRE)]));
+        // Rose-tea rim ellipse
+        l.ellipse(cx - r * 0.04, cy - r * 0.04, r * 0.62, r * 0.16, t(PINK));
+        // Golden star emblem on cup
+        l.star(cx - r * 0.04, cy + r * 0.28, r * 0.2, r * 0.09, t(GOLD_HI));
+        // Curling lavender-white steam wisps
+        l.stroke([[cx - r * 0.2, cy - r * 0.24], [cx - r * 0.3, cy - r * 0.5], [cx - r * 0.12, cy - r * 0.72]], Math.max(1, r * 0.07), WHITE);
+        l.stroke([[cx + r * 0.16, cy - r * 0.24], [cx + r * 0.26, cy - r * 0.48], [cx + r * 0.12, cy - r * 0.68]], Math.max(1, r * 0.06), t(LAVENDER));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'pumpkin': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Glowing ribbed harvest pumpkin with emerald curly vine & gold window glint
+      c.obj((l) => {
+        // Curly emerald vine stem
+        l.stroke([[cx, cy - r * 0.38], [cx + r * 0.12, cy - r * 0.74], [cx + r * 0.36, cy - r * 0.68]], Math.max(1.2, r * 0.1), t(EMERALD));
+        // Ribbed glowing tangerine lobes
+        l.ellipse(cx - r * 0.34, cy + r * 0.14, r * 0.42, r * 0.52, t(CORAL));
+        l.ellipse(cx + r * 0.34, cy + r * 0.14, r * 0.42, r * 0.52, t(CORAL));
+        l.ellipse(cx, cy + r * 0.14, r * 0.38, r * 0.56, rgrad(cx - r * 0.12, cy - r * 0.08, r * 0.62, [t(GOLD_HI), t(TANGERINE), t(CORAL)]));
+        // Glowing golden star-coach window
+        l.rrect(cx - r * 0.18, cy - r * 0.04, cx + r * 0.18, cy + r * 0.32, r * 0.1, WHITE);
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'sunflower': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Radiant golden sunflower with plum-violet seed disc & twin emerald leaves
+      c.obj((l) => {
+        // Stem & leaves
+        l.capsule(cx, cy + r * 0.2, cx, cy + r * 0.84, r * 0.1, t(JADE));
+        l.ellipse(cx - r * 0.32, cy + r * 0.64, r * 0.26, r * 0.12, t(EMERALD), -0.4);
+        l.ellipse(cx + r * 0.32, cy + r * 0.64, r * 0.26, r * 0.12, t(EMERALD), 0.4);
+        // Alternating golden petals
+        const sy = cy - r * 0.12;
+        for (let i = 0; i < 10; i++) {
+          const a = (i * Math.PI) / 5;
+          l.ellipse(cx + Math.cos(a) * r * 0.44, sy + Math.sin(a) * r * 0.44, r * 0.24, r * 0.11, i % 2 === 0 ? t(GOLD_HI) : t(AMBER), a);
+        }
+        // Rich plum seed center with gold sparkle dots
+        l.disc(cx, sy, r * 0.32, rgrad(cx - r * 0.1, sy - r * 0.1, r * 0.38, [t(PLUM), INDIGO]));
+        l.dot(cx - r * 0.1, sy - r * 0.08, t(GOLD_HI));
+        l.dot(cx + r * 0.1, sy - r * 0.04, t(GOLD_HI));
+        l.dot(cx, sy + r * 0.1, WHITE);
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'arcade': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Retro-cute neon pixel arcade cabinet with glowing heart screen & joystick
+      c.obj((l) => {
+        // Cabinet hull
+        l.rrect(cx - r * 0.54, cy - r * 0.78, cx + r * 0.54, cy + r * 0.78, r * 0.12, vgrad(cy - r * 0.78, cy + r * 0.78, [t(VIOLET), MIDNIGHT]));
+        // Glowing neon marquee top
+        l.rrect(cx - r * 0.46, cy - r * 0.68, cx + r * 0.46, cy - r * 0.46, r * 0.06, lgrad(cx - r * 0.46, cy, cx + r * 0.46, cy, [t(ROSE), t(GOLD_HI), t(CYAN)]));
+        // Dark screen bezel & pixel heart
+        l.rrect(cx - r * 0.42, cy - r * 0.38, cx + r * 0.42, cy + r * 0.18, r * 0.08, INDIGO);
+        l.heart(cx, cy - r * 0.08, r * 0.24, t(ROSE));
+        // Control deck + joystick ball & buttons
+        l.rrect(cx - r * 0.6, cy + r * 0.24, cx + r * 0.6, cy + r * 0.44, r * 0.06, t(ROSE));
+        l.disc(cx - r * 0.28, cy + r * 0.24, Math.max(1.2, r * 0.12), t(GOLD_HI));
+        l.dot(cx + r * 0.16, cy + r * 0.34, t(CYAN));
+        l.dot(cx + r * 0.34, cy + r * 0.34, WHITE);
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'dragon': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Friendly coiled jade cloud-dragon head & whiskered neck with golden pearl
+      c.obj((l) => {
+        // Coiling jade-emerald body
+        l.stroke([
+          [cx - r * 0.68, cy + r * 0.54],
+          [cx - r * 0.26, cy + r * 0.28],
+          [cx + r * 0.14, cy + r * 0.52],
+          [cx + r * 0.42, cy + r * 0.1],
+          [cx + r * 0.1, cy - r * 0.22],
+        ], r * 0.16, vgrad(cy - r * 0.3, cy + r * 0.6, [t(MINT), t(EMERALD), t(JADE)]), r * 0.22);
+        // Friendly dragon head & snout
+        l.ellipse(cx + r * 0.04, cy - r * 0.24, r * 0.34, r * 0.24, t(EMERALD));
+        // Golden antlers & flowing whisker
+        l.line(cx + r * 0.16, cy - r * 0.4, cx + r * 0.38, cy - r * 0.72, t(GOLD_HI));
+        l.line(cx - r * 0.04, cy - r * 0.42, cx + r * 0.08, cy - r * 0.74, t(GOLD_HI));
+        // Cute eye & floating golden sky-pearl
+        l.disc(cx - r * 0.08, cy - r * 0.28, Math.max(1, r * 0.1), INK);
+        l.dot(cx - r * 0.1, cy - r * 0.31, WHITE);
+        l.disc(cx - r * 0.54, cy - r * 0.34, r * 0.2, rgrad(cx - r * 0.58, cy - r * 0.38, r * 0.22, [WHITE, t(GOLD_HI), t(AMBER)]));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'lotus': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Sacred blooming golden & rose Star-Nile lotus floating on lapis ripple
+      c.obj((l) => {
+        // Lapis water ripple base
+        l.ellipse(cx, cy + r * 0.56, r * 0.82, r * 0.18, t(SAPPHIRE));
+        // Outer rose-pink upturned petals
+        l.ellipse(cx - r * 0.48, cy + r * 0.18, r * 0.38, r * 0.18, t(ROSE), -0.32);
+        l.ellipse(cx + r * 0.48, cy + r * 0.18, r * 0.38, r * 0.18, t(ROSE), 0.32);
+        // Mid golden petals
+        l.ellipse(cx - r * 0.26, cy - r * 0.02, r * 0.36, r * 0.18, t(GOLD_HI), -0.78);
+        l.ellipse(cx + r * 0.26, cy - r * 0.02, r * 0.36, r * 0.18, t(GOLD_HI), 0.78);
+        // Center radiant white-gold petal spire
+        l.ellipse(cx, cy - r * 0.16, r * 0.22, r * 0.46, vgrad(cy - r * 0.62, cy + r * 0.3, [WHITE, t(GOLD_HI), t(PINK)]));
+      }, { rim: 0.18 });
+      break;
+    }
+
+    case 'portal': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Swirling prismatic multiverse star-portal framed in burnished gold
+      c.obj((l) => {
+        l.disc(cx, cy, r * 0.8, lgrad(cx - r * 0.8, cy - r * 0.8, cx + r * 0.8, cy + r * 0.8, [t(GOLD_HI), t(GOLD), t(GOLD_LO)]));
+        l.disc(cx, cy, r * 0.62, t(VIOLET));
+        l.ring(cx, cy, r * 0.34, r * 0.54, t(ROSE));
+        l.ring(cx, cy, r * 0.16, r * 0.36, t(CYAN));
+        l.star(cx, cy, r * 0.34, r * 0.14, WHITE, 4);
+      }, { rim: 0.18 });
+      c.sparkle(cx - r * 0.62, cy - r * 0.56, 1, t(GOLD_HI), WHITE);
+      c.sparkle(cx + r * 0.62, cy + r * 0.54, 1, t(CYAN), WHITE);
+      break;
+    }
+
+    case 'lantern': {
+      const t = (col: RGB): RGB => (completed ? col : mix(col, SILVER, 0.36));
+      // Floating vermilion & burnished-gold sky paper lantern with silk tassel
+      c.obj((l) => {
+        // Silk tassel dangling below
+        l.line(cx, cy + r * 0.56, cx, cy + r * 0.88, t(GOLD_HI));
+        l.disc(cx, cy + r * 0.72, Math.max(1.1, r * 0.12), t(ROSE));
+        // Glowing ribbed paper lantern body
+        l.ellipse(cx, cy - r * 0.04, r * 0.58, r * 0.62, rgrad(cx, cy - r * 0.04, r * 0.66, [WHITE, t(GOLD_HI), t(CORAL), t(RUBY)]));
+        // Gilded top & bottom caps
+        l.rrect(cx - r * 0.34, cy - r * 0.76, cx + r * 0.34, cy - r * 0.56, 1, t(GOLD));
+        l.rrect(cx - r * 0.28, cy + r * 0.48, cx + r * 0.28, cy + r * 0.62, 1, t(GOLD));
+        // Inner curved rib arcs
+        l.arc(cx - r * 0.14, cy - r * 0.04, r * 0.26, r * 0.34, -1.1, 1.1, t(GOLD_LO));
+        l.arc(cx + r * 0.14, cy - r * 0.04, r * 0.26, r * 0.34, Math.PI - 1.1, Math.PI + 1.1, t(GOLD_LO));
       }, { rim: 0.18 });
       break;
     }
@@ -795,6 +1248,73 @@ export function drawUiSprite(c: Canvas, id: UiSpriteId, lw: number, lh: number):
         l.disc(cx, cy, s * 0.18, CYAN);
         l.dot(cx - 1, cy - 1, WHITE);
       }, { rim: 0.14 });
+      break;
+    }
+
+    case 'tool_atlas': {
+      // Golden astrolabe-compass / ringed multiverse globe with orbiting jewel realms
+      c.glow(cx, cy, s * 0.92, CYAN, 0.36);
+      c.obj((l) => {
+        // Outer tilted burnished-gold armillary ring
+        l.ering(cx, cy, s * 0.94, s * 0.38, 0.68, lgrad(cx - s * 0.9, cy - s * 0.4, cx + s * 0.9, cy + s * 0.4, [GOLD_HI, GOLD, GOLD_LO]), -0.42);
+        // Deep sapphire multiverse globe core
+        l.disc(cx, cy, s * 0.62, rgrad(cx - s * 0.18, cy - s * 0.18, s * 0.72, [SKY, SAPPHIRE, INDIGO, MIDNIGHT]));
+        // Golden meridian & equator lines across globe
+        l.ring(cx, cy, s * 0.5, s * 0.62, GOLD);
+        l.line(cx - s * 0.54, cy, cx + s * 0.54, cy, GOLD_HI);
+        l.line(cx, cy - s * 0.54, cx, cy + s * 0.54, GOLD_HI);
+        // Center radiant compass star
+        l.star(cx, cy, s * 0.38, s * 0.15, WHITE, 4);
+        // Front tilted armillary arc sweeping over globe
+        l.shape(cx - s, cy - s * 0.7, cx + s, cy + s * 0.7, (x, y) => {
+          const dx = x - cx;
+          const dy = y - cy;
+          const co = Math.cos(-0.42);
+          const si = Math.sin(-0.42);
+          const u = (dx * co + dy * si) / (s * 0.94);
+          const v = (-dx * si + dy * co) / (s * 0.38);
+          return v > 0 && u * u + v * v <= 1 && u * u + v * v >= 0.68 * 0.68;
+        }, GOLD_HI);
+        // Tiny orbiting universe gems
+        l.disc(cx - s * 0.76, cy + s * 0.34, Math.max(1.2, s * 0.14), ROSE);
+        l.disc(cx + s * 0.76, cy - s * 0.34, Math.max(1.2, s * 0.14), MINT);
+      }, { rim: 0.18 });
+      c.sparkle(cx - s * 0.56, cy - s * 0.62, 1, WHITE, GOLD_HI);
+      break;
+    }
+
+    case 'tool_lock': {
+      // Ornate burnished-gold padlock with midnight enameled keyhole plaque
+      c.glow(cx, cy + s * 0.1, s * 0.84, GOLD, 0.34);
+      c.obj((l) => {
+        // Arched golden shackle
+        l.arc(cx, cy - s * 0.24, s * 0.3, s * 0.52, Math.PI, Math.PI * 2, lgrad(cx - s * 0.5, cy - s * 0.76, cx + s * 0.5, cy, [GOLD_HI, GOLD, GOLD_LO]));
+        l.rect(cx - s * 0.52, cy - s * 0.26, cx - s * 0.3, cy - s * 0.04, GOLD);
+        l.rect(cx + s * 0.3, cy - s * 0.26, cx + s * 0.52, cy - s * 0.04, GOLD_LO);
+        // Beveled burnished-gold padlock shield body
+        l.rrect(cx - s * 0.68, cy - s * 0.08, cx + s * 0.68, cy + s * 0.82, s * 0.2, lgrad(cx - s * 0.6, cy - s * 0.1, cx + s * 0.6, cy + s * 0.8, [WHITE, GOLD_HI, GOLD, GOLD_LO]));
+        // Midnight enameled keyhole cartouche
+        l.rrect(cx - s * 0.44, cy + s * 0.08, cx + s * 0.44, cy + s * 0.66, s * 0.14, MIDNIGHT);
+        // Keyhole silhouette
+        l.disc(cx, cy + s * 0.3, Math.max(1.2, s * 0.15), GOLD_HI);
+        l.poly([[cx - s * 0.09, cy + s * 0.36], [cx + s * 0.09, cy + s * 0.36], [cx + s * 0.14, cy + s * 0.58], [cx - s * 0.14, cy + s * 0.58]], GOLD);
+      }, { rim: 0.18 });
+      c.sparkle(cx - s * 0.5, cy - s * 0.56, 1, WHITE, GOLD_HI);
+      break;
+    }
+
+    case 'tool_check': {
+      // Radiant celestial star-checkmark medallion in emerald-mint & burnished gold
+      c.glow(cx, cy, s * 0.88, EMERALD, 0.38);
+      drawCloisonneDisc(c, cx, cy, s * 0.9, rgb('#1c6b63'), rgb('#112c47'), GOLD_HI);
+      c.obj((l) => {
+        l.stroke([
+          [cx - s * 0.48, cy + s * 0.04],
+          [cx - s * 0.12, cy + s * 0.42],
+          [cx + s * 0.52, cy - s * 0.38],
+        ], Math.max(1.5, s * 0.17), lgrad(cx - s * 0.5, cy, cx + s * 0.5, cy - s * 0.4, [MINT, WHITE, GOLD_HI]), Math.max(1.5, s * 0.17), false);
+      }, { rim: 0.16 });
+      c.sparkle(cx + s * 0.54, cy - s * 0.54, 1, WHITE, GOLD_HI);
       break;
     }
   }

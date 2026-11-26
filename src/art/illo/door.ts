@@ -3,6 +3,7 @@
  * of the next chapter's world. Pure + deterministic.
  */
 import type { ChapterId } from '../../contracts/roguelike';
+import { CHAPTER_TO_UNIVERSE, UNIVERSE_BY_ID, type UniverseDef } from '../../contracts/universes';
 import { hashString, mulberry32 } from '../../scenes/context';
 import { Canvas, CREAM, dith, INK, light, lgrad, mix, type Pt, ramp, rgrad, rgb, type RGB, shade, vgrad, vnoise, WHITE } from './canvas';
 
@@ -506,9 +507,980 @@ function paintVignette(chapter: ChapterId, w: number, h: number): Canvas {
       v.sparkle(cx + mr * 1.0, hy, 2, WHITE, rgb('#9bf6ff'));
       break;
     }
+
+    default: {
+      paintMultiverseVignette(v, chapter, w, h);
+      break;
+    }
   }
   return v;
 }
+
+type DoorMotif =
+  | 'jellyfish'
+  | 'clamShell'
+  | 'submarine'
+  | 'galleon'
+  | 'palace'
+  | 'macaronTower'
+  | 'ferrisWheel'
+  | 'cupcake'
+  | 'trainBridge'
+  | 'volcano'
+  | 'teapot'
+  | 'cakeCastle'
+  | 'toadstool'
+  | 'glassDome'
+  | 'storyTree'
+  | 'lilyPond'
+  | 'lanterns'
+  | 'butterfly'
+  | 'paperBoat'
+  | 'origamiCrane'
+  | 'windmill'
+  | 'pagoda'
+  | 'dragon'
+  | 'pavilion'
+  | 'dino'
+  | 'fountain'
+  | 'igloo'
+  | 'bridge'
+  | 'harp'
+  | 'carousel'
+  | 'airship'
+  | 'clockwork'
+  | 'clockTower'
+  | 'robot'
+  | 'orrery'
+  | 'koi'
+  | 'torii'
+  | 'waterfall'
+  | 'piano'
+  | 'vinylMoon'
+  | 'crystals'
+  | 'geode'
+  | 'oasis'
+  | 'carpet'
+  | 'pyramid'
+  | 'book'
+  | 'hourglass'
+  | 'tent'
+  | 'balloon'
+  | 'pencils'
+  | 'teacup'
+  | 'spool'
+  | 'pumpkin'
+  | 'harvestMoon'
+  | 'sunflower'
+  | 'honeycomb'
+  | 'arcade'
+  | 'clawMachine'
+  | 'lotus'
+  | 'sphinx'
+  | 'obelisk'
+  | 'portalRing'
+  | 'prismCrown'
+  | 'lanternGate';
+
+function pickChapterMotif(title: string, def: UniverseDef, slot: number, isB: boolean): DoorMotif {
+  const t = title.toLowerCase();
+  if (t.includes('prism crown')) return 'prismCrown';
+  if (t.includes('twenty-one portals')) return 'portalRing';
+  if (t.includes('jellyfish') || t.includes('coral & clouds')) return 'jellyfish';
+  if (t.includes('clam') || t.includes('ammonite') || t.includes('symphony shell')) return 'clamShell';
+  if (t.includes('submarine')) return 'submarine';
+  if (t.includes('galleon') || t.includes('star-barge')) return 'galleon';
+  if (t.includes('carousel')) return 'carousel';
+  if (t.includes('ferris wheel') || t.includes('neon carnival')) return 'ferrisWheel';
+  if (t.includes('macaron')) return 'macaronTower';
+  if (t.includes('cupcake') || t.includes('cotton-candy')) return 'cupcake';
+  if (t.includes('express') || t.includes('viaduct') || t.includes('minecart')) return 'trainBridge';
+  if (t.includes('volcano') || t.includes('caldera')) return 'volcano';
+  if (t.includes('teapot')) return 'teapot';
+  if (t.includes('star-cake') || t.includes('mixing deck')) return 'cakeCastle';
+  if (t.includes('toadstool') || t.includes('mother-cap') || t.includes('acorn')) return 'toadstool';
+  if (t.includes('story tree') || t.includes('willow') || t.includes('orchard') || t.includes('terrarium')) return 'storyTree';
+  if (t.includes('butterfly') || t.includes('luna-moth')) return 'butterfly';
+  if (t.includes('crane') || t.includes('pterosaur') || t.includes('origami') || t.includes('dragon-kite')) return 'origamiCrane';
+  if (t.includes('windmill') || t.includes('pinwheel')) return 'windmill';
+  if (t.includes('pagoda') || t.includes('teahouse')) return 'pagoda';
+  if (t.includes('paper-boat') || t.includes('cloud dock')) return 'paperBoat';
+  if (t.includes('dragon')) return 'dragon';
+  if (t.includes('brontosaurus') || t.includes('triceratops')) return 'dino';
+  if (t.includes('igloo')) return 'igloo';
+  if (t.includes('airship') || t.includes('skyship')) return 'airship';
+  if (t.includes('clock-tower') || t.includes('bell-tower')) return 'clockTower';
+  if (t.includes('robot')) return 'robot';
+  if (t.includes('orrery') || t.includes('astrolabe') || t.includes('globe') || t.includes('marble') || t.includes('pinball') || t.includes('pearl-of-the-sky')) return 'orrery';
+  if (t.includes('clockwork') || t.includes('wind-up') || t.includes('music-box')) return 'clockwork';
+  if (t.includes('koi')) return 'koi';
+  if (t.includes('torii') || t.includes('shrine') || t.includes('mountain gate')) return 'torii';
+  if (t.includes('waterfall') || t.includes('quartz terraces')) return 'waterfall';
+  if (t.includes('harp')) return 'harp';
+  if (t.includes('piano') || t.includes('dance-pad')) return 'piano';
+  if (t.includes('vinyl') || t.includes('roller-rink')) return 'vinylMoon';
+  if (t.includes('geode')) return 'geode';
+  if (t.includes('amethyst') || t.includes('crystal')) return 'crystals';
+  if (t.includes('pyramid')) return 'pyramid';
+  if (t.includes('carpet')) return 'carpet';
+  if (t.includes('oasis') || t.includes('sand-dune')) return 'oasis';
+  if (t.includes('hourglass')) return 'hourglass';
+  if (t.includes('book') || t.includes('tome') || t.includes('pop-up') || t.includes('stamp-box')) return 'book';
+  if (t.includes('big-top') || t.includes('fireworks ring')) return 'tent';
+  if (t.includes('balloon')) return 'balloon';
+  if (t.includes('pencil')) return 'pencils';
+  if (t.includes('teacup')) return 'teacup';
+  if (t.includes('spool') || t.includes('button')) return 'spool';
+  if (t.includes('pumpkin')) return 'pumpkin';
+  if (t.includes('harvest-moon')) return 'harvestMoon';
+  if (t.includes('sunflower') || t.includes('sunbeam dome')) return 'sunflower';
+  if (t.includes('honeycomb')) return 'honeycomb';
+  if (t.includes('claw machine')) return 'clawMachine';
+  if (t.includes('arcade') || t.includes('boss stage')) return 'arcade';
+  if (t.includes('sphinx')) return 'sphinx';
+  if (t.includes('obelisk')) return 'obelisk';
+  if (t.includes('lotus')) return 'lotus';
+  if (t.includes('fountain') || t.includes('geyser')) return 'fountain';
+  if (t.includes('bridge') || t.includes('footbridge')) return 'bridge';
+  if (t.includes('pond') || t.includes('brook') || t.includes('lake') || t.includes('marsh') || t.includes('rink')) return 'lilyPond';
+  if (t.includes('palace') || t.includes('castle')) return 'palace';
+  if (t.includes('dome') || t.includes('conservatory') || t.includes('fern')) return 'glassDome';
+  if (t.includes('pavilion') || t.includes('gazebo') || t.includes('colonnade')) return 'pavilion';
+  if (t.includes('lantern') || t.includes('chandelier') || t.includes('orchid')) return 'lanterns';
+  if (t.includes('prism') || t.includes('mirror') || t.includes('prize')) return 'prismCrown';
+  if (slot === 5) return 'palace';
+  return isB ? 'pavilion' : def.ambient === 'bubbles' ? 'jellyfish' : 'lanternGate';
+}
+
+function paintAmbientParticles(v: Canvas, def: UniverseDef, seed: number, w: number, h: number): void {
+  const rng = mulberry32(seed);
+  const acc = rgb(def.accent);
+  const soft = rgb(def.accentSoft);
+  switch (def.ambient) {
+    case 'bubbles':
+      for (let i = 0; i < 10; i++) {
+        const bx = rng.range(4, w - 4);
+        const by = rng.range(4, h * 0.8);
+        const br = rng.range(1.4, 2.8);
+        v.ring(bx, by, br * 0.55, br, soft);
+        v.dot(bx - 0.6, by - 0.6, WHITE);
+      }
+      break;
+    case 'sprinkles':
+    case 'confetti': {
+      const cols = [acc, soft, WHITE, rgb('#70f5ff'), rgb('#ffd447')];
+      for (let i = 0; i < 18; i++) {
+        const x = Math.floor(rng.range(3, w - 3));
+        const y = Math.floor(rng.range(3, h * 0.72));
+        const c = rng.pick(cols);
+        v.set(x, y, c);
+        if (rng.chance(0.5)) v.set(x + 1, y, c);
+      }
+      break;
+    }
+    case 'fireflies':
+    case 'embers':
+      for (let i = 0; i < 12; i++) {
+        const fx = rng.range(4, w - 4);
+        const fy = rng.range(4, h * 0.82);
+        v.glow(fx, fy, 3.2, def.ambient === 'fireflies' ? acc : GOLD_HI, 0.45);
+        v.dot(fx, fy, WHITE);
+      }
+      break;
+    case 'snow':
+      for (let i = 0; i < 24; i++) {
+        const sx = rng.range(2, w - 2);
+        const sy = rng.range(2, h * 0.85);
+        if (rng.chance(0.2)) v.sparkle(sx, sy, 1, WHITE, soft);
+        else v.set(sx, sy, WHITE);
+      }
+      break;
+    case 'petals':
+    case 'leaves':
+      for (let i = 0; i < 14; i++) {
+        const px = rng.range(3, w - 3);
+        const py = rng.range(3, h * 0.78);
+        v.ellipse(px, py, 1.5, 0.9, rng.chance(0.55) ? acc : soft, rng.range(-1, 1));
+      }
+      break;
+    case 'notes':
+      starField(v, seed, 2, 2, w - 2, h * 0.52, 14, [WHITE, soft, acc]);
+      for (let i = 0; i < 3; i++) {
+        const nx = rng.range(w * 0.14, w * 0.86);
+        const ny = rng.range(h * 0.14, h * 0.42);
+        v.disc(nx, ny, 1.4, i % 2 === 0 ? GOLD_HI : soft);
+        v.line(nx + 1, ny, nx + 1, ny - 5, i % 2 === 0 ? GOLD_HI : soft);
+      }
+      break;
+    default:
+      starField(v, seed, 2, 2, w - 2, h * 0.65, 22, [WHITE, GOLD_HI, acc, soft]);
+      break;
+  }
+}
+
+function paintMultiverseVignette(v: Canvas, chapter: ChapterId, w: number, h: number): void {
+  const uId = CHAPTER_TO_UNIVERSE[chapter];
+  const def = UNIVERSE_BY_ID[uId];
+  const chDef = def.chapters.find((c) => c.id === chapter);
+  const slot = chDef?.slot ?? 1;
+  const isB = chapter.endsWith('b');
+  const title = chDef?.title ?? chapter;
+  const rng = mulberry32(hashString(`door-mv:${chapter}`));
+
+  const skyTop = rgb(def.sky.top);
+  const skyBot = rgb(def.sky.bottom);
+  const skyMist = rgb(def.sky.mist);
+  const acc = rgb(def.accent);
+  const soft = rgb(def.accentSoft);
+  const cx = w * 0.5;
+  const s = Math.min(w, h);
+
+  // 1. Bespoke sky gradient (varied gently between slot 1..5 and A/B branches)
+  if (slot === 5) {
+    // Grand Finale sunburst sky
+    const fy = h * 0.46;
+    v.fill((x, y) => {
+      const dx = x - cx;
+      const dy = y - fy;
+      const a = Math.atan2(dy, dx);
+      const dist = Math.hypot(dx, dy) / (Math.max(w, h) * 0.72);
+      const ray = Math.sin(a * 12 + 0.4) * 0.5 + 0.5;
+      const base = ramp([mix(skyMist, acc, 0.35), skyBot, skyTop], Math.min(1, dist));
+      return mix(base, GOLD_HI, ray * (1 - Math.min(1, dist * 0.8)) * 0.34);
+    });
+  } else {
+    const midSky = isB ? mix(skyBot, acc, 0.18) : mix(skyBot, soft, 0.14);
+    const botSky = slot >= 4 ? mix(skyMist, acc, 0.24) : skyMist;
+    v.fill(vgrad(0, h, [skyTop, midSky, skyBot, botSky], true));
+  }
+
+  // Celestial feature in upper sky (aurora, crescent moon, or glowing orb)
+  const celX = isB ? w * rng.range(0.66, 0.78) : w * rng.range(0.22, 0.34);
+  const celY = h * rng.range(0.18, 0.28);
+  if (def.id === 'auroraIcePalace' || def.id === 'prismNexusMultiverse') {
+    for (let i = 0; i < 2; i++) {
+      v.stroke([
+        [0, h * (0.2 + i * 0.1)],
+        [w * 0.35, h * (0.1 + i * 0.08)],
+        [w * 0.7, h * (0.24 + i * 0.06)],
+        [w, h * (0.12 + i * 0.08)],
+      ], 2.2, i === 0 ? acc : soft, 1.4);
+    }
+  } else if (slot !== 5) {
+    const mr = Math.max(3.5, s * 0.1);
+    v.glow(celX, celY, mr * 2.1, GOLD_HI, 0.34);
+    if (isB) {
+      v.disc(celX, celY, mr, rgrad(celX - 1, celY - 1, mr * 1.1, [WHITE, GOLD_HI, soft]));
+    } else {
+      v.shape(celX - mr, celY - mr, celX + mr, celY + mr, (px, py) =>
+        Math.hypot(px - celX, py - celY) <= mr && Math.hypot(px - (celX + mr * 0.42), py - (celY - mr * 0.16)) >= mr * 0.82,
+        GOLD_HI);
+    }
+  }
+
+  // 2. Ambient particles tuned to universe
+  paintAmbientParticles(v, def, hashString(`door-amb:${chapter}`), w, h);
+
+  // 3. Horizon / ground silhouette tailored to universe & seeded per chapter
+  const hy = Math.round(h * rng.range(0.68, 0.75));
+  if (def.id === 'neonPixelArcade') {
+    v.rect(0, hy, w, h, rgb('#140836'));
+    for (let gy = hy; gy < h; gy += 5) v.line(0, gy, w, gy, acc);
+    for (let i = -3; i <= 3; i++) v.line(cx + i * w * 0.12, hy, cx + i * w * 0.36, h, rgb('#7b2cff'));
+  } else if (def.id === 'coralKingdom' || def.id === 'sakuraKoiGarden' || def.id === 'nileStarTemples') {
+    v.rect(0, hy, w, h, vgrad(hy, h, [mix(skyBot, soft, 0.25), shade(skyTop, 0.2)], true));
+    for (let x = 2; x < w - 2; x += 6) {
+      v.line(x, hy + 4 + ((x + slot) % 5), x + 3, hy + 4 + ((x + slot) % 5), mix(WHITE, soft, 0.45));
+    }
+  } else if (def.id === 'sugarCloudBakery' || def.id === 'cloudCircusCarnival' || def.id === 'origamiSkyHarbor') {
+    const cloudCol = def.id === 'origamiSkyHarbor' ? mix(skyBot, skyMist, 0.5) : CREAM;
+    for (let i = 0; i < 5; i++) {
+      v.disc((i / 4) * w, hy + 6 + (i % 2) * 3, w * 0.22, vgrad(hy - 6, h, [WHITE, cloudCol, mix(skyBot, cloudCol, 0.4)]));
+    }
+  } else {
+    v.ellipse(w * (isB ? 0.72 : 0.28), hy + 10, w * 0.62, h * 0.2, mix(skyBot, acc, 0.16));
+    v.ellipse(w * (isB ? 0.26 : 0.76), hy + 12, w * 0.58, h * 0.2, shade(skyBot, 0.24));
+    v.rect(0, hy + 6, w, h, vgrad(hy + 6, h, [shade(skyBot, 0.12), shade(skyTop, 0.25)], true));
+  }
+
+  // 4. Title-faithful hand-inked hero focal illustration
+  const motif = pickChapterMotif(title, def, slot, isB);
+  const fx = cx + rng.range(-w * 0.05, w * 0.05);
+  const fy = h * 0.56;
+  const r = Math.max(10, s * 0.31);
+  v.glow(fx, fy - r * 0.1, r * 1.45, acc, 0.28);
+
+  switch (motif) {
+    case 'jellyfish':
+      v.obj((l) => {
+        for (const ox of [-0.45, -0.15, 0.15, 0.45]) {
+          l.stroke([[fx + ox * r, fy + r * 0.05], [fx + (ox - 0.12) * r, fy + r * 0.52], [fx + (ox + 0.1) * r, fy + r * 0.92]], 1.2, soft);
+        }
+        l.arc(fx, fy + r * 0.06, 0, r * 0.76, Math.PI, Math.PI * 2, rgrad(fx - r * 0.2, fy - r * 0.2, r * 0.85, [WHITE, light(acc, 0.4), acc]));
+        l.ellipse(fx, fy + r * 0.06, r * 0.74, r * 0.18, soft);
+      }, { rim: 0.22 });
+      break;
+
+    case 'clamShell':
+      v.obj((l) => {
+        l.arc(fx, fy + r * 0.22, 0, r * 0.86, Math.PI * 1.05, Math.PI * 1.95, rgrad(fx, fy - r * 0.2, r * 0.9, [light(acc, 0.4), acc, shade(acc, 0.35)]));
+        l.line(fx, fy + r * 0.18, fx - r * 0.5, fy - r * 0.38, GOLD_HI);
+        l.line(fx, fy + r * 0.18, fx, fy - r * 0.56, GOLD_HI);
+        l.line(fx, fy + r * 0.18, fx + r * 0.5, fy - r * 0.38, GOLD_HI);
+        l.ellipse(fx, fy + r * 0.42, r * 0.8, r * 0.24, acc);
+        l.disc(fx, fy + r * 0.18, r * 0.34, rgrad(fx - 2, fy + r * 0.08, r * 0.4, [WHITE, CREAM, soft]));
+      }, { rim: 0.22 });
+      break;
+
+    case 'submarine':
+      v.obj((l) => {
+        l.rect(fx - r * 0.18, fy - r * 0.52, fx + r * 0.18, fy - r * 0.14, GOLD_MID);
+        l.line(fx, fy - r * 0.52, fx, fy - r * 0.76, GOLD_HI);
+        l.line(fx, fy - r * 0.76, fx + r * 0.22, fy - r * 0.76, GOLD_HI);
+        l.ellipse(fx, fy + r * 0.08, r * 0.88, r * 0.48, vgrad(fy - r * 0.4, fy + r * 0.56, [GOLD_HI, acc, shade(acc, 0.3)]));
+        for (const px of [-0.36, 0, 0.36]) {
+          l.disc(fx + px * r, fy + r * 0.06, r * 0.18, soft);
+          l.dot(fx + px * r - 1, fy + r * 0.02, WHITE);
+        }
+      }, { rim: 0.22 });
+      break;
+
+    case 'galleon':
+      v.obj((l) => {
+        l.line(fx, fy - r * 0.86, fx, fy + r * 0.3, GOLD_MID);
+        l.poly([[fx, fy - r * 0.8], [fx + r * 0.62, fy - r * 0.22], [fx, fy + r * 0.06]], vgrad(fy - r * 0.8, fy, [WHITE, CREAM, soft]));
+        l.poly([[fx - r * 0.06, fy - r * 0.66], [fx - r * 0.56, fy - r * 0.16], [fx - r * 0.06, fy + r * 0.04]], light(acc, 0.45));
+        l.poly([[fx - r * 0.84, fy + r * 0.14], [fx + r * 0.84, fy + r * 0.14], [fx + r * 0.56, fy + r * 0.62], [fx - r * 0.56, fy + r * 0.62]], vgrad(fy + r * 0.14, fy + r * 0.62, [GOLD_MID, acc, shade(acc, 0.4)]));
+      }, { rim: 0.22 });
+      break;
+
+    case 'palace':
+      v.obj((l) => {
+        for (const sx of [-0.58, 0.58]) {
+          l.rect(fx + sx * r - r * 0.18, fy - r * 0.12, fx + sx * r + r * 0.18, fy + r * 0.68, vgrad(fy - r * 0.12, fy + r * 0.68, [light(soft, 0.35), soft, skyBot]));
+          l.poly([[fx + sx * r - r * 0.24, fy - r * 0.1], [fx + sx * r, fy - r * 0.66], [fx + sx * r + r * 0.24, fy - r * 0.1]], acc);
+        }
+        l.rect(fx - r * 0.4, fy - r * 0.26, fx + r * 0.4, fy + r * 0.68, vgrad(fy - r * 0.26, fy + r * 0.68, [WHITE, light(acc, 0.45), soft]));
+        l.poly([[fx - r * 0.36, fy - r * 0.24], [fx, fy - r * 0.96], [fx + r * 0.36, fy - r * 0.24]], (x) => (x < fx ? GOLD_HI : acc));
+        l.rrect(fx - r * 0.16, fy + r * 0.22, fx + r * 0.16, fy + r * 0.68, r * 0.12, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'macaronTower':
+      v.obj((l) => {
+        const layers: Array<[number, number, RGB]> = [
+          [0.44, 0.72, acc],
+          [0.14, 0.58, soft],
+          [-0.14, 0.44, rgb('#7ff5d4')],
+          [-0.4, 0.3, GOLD_HI],
+        ];
+        for (const [oy, rw, col] of layers) {
+          l.ellipse(fx, fy + oy * r + 2, r * rw, r * 0.16, col);
+          l.ellipse(fx, fy + oy * r - 2, r * rw, r * 0.16, light(col, 0.2));
+          l.rect(fx - r * rw * 0.9, fy + oy * r - 1, fx + r * rw * 0.9, fy + oy * r + 1.5, WHITE);
+        }
+        l.star(fx, fy - r * 0.68, r * 0.22, r * 0.1, GOLD_HI);
+      }, { rim: 0.2 });
+      break;
+
+    case 'ferrisWheel':
+      v.obj((l) => {
+        const wr = r * 0.76;
+        const wy = fy - r * 0.1;
+        l.line(fx - wr * 0.6, wy + wr * 1.08, fx, wy, GOLD_MID);
+        l.line(fx + wr * 0.6, wy + wr * 1.08, fx, wy, GOLD_MID);
+        l.ring(fx, wy, wr * 0.78, wr, lgrad(fx - wr, wy - wr, fx + wr, wy + wr, [GOLD_HI, acc, soft]));
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4;
+          l.line(fx, wy, fx + Math.cos(a) * wr, wy + Math.sin(a) * wr, GOLD_HI);
+          l.disc(fx + Math.cos(a) * wr, wy + Math.sin(a) * wr, Math.max(2, r * 0.14), i % 2 === 0 ? acc : soft);
+        }
+        l.disc(fx, wy, r * 0.18, WHITE);
+      }, { rim: 0.2 });
+      break;
+
+    case 'cupcake':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.64, fy + r * 0.08], [fx + r * 0.64, fy + r * 0.08], [fx + r * 0.44, fy + r * 0.68], [fx - r * 0.44, fy + r * 0.68]], vgrad(fy, fy + r * 0.7, [GOLD_MID, acc]));
+        l.disc(fx - r * 0.3, fy - r * 0.04, r * 0.36, light(acc, 0.45));
+        l.disc(fx + r * 0.3, fy - r * 0.04, r * 0.36, light(acc, 0.45));
+        l.disc(fx, fy - r * 0.32, r * 0.42, WHITE);
+        l.disc(fx, fy - r * 0.7, r * 0.18, rgb('#ff3b6b'));
+      }, { rim: 0.22 });
+      break;
+
+    case 'trainBridge':
+      v.obj((l) => {
+        // Arched viaduct bridge
+        l.rect(fx - r * 1.15, fy + r * 0.32, fx + r * 1.15, fy + r * 0.56, soft);
+        // Cute puffing candy/crystal locomotive
+        l.rrect(fx - r * 0.66, fy - r * 0.12, fx + r * 0.18, fy + r * 0.3, r * 0.08, acc);
+        l.rrect(fx + r * 0.14, fy - r * 0.34, fx + r * 0.66, fy + r * 0.3, r * 0.08, GOLD_MID);
+        l.rect(fx - r * 0.54, fy - r * 0.46, fx - r * 0.32, fy - r * 0.1, GOLD_HI);
+        l.disc(fx - r * 0.44, fy - r * 0.66, r * 0.18, WHITE);
+        l.disc(fx - r * 0.24, fy - r * 0.78, r * 0.14, CREAM);
+        for (const wx of [-0.42, -0.02, 0.42]) l.disc(fx + wx * r, fy + r * 0.3, r * 0.16, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'volcano':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.92, fy + r * 0.68], [fx - r * 0.28, fy - r * 0.36], [fx + r * 0.28, fy - r * 0.36], [fx + r * 0.92, fy + r * 0.68]], vgrad(fy - r * 0.36, fy + r * 0.68, [acc, skyBot, shade(skyTop, 0.2)]));
+        l.ellipse(fx, fy - r * 0.36, r * 0.28, r * 0.1, GOLD_HI);
+        l.disc(fx, fy - r * 0.66, r * 0.26, light(acc, 0.45));
+        l.disc(fx - r * 0.22, fy - r * 0.78, r * 0.18, WHITE);
+        l.star(fx + r * 0.26, fy - r * 0.82, r * 0.18, r * 0.08, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'teapot':
+      v.obj((l) => {
+        l.ring(fx + r * 0.56, fy + r * 0.12, r * 0.16, r * 0.3, GOLD_HI);
+        l.stroke([[fx - r * 0.48, fy + r * 0.18], [fx - r * 0.86, fy - r * 0.18]], r * 0.14, light(acc, 0.3), r * 0.09);
+        l.ellipse(fx, fy + r * 0.16, r * 0.66, r * 0.52, rgrad(fx - r * 0.2, fy - r * 0.05, r * 0.75, [WHITE, light(acc, 0.35), acc]));
+        l.ellipse(fx, fy - r * 0.34, r * 0.38, r * 0.14, GOLD_HI);
+        l.disc(fx, fy - r * 0.5, r * 0.12, GOLD_MID);
+        l.rrect(fx - r * 0.16, fy + r * 0.12, fx + r * 0.16, fy + r * 0.56, r * 0.1, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'cakeCastle':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.74, fy + r * 0.06, fx + r * 0.74, fy + r * 0.66, r * 0.1, vgrad(fy, fy + r * 0.66, [light(acc, 0.3), acc]));
+        l.rrect(fx - r * 0.76, fy + r * 0.02, fx + r * 0.76, fy + r * 0.2, r * 0.08, WHITE);
+        l.rrect(fx - r * 0.46, fy - r * 0.42, fx + r * 0.46, fy + r * 0.06, r * 0.08, soft);
+        l.poly([[fx - r * 0.48, fy - r * 0.4], [fx, fy - r * 0.88], [fx + r * 0.48, fy - r * 0.4]], acc);
+        l.star(fx, fy - r * 0.92, r * 0.2, r * 0.09, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'toadstool':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.32, fy + r * 0.04], [fx + r * 0.32, fy + r * 0.04], [fx + r * 0.4, fy + r * 0.68], [fx - r * 0.4, fy + r * 0.68]], CREAM);
+        l.disc(fx, fy + r * 0.36, r * 0.16, GOLD_HI);
+        l.ellipse(fx, fy + r * 0.06, r * 0.84, r * 0.2, acc);
+        l.arc(fx, fy + r * 0.06, 0, r * 0.88, Math.PI, Math.PI * 2, rgrad(fx - r * 0.2, fy - r * 0.3, r * 0.95, [rgb('#ff708c'), rgb('#e83862'), rgb('#9e1b4d')]));
+        l.disc(fx - r * 0.42, fy - r * 0.22, r * 0.14, WHITE);
+        l.disc(fx + r * 0.38, fy - r * 0.24, r * 0.13, CREAM);
+        l.disc(fx, fy - r * 0.48, r * 0.16, WHITE);
+      }, { rim: 0.22 });
+      break;
+
+    case 'glassDome':
+      v.obj((l) => {
+        l.arc(fx, fy + r * 0.56, 0, r * 0.88, Math.PI, Math.PI * 2, rgrad(fx - r * 0.25, fy - r * 0.1, r * 0.95, [WHITE, light(soft, 0.35), skyBot]));
+        l.arc(fx, fy + r * 0.56, r * 0.78, r * 0.9, Math.PI, Math.PI * 2, GOLD_HI);
+        l.line(fx, fy - r * 0.32, fx, fy + r * 0.56, GOLD_HI);
+        l.rect(fx - r * 0.92, fy + r * 0.48, fx + r * 0.92, fy + r * 0.66, GOLD_MID);
+        l.star(fx, fy + r * 0.12, r * 0.28, r * 0.14, acc);
+      }, { rim: 0.22 });
+      break;
+
+    case 'storyTree':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.26, fy + r * 0.7], [fx - r * 0.18, fy - r * 0.04], [fx + r * 0.18, fy - r * 0.04], [fx + r * 0.28, fy + r * 0.7]], rgb('#6b3b82'));
+        l.disc(fx, fy + r * 0.36, r * 0.14, GOLD_HI);
+        l.disc(fx - r * 0.42, fy - r * 0.12, r * 0.44, acc);
+        l.disc(fx + r * 0.42, fy - r * 0.1, r * 0.42, soft);
+        l.disc(fx, fy - r * 0.42, r * 0.52, light(acc, 0.25));
+      }, { rim: 0.22 });
+      break;
+
+    case 'lilyPond':
+      v.obj((l) => {
+        l.ellipse(fx, fy + r * 0.36, r * 0.95, r * 0.32, rgrad(fx, fy + r * 0.36, r * 0.95, [light(soft, 0.4), soft, skyBot]));
+        l.ellipse(fx - r * 0.36, fy + r * 0.34, r * 0.28, r * 0.12, rgb('#3be099'));
+        l.ellipse(fx + r * 0.38, fy + r * 0.4, r * 0.24, r * 0.1, rgb('#3be099'));
+        l.ellipse(fx - r * 0.14, fy + r * 0.16, r * 0.22, r * 0.12, acc, -0.5);
+        l.ellipse(fx + r * 0.14, fy + r * 0.16, r * 0.22, r * 0.12, acc, 0.5);
+        l.ellipse(fx, fy + r * 0.1, r * 0.14, r * 0.26, WHITE);
+      }, { rim: 0.2 });
+      break;
+
+    case 'lanterns':
+      for (const [ox, oy, sc] of [[-0.48, -0.26, 0.46], [0.46, -0.18, 0.44], [0, 0.14, 0.62]] as const) {
+        const lx = fx + ox * r;
+        const ly = fy + oy * r;
+        const lr = r * sc;
+        v.glow(lx, ly, lr * 1.6, GOLD_HI, 0.35);
+        v.obj((l) => {
+          l.ellipse(lx, ly, lr * 0.72, lr * 0.84, rgrad(lx, ly, lr * 0.85, [WHITE, GOLD_HI, acc]));
+          l.rect(lx - lr * 0.42, ly - lr * 0.9, lx + lr * 0.42, ly - lr * 0.68, GOLD_MID);
+          l.rect(lx - lr * 0.36, ly + lr * 0.68, lx + lr * 0.36, ly + lr * 0.86, GOLD_MID);
+        }, { rim: 0.18 });
+      }
+      break;
+
+    case 'butterfly':
+      v.obj((l) => {
+        l.ellipse(fx - r * 0.42, fy - r * 0.18, r * 0.46, r * 0.34, rgrad(fx - r * 0.42, fy - r * 0.2, r * 0.5, [WHITE, acc, soft]), -0.4);
+        l.ellipse(fx + r * 0.42, fy - r * 0.18, r * 0.46, r * 0.34, rgrad(fx + r * 0.42, fy - r * 0.2, r * 0.5, [WHITE, acc, soft]), 0.4);
+        l.ellipse(fx - r * 0.32, fy + r * 0.28, r * 0.32, r * 0.26, soft, 0.4);
+        l.ellipse(fx + r * 0.32, fy + r * 0.28, r * 0.32, r * 0.26, soft, -0.4);
+        l.capsule(fx, fy - r * 0.34, fx, fy + r * 0.46, r * 0.1, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'paperBoat':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.5, fy + r * 0.18], [fx, fy - r * 0.64], [fx + r * 0.5, fy + r * 0.18]], WHITE);
+        l.poly([[fx - r * 0.86, fy + r * 0.08], [fx + r * 0.86, fy + r * 0.08], [fx + r * 0.56, fy + r * 0.56], [fx - r * 0.56, fy + r * 0.56]], lgrad(fx - r * 0.8, fy, fx + r * 0.8, fy, [CREAM, acc]));
+      }, { rim: 0.22 });
+      break;
+
+    case 'origamiCrane':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.1, fy + r * 0.04], [fx - r * 0.78, fy - r * 0.48], [fx + r * 0.22, fy - r * 0.18]], acc);
+        l.poly([[fx - r * 0.44, fy + r * 0.3], [fx + r * 0.06, fy - r * 0.08], [fx + r * 0.48, fy + r * 0.26], [fx + r * 0.02, fy + r * 0.48]], CREAM);
+        l.poly([[fx - r * 0.2, fy + r * 0.18], [fx + r * 0.18, fy - r * 0.74], [fx + r * 0.36, fy + r * 0.08]], WHITE);
+        l.poly([[fx - r * 0.38, fy + r * 0.3], [fx - r * 0.76, fy - r * 0.18], [fx - r * 0.58, fy - r * 0.26], [fx - r * 0.22, fy + r * 0.16]], PAPER_LIGHT);
+      }, { rim: 0.22 });
+      break;
+
+    case 'windmill':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.44, fy + r * 0.7], [fx - r * 0.26, fy - r * 0.24], [fx + r * 0.26, fy - r * 0.24], [fx + r * 0.44, fy + r * 0.7]], vgrad(fy - r * 0.24, fy + r * 0.7, [CREAM, soft]));
+        l.arc(fx, fy - r * 0.22, 0, r * 0.28, Math.PI, Math.PI * 2, acc);
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI) / 2 + 0.45;
+          l.ellipse(fx + Math.cos(a) * r * 0.48, fy - r * 0.22 + Math.sin(a) * r * 0.48, r * 0.42, r * 0.12, i % 2 === 0 ? GOLD_HI : acc, a);
+        }
+        l.disc(fx, fy - r * 0.22, r * 0.14, GOLD_MID);
+      }, { rim: 0.22 });
+      break;
+
+    case 'pagoda':
+      v.obj((l) => {
+        for (let tier = 0; tier < 3; tier++) {
+          const ty = fy + (0.36 - tier * 0.38) * r;
+          const tw = (0.76 - tier * 0.16) * r;
+          l.rect(fx - tw * 0.62, ty, fx + tw * 0.62, ty + r * 0.28, CREAM);
+          l.poly([[fx - tw, ty + r * 0.04], [fx, ty - r * 0.22], [fx + tw, ty + r * 0.04]], tier % 2 === 0 ? acc : GOLD_MID);
+        }
+        l.line(fx, fy - r * 0.62, fx, fy - r * 0.9, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'dragon':
+      v.obj((l) => {
+        l.stroke([
+          [fx - r * 0.76, fy + r * 0.56],
+          [fx - r * 0.3, fy + r * 0.26],
+          [fx + r * 0.14, fy + r * 0.52],
+          [fx + r * 0.44, fy + r * 0.08],
+          [fx + r * 0.08, fy - r * 0.26],
+        ], r * 0.18, vgrad(fy - r * 0.3, fy + r * 0.6, [light(acc, 0.35), acc, shade(acc, 0.3)]), r * 0.24);
+        l.ellipse(fx + r * 0.02, fy - r * 0.28, r * 0.32, r * 0.22, acc);
+        l.line(fx + r * 0.14, fy - r * 0.44, fx + r * 0.34, fy - r * 0.74, GOLD_HI);
+        l.disc(fx - r * 0.54, fy - r * 0.36, r * 0.2, rgrad(fx - r * 0.58, fy - r * 0.4, r * 0.22, [WHITE, GOLD_HI, soft]));
+      }, { rim: 0.22 });
+      break;
+
+    case 'pavilion':
+      v.obj((l) => {
+        l.rect(fx - r * 0.68, fy + r * 0.5, fx + r * 0.68, fy + r * 0.68, GOLD_MID);
+        for (const px of [-0.52, -0.18, 0.18, 0.52]) {
+          l.rect(fx + px * r - 1.5, fy - r * 0.16, fx + px * r + 1.5, fy + r * 0.52, CREAM);
+        }
+        l.poly([[fx - r * 0.84, fy - r * 0.12], [fx, fy - r * 0.72], [fx + r * 0.84, fy - r * 0.12]], vgrad(fy - r * 0.72, fy - r * 0.12, [GOLD_HI, acc]));
+      }, { rim: 0.22 });
+      break;
+
+    case 'dino':
+      v.obj((l) => {
+        l.stroke([[fx - r * 0.82, fy + r * 0.54], [fx - r * 0.42, fy + r * 0.38], [fx - r * 0.1, fy + r * 0.34]], r * 0.14, acc, r * 0.24);
+        l.ellipse(fx - r * 0.14, fy + r * 0.34, r * 0.42, r * 0.28, acc);
+        l.rect(fx - r * 0.4, fy + r * 0.46, fx - r * 0.2, fy + r * 0.72, shade(acc, 0.2));
+        l.rect(fx - r * 0.02, fy + r * 0.46, fx + r * 0.18, fy + r * 0.72, shade(acc, 0.2));
+        l.stroke([[fx + r * 0.14, fy + r * 0.22], [fx + r * 0.24, fy - r * 0.18], [fx + r * 0.16, fy - r * 0.56]], r * 0.18, light(acc, 0.18), r * 0.14);
+        l.ellipse(fx + r * 0.34, fy - r * 0.56, r * 0.28, r * 0.2, light(acc, 0.28));
+        l.dot(fx + r * 0.38, fy - r * 0.6, INK);
+      }, { rim: 0.22 });
+      break;
+
+    case 'fountain':
+      v.obj((l) => {
+        l.ellipse(fx, fy + r * 0.56, r * 0.78, r * 0.22, soft);
+        l.rect(fx - r * 0.16, fy - r * 0.04, fx + r * 0.16, fy + r * 0.52, CREAM);
+        l.ellipse(fx, fy - r * 0.02, r * 0.46, r * 0.14, GOLD_HI);
+        l.stroke([[fx, fy - r * 0.1], [fx - r * 0.36, fy - r * 0.56], [fx - r * 0.56, fy + r * 0.42]], 1.4, WHITE);
+        l.stroke([[fx, fy - r * 0.1], [fx + r * 0.36, fy - r * 0.56], [fx + r * 0.56, fy + r * 0.42]], 1.4, soft);
+      }, { rim: 0.2 });
+      break;
+
+    case 'igloo':
+      v.obj((l) => {
+        l.arc(fx, fy + r * 0.56, 0, r * 0.84, Math.PI, Math.PI * 2, rgrad(fx - r * 0.2, fy - r * 0.1, r * 0.9, [WHITE, acc, skyBot]));
+        l.arc(fx + r * 0.1, fy + r * 0.56, 0, r * 0.34, Math.PI, Math.PI * 2, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'bridge':
+      v.obj((l) => {
+        l.arc(fx, fy + r * 0.96, r * 0.62, r * 0.96, Math.PI * 1.12, Math.PI * 1.88, vgrad(fy - r * 0.1, fy + r * 0.6, [acc, GOLD_MID]));
+        l.arc(fx, fy + r * 0.96, r * 0.94, r * 1.06, Math.PI * 1.12, Math.PI * 1.88, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'harp':
+      v.obj((l) => {
+        l.stroke([[fx - r * 0.46, fy + r * 0.62], [fx - r * 0.52, fy - r * 0.68], [fx + r * 0.54, fy - r * 0.34], [fx - r * 0.46, fy + r * 0.62]], r * 0.13, GOLD_HI);
+        for (let i = 0; i < 4; i++) {
+          const sx = fx + (-0.26 + i * 0.2) * r;
+          l.line(sx, fy - r * (0.48 - i * 0.08), sx, fy + r * (0.36 - i * 0.14), i % 2 === 0 ? WHITE : soft);
+        }
+      }, { rim: 0.2 });
+      break;
+
+    case 'carousel':
+      v.obj((l) => {
+        l.rect(fx - r * 0.72, fy + r * 0.52, fx + r * 0.72, fy + r * 0.68, GOLD_MID);
+        for (const px of [-0.46, 0, 0.46]) {
+          l.line(fx + px * r, fy - r * 0.16, fx + px * r, fy + r * 0.52, GOLD_HI);
+          l.ellipse(fx + px * r, fy + r * 0.24, r * 0.18, r * 0.12, px === 0 ? WHITE : soft);
+        }
+        l.poly([[fx - r * 0.84, fy - r * 0.14], [fx, fy - r * 0.76], [fx + r * 0.84, fy - r * 0.14]], (x) => (Math.floor((x - fx) / 4) % 2 === 0 ? acc : WHITE));
+      }, { rim: 0.22 });
+      break;
+
+    case 'airship':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.32, fy + r * 0.42, fx + r * 0.28, fy + r * 0.66, r * 0.08, GOLD_LO);
+        l.poly([[fx + r * 0.48, fy - r * 0.12], [fx + r * 0.92, fy - r * 0.42], [fx + r * 0.78, fy + r * 0.02]], acc);
+        l.ellipse(fx - r * 0.04, fy - r * 0.12, r * 0.76, r * 0.46, (_x, y) => (Math.abs(Math.sin(((y - (fy - r * 0.12)) / (r * 0.46)) * 4.5)) > 0.5 ? GOLD_HI : acc));
+      }, { rim: 0.22 });
+      break;
+
+    case 'clockwork':
+      v.obj((l) => {
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4;
+          l.capsule(fx - r * 0.16, fy + r * 0.08, fx - r * 0.16 + Math.cos(a) * r * 0.66, fy + r * 0.08 + Math.sin(a) * r * 0.66, r * 0.14, GOLD_MID);
+        }
+        l.ring(fx - r * 0.16, fy + r * 0.08, r * 0.24, r * 0.52, GOLD_HI);
+        l.ring(fx + r * 0.42, fy - r * 0.36, r * 0.14, r * 0.36, soft);
+      }, { rim: 0.22 });
+      break;
+
+    case 'clockTower':
+      v.obj((l) => {
+        l.rect(fx - r * 0.38, fy - r * 0.42, fx + r * 0.38, fy + r * 0.72, vgrad(fy - r * 0.42, fy + r * 0.72, [soft, skyBot]));
+        l.poly([[fx - r * 0.44, fy - r * 0.4], [fx, fy - r * 0.94], [fx + r * 0.44, fy - r * 0.4]], acc);
+        l.disc(fx, fy - r * 0.06, r * 0.28, CREAM);
+        l.line(fx, fy - r * 0.06, fx, fy - r * 0.24, INK);
+        l.line(fx, fy - r * 0.06, fx + r * 0.16, fy - r * 0.02, INK);
+      }, { rim: 0.22 });
+      break;
+
+    case 'robot':
+      v.obj((l) => {
+        l.line(fx, fy - r * 0.66, fx, fy - r * 0.88, GOLD_HI);
+        l.disc(fx, fy - r * 0.88, r * 0.12, acc);
+        l.rrect(fx - r * 0.36, fy - r * 0.64, fx + r * 0.36, fy - r * 0.18, r * 0.1, soft);
+        l.disc(fx - r * 0.14, fy - r * 0.42, r * 0.1, GOLD_HI);
+        l.disc(fx + r * 0.14, fy - r * 0.42, r * 0.1, GOLD_HI);
+        l.rrect(fx - r * 0.48, fy - r * 0.14, fx + r * 0.48, fy + r * 0.54, r * 0.12, acc);
+        l.star(fx, fy + r * 0.2, r * 0.2, r * 0.09, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'orrery':
+      v.obj((l) => {
+        l.ring(fx, fy, r * 0.68, r * 0.78, GOLD_MID);
+        l.ering(fx, fy, r * 0.86, r * 0.36, 0.76, GOLD_HI, -0.35);
+        l.disc(fx, fy, r * 0.32, rgrad(fx - 2, fy - 2, r * 0.36, [WHITE, GOLD_HI, acc]));
+        l.disc(fx - r * 0.64, fy + r * 0.24, r * 0.15, soft);
+        l.disc(fx + r * 0.62, fy - r * 0.26, r * 0.14, acc);
+      }, { rim: 0.22 });
+      break;
+
+    case 'koi':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.34, fy + r * 0.32], [fx - r * 0.86, fy + r * 0.12], [fx - r * 0.62, fy + r * 0.54]], acc);
+        l.stroke([[fx - r * 0.38, fy + r * 0.34], [fx - r * 0.1, fy - r * 0.08], [fx + r * 0.3, fy - r * 0.28], [fx + r * 0.6, fy - r * 0.08]], r * 0.16, (x) => (x < fx ? rgb('#ff7340') : x < fx + r * 0.28 ? WHITE : acc), r * 0.3);
+        l.dot(fx + r * 0.6, fy - r * 0.12, INK);
+      }, { rim: 0.22 });
+      break;
+
+    case 'torii':
+      v.obj((l) => {
+        const red = rgb('#ff4d6d');
+        l.rect(fx - r * 0.54, fy - r * 0.36, fx - r * 0.38, fy + r * 0.68, red);
+        l.rect(fx + r * 0.38, fy - r * 0.36, fx + r * 0.54, fy + r * 0.68, red);
+        l.rect(fx - r * 0.7, fy - r * 0.18, fx + r * 0.7, fy - r * 0.02, red);
+        l.poly([[fx - r * 0.88, fy - r * 0.54], [fx - r * 0.56, fy - r * 0.38], [fx + r * 0.56, fy - r * 0.38], [fx + r * 0.88, fy - r * 0.54], [fx + r * 0.8, fy - r * 0.32], [fx - r * 0.8, fy - r * 0.32]], red);
+        l.rect(fx - r * 0.1, fy - r * 0.36, fx + r * 0.1, fy - r * 0.12, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'waterfall':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.9, fy + r * 0.68], [fx - r * 0.48, fy - r * 0.62], [fx - r * 0.18, fy + r * 0.68]], skyBot);
+        l.poly([[fx + r * 0.18, fy + r * 0.68], [fx + r * 0.52, fy - r * 0.66], [fx + r * 0.9, fy + r * 0.68]], skyBot);
+        l.rect(fx - r * 0.26, fy - r * 0.46, fx + r * 0.26, fy + r * 0.68, vgrad(fy - r * 0.46, fy + r * 0.68, [WHITE, soft, acc], true));
+      }, { rim: 0.2 });
+      break;
+
+    case 'piano':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.84, fy - r * 0.18, fx + r * 0.84, fy + r * 0.64, r * 0.12, acc);
+        l.rrect(fx - r * 0.76, fy + r * 0.04, fx + r * 0.76, fy + r * 0.56, r * 0.06, WHITE);
+        for (const kx of [-0.5, -0.22, 0.16, 0.46]) l.rect(fx + (kx - 0.08) * r, fy + r * 0.04, fx + (kx + 0.08) * r, fy + r * 0.36, INK);
+        l.disc(fx, fy - r * 0.48, r * 0.18, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'vinylMoon':
+      v.obj((l) => {
+        l.disc(fx, fy, r * 0.78, rgb('#251652'));
+        l.ring(fx, fy, r * 0.58, r * 0.68, soft);
+        l.ring(fx, fy, r * 0.38, r * 0.46, acc);
+        l.disc(fx, fy, r * 0.28, GOLD_HI);
+        l.disc(fx, fy, r * 0.08, WHITE);
+      }, { rim: 0.22 });
+      break;
+
+    case 'crystals':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.74, fy + r * 0.62], [fx - r * 0.56, fy - r * 0.34], [fx - r * 0.28, fy - r * 0.52], [fx - r * 0.12, fy + r * 0.62]], light(acc, 0.3));
+        l.poly([[fx - r * 0.22, fy + r * 0.64], [fx - r * 0.14, fy - r * 0.26], [fx + r * 0.04, fy - r * 0.78], [fx + r * 0.24, fy - r * 0.24], [fx + r * 0.26, fy + r * 0.64]], (x) => (x < fx + r * 0.04 ? WHITE : acc));
+        l.poly([[fx + r * 0.18, fy + r * 0.62], [fx + r * 0.48, fy - r * 0.38], [fx + r * 0.74, fy - r * 0.1], [fx + r * 0.58, fy + r * 0.62]], soft);
+      }, { rim: 0.22 });
+      break;
+
+    case 'geode':
+      v.obj((l) => {
+        l.ellipse(fx, fy + r * 0.04, r * 0.84, r * 0.74, skyBot);
+        l.ellipse(fx, fy + r * 0.04, r * 0.64, r * 0.54, soft);
+        l.ellipse(fx, fy + r * 0.04, r * 0.48, r * 0.4, acc);
+        l.star(fx, fy + r * 0.04, r * 0.36, r * 0.16, WHITE, 6);
+      }, { rim: 0.22 });
+      break;
+
+    case 'oasis':
+      v.obj((l) => {
+        l.ellipse(fx, fy + r * 0.48, r * 0.88, r * 0.26, soft);
+        l.stroke([[fx + r * 0.2, fy + r * 0.44], [fx + r * 0.28, fy - r * 0.16], [fx + r * 0.12, fy - r * 0.52]], r * 0.1, GOLD_LO);
+        l.ellipse(fx - r * 0.16, fy - r * 0.48, r * 0.36, r * 0.12, rgb('#3be099'), -0.35);
+        l.ellipse(fx + r * 0.4, fy - r * 0.48, r * 0.36, r * 0.12, rgb('#3be099'), 0.35);
+      }, { rim: 0.22 });
+      break;
+
+    case 'carpet':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.86, fy + r * 0.24], [fx - r * 0.12, fy - r * 0.24], [fx + r * 0.86, fy + r * 0.06], [fx + r * 0.12, fy + r * 0.54]], vgrad(fy - r * 0.24, fy + r * 0.54, [acc, rgb('#9c3078')]));
+        l.poly([[fx - r * 0.48, fy + r * 0.18], [fx, fy - r * 0.08], [fx + r * 0.48, fy + r * 0.12], [fx, fy + r * 0.36]], GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'pyramid':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.84, fy + r * 0.62], [fx, fy - r * 0.72], [fx + r * 0.04, fy + r * 0.62]], vgrad(fy - r * 0.72, fy + r * 0.62, [WHITE, GOLD_HI, acc]));
+        l.poly([[fx, fy - r * 0.72], [fx + r * 0.84, fy + r * 0.62], [fx + r * 0.04, fy + r * 0.62]], vgrad(fy - r * 0.72, fy + r * 0.62, [GOLD_MID, shade(acc, 0.4)]));
+      }, { rim: 0.22 });
+      break;
+
+    case 'book':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.84, fy + r * 0.36], [fx, fy + r * 0.58], [fx + r * 0.84, fy + r * 0.36], [fx + r * 0.72, fy - r * 0.3], [fx, fy - r * 0.12], [fx - r * 0.72, fy - r * 0.3]], acc);
+        l.poly([[fx - r * 0.74, fy + r * 0.26], [fx - r * 0.04, fy + r * 0.44], [fx - r * 0.04, fy - r * 0.3], [fx - r * 0.64, fy - r * 0.44]], WHITE);
+        l.poly([[fx + r * 0.74, fy + r * 0.26], [fx + r * 0.04, fy + r * 0.44], [fx + r * 0.04, fy - r * 0.3], [fx + r * 0.64, fy - r * 0.44]], CREAM);
+        l.star(fx, fy - r * 0.64, r * 0.26, r * 0.12, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'hourglass':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.56, fy - r * 0.72, fx + r * 0.56, fy - r * 0.54, 1, GOLD_HI);
+        l.rrect(fx - r * 0.56, fy + r * 0.52, fx + r * 0.56, fy + r * 0.7, 1, GOLD_HI);
+        l.poly([[fx - r * 0.46, fy - r * 0.54], [fx + r * 0.46, fy - r * 0.54], [fx, fy]], soft);
+        l.poly([[fx, fy], [fx + r * 0.46, fy + r * 0.52], [fx - r * 0.46, fy + r * 0.52]], GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'tent':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.72, fy + r * 0.08, fx + r * 0.72, fy + r * 0.68, 1, (x) => (Math.floor((x - fx) / 4) % 2 === 0 ? acc : CREAM));
+        l.poly([[fx - r * 0.86, fy + r * 0.12], [fx, fy - r * 0.68], [fx + r * 0.86, fy + r * 0.12]], (x) => (Math.floor((x - fx) / 4) % 2 === 0 ? acc : WHITE));
+        l.rect(fx - r * 0.82, fy + r * 0.06, fx + r * 0.82, fy + r * 0.18, GOLD_HI);
+        l.poly([[fx - r * 0.22, fy + r * 0.68], [fx, fy + r * 0.26], [fx + r * 0.22, fy + r * 0.68]], GOLD_MID);
+      }, { rim: 0.22 });
+      break;
+
+    case 'balloon':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.2, fy + r * 0.44, fx + r * 0.2, fy + r * 0.72, 1, GOLD_MID);
+        l.line(fx - r * 0.16, fy + r * 0.24, fx - r * 0.14, fy + r * 0.46, GOLD_HI);
+        l.line(fx + r * 0.16, fy + r * 0.24, fx + r * 0.14, fy + r * 0.46, GOLD_HI);
+        l.disc(fx, fy - r * 0.22, r * 0.62, (x) => (Math.floor((x - fx) / 5) % 2 === 0 ? acc : soft));
+      }, { rim: 0.22 });
+      break;
+
+    case 'pencils':
+      v.obj((l) => {
+        const cols: Array<[number, number, RGB]> = [[-0.5, -0.44, acc], [0, -0.74, GOLD_HI], [0.5, -0.4, soft]];
+        for (const [ox, oy, col] of cols) {
+          l.rect(fx + (ox - 0.2) * r, fy + (oy + 0.34) * r, fx + (ox + 0.2) * r, fy + r * 0.72, col);
+          l.poly([[fx + (ox - 0.2) * r, fy + (oy + 0.34) * r], [fx + ox * r, fy + oy * r], [fx + (ox + 0.2) * r, fy + (oy + 0.34) * r]], CREAM);
+          l.poly([[fx + (ox - 0.08) * r, fy + (oy + 0.14) * r], [fx + ox * r, fy + oy * r], [fx + (ox + 0.08) * r, fy + (oy + 0.14) * r]], col);
+        }
+      }, { rim: 0.22 });
+      break;
+
+    case 'teacup':
+      v.obj((l) => {
+        l.ellipse(fx, fy + r * 0.62, r * 0.82, r * 0.18, CREAM);
+        l.ring(fx + r * 0.56, fy + r * 0.18, r * 0.14, r * 0.28, GOLD_HI);
+        l.arc(fx, fy - r * 0.02, 0, r * 0.64, 0, Math.PI, rgrad(fx - r * 0.2, fy + r * 0.1, r * 0.72, [WHITE, acc, skyBot]));
+        l.ellipse(fx, fy - r * 0.02, r * 0.64, r * 0.16, soft);
+        l.star(fx, fy + r * 0.28, r * 0.2, r * 0.09, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'spool':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.48, fy - r * 0.44, fx + r * 0.48, fy + r * 0.48, r * 0.08, acc);
+        l.rrect(fx - r * 0.66, fy - r * 0.62, fx + r * 0.66, fy - r * 0.42, 1, GOLD_HI);
+        l.rrect(fx - r * 0.66, fy + r * 0.44, fx + r * 0.66, fy + r * 0.64, 1, GOLD_HI);
+        l.disc(fx + r * 0.48, fy + r * 0.46, r * 0.24, soft);
+      }, { rim: 0.22 });
+      break;
+
+    case 'pumpkin':
+      v.obj((l) => {
+        l.stroke([[fx, fy - r * 0.34], [fx + r * 0.14, fy - r * 0.72]], r * 0.1, rgb('#3be099'));
+        l.ellipse(fx - r * 0.32, fy + r * 0.14, r * 0.42, r * 0.48, shade(acc, 0.18));
+        l.ellipse(fx + r * 0.32, fy + r * 0.14, r * 0.42, r * 0.48, shade(acc, 0.18));
+        l.ellipse(fx, fy + r * 0.14, r * 0.38, r * 0.52, rgrad(fx - 2, fy, r * 0.55, [GOLD_HI, acc]));
+        l.rrect(fx - r * 0.18, fy - r * 0.02, fx + r * 0.18, fy + r * 0.3, r * 0.08, WHITE);
+      }, { rim: 0.22 });
+      break;
+
+    case 'harvestMoon':
+      v.glow(fx, fy - r * 0.12, r * 1.15, GOLD_HI, 0.48);
+      v.obj((l) => {
+        l.disc(fx, fy - r * 0.12, r * 0.68, rgrad(fx - r * 0.2, fy - r * 0.28, r * 0.78, [WHITE, GOLD_HI, acc]));
+      }, { rim: 0.2 });
+      break;
+
+    case 'sunflower':
+      v.obj((l) => {
+        l.capsule(fx, fy + r * 0.16, fx, fy + r * 0.76, r * 0.1, rgb('#2ec47a'));
+        for (let i = 0; i < 10; i++) {
+          const a = (i * Math.PI) / 5;
+          l.ellipse(fx + Math.cos(a) * r * 0.48, fy - r * 0.14 + Math.sin(a) * r * 0.48, r * 0.26, r * 0.12, i % 2 === 0 ? acc : GOLD_HI, a);
+        }
+        l.disc(fx, fy - r * 0.14, r * 0.34, rgb('#4c2069'));
+      }, { rim: 0.22 });
+      break;
+
+    case 'honeycomb':
+      v.obj((l) => {
+        const hex = (hx: number, hy2: number, hr: number, col: RGB) => {
+          const pts: Pt[] = [];
+          for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI) / 3;
+            pts.push([hx + Math.cos(a) * hr, hy2 + Math.sin(a) * hr]);
+          }
+          l.poly(pts, col);
+        };
+        hex(fx, fy - r * 0.36, r * 0.32, GOLD_HI);
+        hex(fx - r * 0.44, fy + r * 0.14, r * 0.32, acc);
+        hex(fx + r * 0.44, fy + r * 0.14, r * 0.32, soft);
+        hex(fx, fy + r * 0.42, r * 0.3, GOLD_MID);
+      }, { rim: 0.22 });
+      break;
+
+    case 'arcade':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.54, fy - r * 0.74, fx + r * 0.54, fy + r * 0.72, r * 0.1, rgb('#361475'));
+        l.rrect(fx - r * 0.46, fy - r * 0.64, fx + r * 0.46, fy - r * 0.44, r * 0.04, acc);
+        l.rrect(fx - r * 0.42, fy - r * 0.34, fx + r * 0.42, fy + r * 0.18, r * 0.06, rgb('#132459'));
+        l.heart(fx, fy - r * 0.06, r * 0.22, soft);
+        l.rrect(fx - r * 0.6, fy + r * 0.24, fx + r * 0.6, fy + r * 0.4, r * 0.04, acc);
+      }, { rim: 0.22 });
+      break;
+
+    case 'clawMachine':
+      v.obj((l) => {
+        l.rrect(fx - r * 0.62, fy - r * 0.68, fx + r * 0.62, fy + r * 0.68, r * 0.1, acc);
+        l.rrect(fx - r * 0.5, fy - r * 0.48, fx + r * 0.5, fy + r * 0.28, r * 0.06, rgb('#1c2a63'));
+        l.line(fx, fy - r * 0.48, fx, fy - r * 0.16, GOLD_HI);
+        l.polyline([[fx - r * 0.18, fy - r * 0.02], [fx, fy - r * 0.18], [fx + r * 0.18, fy - r * 0.02]], GOLD_HI);
+        l.disc(fx - r * 0.22, fy + r * 0.16, r * 0.16, soft);
+        l.disc(fx + r * 0.2, fy + r * 0.16, r * 0.16, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'lotus':
+      v.obj((l) => {
+        l.ellipse(fx - r * 0.5, fy + r * 0.22, r * 0.42, r * 0.18, rgb('#ff7ec0'), -0.3);
+        l.ellipse(fx + r * 0.5, fy + r * 0.22, r * 0.42, r * 0.18, rgb('#ff7ec0'), 0.3);
+        l.ellipse(fx - r * 0.26, fy, r * 0.38, r * 0.18, GOLD_HI, -0.75);
+        l.ellipse(fx + r * 0.26, fy, r * 0.38, r * 0.18, GOLD_HI, 0.75);
+        l.ellipse(fx, fy - r * 0.16, r * 0.22, r * 0.48, WHITE);
+      }, { rim: 0.22 });
+      break;
+
+    case 'sphinx':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.54, fy + r * 0.46], [fx - r * 0.42, fy - r * 0.52], [fx + r * 0.42, fy - r * 0.52], [fx + r * 0.54, fy + r * 0.46]], (_x, y) => (Math.floor((y - fy) / 4) % 2 === 0 ? GOLD_MID : rgb('#2447a6')));
+        l.ellipse(fx, fy - r * 0.14, r * 0.28, r * 0.3, GOLD_HI);
+        l.rrect(fx - r * 0.62, fy + r * 0.34, fx + r * 0.62, fy + r * 0.62, r * 0.08, acc);
+      }, { rim: 0.22 });
+      break;
+
+    case 'obelisk':
+      v.obj((l) => {
+        l.poly([[fx - r * 0.3, fy + r * 0.72], [fx - r * 0.2, fy - r * 0.58], [fx, fy - r * 0.92], [fx + r * 0.2, fy - r * 0.58], [fx + r * 0.3, fy + r * 0.72]], (x) => (x < fx ? soft : rgb('#20489e')));
+        l.poly([[fx - r * 0.2, fy - r * 0.58], [fx, fy - r * 0.92], [fx + r * 0.2, fy - r * 0.58]], GOLD_HI);
+        l.star(fx, fy - r * 0.18, r * 0.16, r * 0.07, GOLD_HI);
+      }, { rim: 0.22 });
+      break;
+
+    case 'portalRing':
+      v.obj((l) => {
+        l.ring(fx, fy, r * 0.56, r * 0.84, GOLD_HI);
+        l.disc(fx, fy, r * 0.56, rgrad(fx, fy, r * 0.56, [WHITE, soft, acc, skyTop]));
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4;
+          l.disc(fx + Math.cos(a) * r * 0.7, fy + Math.sin(a) * r * 0.7, r * 0.1, i % 2 === 0 ? acc : soft);
+        }
+      }, { rim: 0.22 });
+      break;
+
+    case 'prismCrown':
+      v.obj((l) => {
+        l.poly([
+          [fx - r * 0.68, fy + r * 0.44],
+          [fx - r * 0.82, fy - r * 0.28],
+          [fx - r * 0.3, fy + r * 0.04],
+          [fx, fy - r * 0.68],
+          [fx + r * 0.3, fy + r * 0.04],
+          [fx + r * 0.82, fy - r * 0.28],
+          [fx + r * 0.68, fy + r * 0.44],
+        ], lgrad(fx - r * 0.8, fy - r * 0.6, fx + r * 0.8, fy + r * 0.4, [WHITE, GOLD_HI, GOLD_MID, acc]));
+        l.poly([[fx, fy - r * 0.06], [fx + r * 0.22, fy + r * 0.2], [fx, fy + r * 0.46], [fx - r * 0.22, fy + r * 0.2]], soft);
+      }, { rim: 0.22 });
+      break;
+
+    case 'lanternGate':
+      v.obj((l) => {
+        l.arc(fx, fy + r * 0.54, r * 0.54, r * 0.8, Math.PI, Math.PI * 2, GOLD_MID);
+        l.rect(fx - r * 0.8, fy + r * 0.1, fx - r * 0.54, fy + r * 0.68, soft);
+        l.rect(fx + r * 0.54, fy + r * 0.1, fx + r * 0.8, fy + r * 0.68, soft);
+        l.star(fx, fy - r * 0.18, r * 0.26, r * 0.12, GOLD_HI);
+        l.disc(fx - r * 0.66, fy + r * 0.04, r * 0.14, acc);
+        l.disc(fx + r * 0.66, fy + r * 0.04, r * 0.14, acc);
+      }, { rim: 0.22 });
+      break;
+  }
+
+  v.sparkle(fx - r * 0.72, fy - r * 0.66, 2, WHITE, GOLD_HI);
+  v.sparkle(fx + r * 0.72, fy - r * 0.58, 1, soft, WHITE);
+}
+
+const PAPER_LIGHT: RGB = rgb('#faf6ec');
 
 function bandsRing(d: number): RGB {
   if (d < 0.67) return rgb('#fff2c4');

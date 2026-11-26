@@ -338,6 +338,33 @@ async function main() {
       openedSavedBook: false,
       keepsakeTriggered: false,
     },
+    multiverseAudit: {
+      hubSpreadViewportPct: 0,
+      universeStripVisible: false,
+      universeNodeCount: 0,
+      hubStripOverlaps: [],
+      atlasDrawerOpened: false,
+      atlasCardCount: 0,
+      atlasPortalPixCount: 0,
+      atlasSvgCount: -1,
+      finaleUnlockBannerVisible: false,
+      finaleUnlockedUniverse: null,
+      finaleJourneyButtonText: null,
+      u2UnlockedAfterRun: false,
+      u2HubCrestPill: '',
+      u2HubCrestName: '',
+      u2HubCanvasChanged: false,
+      u2HubRegionsChanged: false,
+      u2HubOverlaps: [],
+      u2HubSpreadViewportPct: 0,
+      u2Ch1UniBadge: '',
+      u2Ch1Title: '',
+      u2Ch1QuestIds: [],
+      u2Ch1ClippedLabels: [],
+      u2Ch1HudOverlaps: [],
+      u2Ch1SpreadViewportPct: 0,
+      u2AntiLunchTray: null,
+    },
     screenshots: [],
     consoleErrors: [],
     pageErrors: [],
@@ -844,6 +871,13 @@ async function main() {
       const stationGiftDots = Array.from(document.querySelectorAll('.cc-station .cc-station-gift-dot')).filter(
         (el) => !el.hasAttribute('hidden') && el.getBoundingClientRect().width > 0,
       );
+      const stripEl = document.querySelector('.cc-universe-strip');
+      const sr = stripEl ? stripEl.getBoundingClientRect() : null;
+      const uniNodes = document.querySelectorAll('.cc-universe-strip .cc-uni-node').length;
+      const regionSig = window.__chroma.qa
+        .regions()
+        .map((r) => `${r.id}:${r.label}`)
+        .join('|');
       return {
         roleTabs,
         stationCount: visibleStations.length,
@@ -852,9 +886,14 @@ async function main() {
           pillBadge && !pillBadge.hasAttribute('hidden') && pillBadge.textContent?.includes('New Gift!'),
         ),
         stationNewGiftVisible: stationGiftDots.length >= 2,
+        universeStripVisible: Boolean(sr && sr.width > 0 && sr.height > 0),
+        universeNodeCount: uniNodes,
+        regionSig,
       };
     });
     const hubGeom = await measureLayoutGeometry(page, [
+      { name: 'hubCrest', selector: '.cc-hub-crest' },
+      { name: 'universeStrip', selector: '.cc-universe-strip' },
       { name: 'crystalJar', selector: '.cc-crystal-jar' },
       { name: 'voyageSpine', selector: '.cc-voyage-pill' },
       { name: 'cornerRight', selector: '.cc-corner-pill' },
@@ -874,7 +913,13 @@ async function main() {
     report.hubAudit.hubOverlaps = hubGeom.overlaps;
     report.hubAudit.antiLunchTray = hubDomAudit;
 
-    await snap('06-stargazer-hub.png');
+    report.multiverseAudit.hubSpreadViewportPct = hubGeom.spreadPct;
+    report.multiverseAudit.universeStripVisible = hubCheck.universeStripVisible;
+    report.multiverseAudit.universeNodeCount = hubCheck.universeNodeCount;
+    report.multiverseAudit.hubStripOverlaps = hubGeom.overlaps;
+    const u1HubRegionSig = hubCheck.regionSig;
+
+    const u1HubSnapPath = await snap('06-stargazer-hub.png');
 
     // Open Exotic Mediums Paintbox -> 10 Exotic Mediums + "Ready to Unlock!" pulses
     await page.locator('.cc-station[data-station="paintbox"]').click();
@@ -912,6 +957,26 @@ async function main() {
     await snap('06c-hub-wardrobe.png');
     await page.locator('.cc-drawer-wardrobe .cc-drawer-close').click();
     await page.locator('.cc-drawer-wardrobe').waitFor({ state: 'hidden', timeout: 8000 });
+    await page.waitForTimeout(180);
+
+    // =========================================================================
+    // STATE 7: Multiverse Atlas Drawer (21 Bespoke Universes Gallery)
+    // =========================================================================
+    await page.locator('.cc-crest-atlas-btn[data-action="open-atlas"]').click();
+    await page.locator('.cc-drawer-universes').waitFor({ state: 'visible', timeout: 8000 });
+    await page.waitForTimeout(450);
+    const atlasCheck = await page.evaluate(() => ({
+      cards: document.querySelectorAll('.cc-drawer-universes .cc-uni-card').length,
+      portalPix: document.querySelectorAll('.cc-drawer-universes .cc-uni-card canvas.cc-pix').length,
+      svgCount: document.querySelectorAll('#app svg').length,
+    }));
+    report.multiverseAudit.atlasDrawerOpened = await page.locator('.cc-drawer-universes').isVisible();
+    report.multiverseAudit.atlasCardCount = atlasCheck.cards;
+    report.multiverseAudit.atlasPortalPixCount = atlasCheck.portalPix;
+    report.multiverseAudit.atlasSvgCount = atlasCheck.svgCount;
+    await snap('07-multiverse-atlas.png');
+    await page.locator('.cc-drawer-universes .cc-drawer-close').click();
+    await page.locator('.cc-drawer-universes').waitFor({ state: 'hidden', timeout: 8000 });
     await page.waitForTimeout(180);
 
     // =========================================================================
@@ -984,8 +1049,27 @@ async function main() {
 
       if (report.bookshelf.reachedFinale) {
         await page.locator('.cc-finale').waitFor({ state: 'visible', timeout: 10000 });
-        await page.waitForTimeout(350);
-        await page.locator('.cc-finale').click();
+        await page.waitForTimeout(400);
+        const finaleUnlockInfo = await page.evaluate(() => {
+          const card = document.querySelector('.cc-finale-unlock-card');
+          const journeyBtn = document.querySelector('.cc-finale-btn-journey');
+          return {
+            bannerVisible: Boolean(card && card.textContent?.includes('NEW UNIVERSE UNLOCKED!')),
+            unlockedUniverse: card?.getAttribute('data-unlocked-universe') ?? null,
+            journeyText: journeyBtn?.textContent?.trim() ?? null,
+          };
+        });
+        report.multiverseAudit.finaleUnlockBannerVisible = finaleUnlockInfo.bannerVisible;
+        report.multiverseAudit.finaleUnlockedUniverse = finaleUnlockInfo.unlockedUniverse;
+        report.multiverseAudit.finaleJourneyButtonText = finaleUnlockInfo.journeyText;
+        await snap('07b-finale-universe2-unlock.png');
+
+        const returnAtlasBtn = page.locator('.cc-finale-btn-atlas');
+        if (await returnAtlasBtn.isVisible()) {
+          await returnAtlasBtn.click();
+        } else {
+          await page.locator('.cc-finale').click({ position: { x: 16, y: 16 } });
+        }
         await waitForMode(page, 'hub', 10000);
         await page.waitForTimeout(350);
 
@@ -1003,13 +1087,108 @@ async function main() {
         await downloadPromise;
         await page.waitForTimeout(250);
         report.bookshelf.keepsakeTriggered = true;
+
+        await page.locator('.cc-book-back').click();
+        await waitForMode(page, 'hub', 10000);
+        await page.waitForTimeout(350);
       }
     } catch (bonusErr) {
       report.bookshelf.error = String(bonusErr);
     }
 
     // =========================================================================
-    // Evaluate All Sprint 2 Red-Team & 6-State Visual/Functional Assertions
+    // STATE 8 & 9: Universe 1 -> Universe 2 Unlock Progression, Live U2 Hub Sanctuary & Chapter 1
+    // =========================================================================
+    if ((await page.evaluate(() => window.__chroma.qa.mode())) !== 'hub') {
+      await page.locator('.cc-book-back').click().catch(() => undefined);
+      await waitForMode(page, 'hub', 10000);
+    }
+    const u2UnlockedAfterRun = await page.evaluate(() => {
+      const list = window.__chroma.qa.universes();
+      return Boolean(list.find((u) => u.id === 'coralKingdom')?.unlocked);
+    });
+    report.multiverseAudit.u2UnlockedAfterRun = u2UnlockedAfterRun;
+    if (!u2UnlockedAfterRun) {
+      await page.evaluate(() => window.__chroma.qa.unlockUpTo(2));
+      await page.waitForTimeout(250);
+    }
+
+    // Switch to Universe 1 then click Universe 2 node on the Constellation Strip to verify live Hub switching
+    await page.evaluate(() => window.__chroma.qa.selectUniverse('chromaCosmos'));
+    await page.waitForTimeout(250);
+    await page.locator('.cc-universe-strip .cc-uni-node[data-universe="coralKingdom"]').click();
+    await page.waitForTimeout(480);
+    // Let any transient toast from earlier keepsake download finish fading for crisp visual capture
+    await page.waitForFunction(() => !document.querySelector('.cc-toast'), undefined, { timeout: 5000 }).catch(() => undefined);
+    await page.waitForTimeout(120);
+
+    const u2HubInfo = await page.evaluate(() => ({
+      crestPill: document.querySelector('.cc-hub-crest .cc-crest-uni-pill')?.textContent?.trim() ?? '',
+      crestName: document.querySelector('.cc-hub-crest .cc-hub-crest-title')?.textContent?.trim() ?? '',
+      regionSig: window.__chroma.qa
+        .regions()
+        .map((r) => `${r.id}:${r.label}`)
+        .join('|'),
+    }));
+    const u2HubGeom = await measureLayoutGeometry(page, [
+      { name: 'hubCrest', selector: '.cc-hub-crest' },
+      { name: 'universeStrip', selector: '.cc-universe-strip' },
+      { name: 'crystalJar', selector: '.cc-crystal-jar' },
+      { name: 'cornerRight', selector: '.cc-corner-pill' },
+      { name: 'voyageRibbon', selector: '.cc-voyage-ribbon' },
+      { name: 'station-paintbox', selector: '.cc-station[data-station="paintbox"]' },
+      { name: 'station-wardrobe', selector: '.cc-station[data-station="wardrobe"]' },
+      { name: 'station-bookshelf', selector: '.cc-station[data-station="bookshelf"]' },
+      { name: 'station-trinkets', selector: '.cc-station[data-station="trinkets"]' },
+    ]);
+    const u2HubSnapPath = await snap('08-universe2-hub.png');
+    const u2HubPngChanged = !readFileSync(u1HubSnapPath).equals(readFileSync(u2HubSnapPath));
+
+    report.multiverseAudit.u2HubCrestPill = u2HubInfo.crestPill;
+    report.multiverseAudit.u2HubCrestName = u2HubInfo.crestName;
+    report.multiverseAudit.u2HubCanvasChanged = u2HubPngChanged;
+    report.multiverseAudit.u2HubRegionsChanged = u2HubInfo.regionSig !== u1HubRegionSig;
+    report.multiverseAudit.u2HubOverlaps = u2HubGeom.overlaps;
+    report.multiverseAudit.u2HubSpreadViewportPct = u2HubGeom.spreadPct;
+
+    // Launch Universe 2 Voyage -> Chapter 1 (u02_c1: The Bubblegum Tidepool Pier)
+    await page.locator('.cc-voyage-seal.cc-play').click();
+    await waitForMode(page, 'chapter', 15000);
+    await page.waitForTimeout(600);
+
+    const u2Ch1Info = await page.evaluate(() => {
+      const quests = window.__chroma.qa.heroQuests();
+      const clipped = Array.from(document.querySelectorAll('.cc-quest-rail .cc-medallion-label'))
+        .filter((el) => el.scrollWidth > el.clientWidth + 1)
+        .map((el) => el.textContent?.trim() ?? '');
+      return {
+        uniBadge: document.querySelector('.cc-voyage-spine .cc-spine-uni')?.textContent?.trim() ?? '',
+        title: document.querySelector('.cc-voyage-spine .cc-spine-title')?.textContent?.trim() ?? '',
+        questIds: quests.map((q) => q.questId),
+        clippedLabels: clipped,
+      };
+    });
+    const u2Ch1Geom = await measureLayoutGeometry(page, [
+      { name: 'voyageSpine', selector: '.cc-voyage-pill' },
+      { name: 'crystalJar', selector: '.cc-crystal-jar' },
+      { name: 'cornerRight', selector: '.cc-corner-pill' },
+      { name: 'questRail', selector: '.cc-quest-rail' },
+      { name: 'enamelDock', selector: '.cc-enamel-bar' },
+    ]);
+    const u2Ch1DomAudit = await auditAntiLunchTrayDom(page);
+
+    report.multiverseAudit.u2Ch1UniBadge = u2Ch1Info.uniBadge;
+    report.multiverseAudit.u2Ch1Title = u2Ch1Info.title;
+    report.multiverseAudit.u2Ch1QuestIds = u2Ch1Info.questIds;
+    report.multiverseAudit.u2Ch1ClippedLabels = u2Ch1Info.clippedLabels;
+    report.multiverseAudit.u2Ch1HudOverlaps = u2Ch1Geom.overlaps;
+    report.multiverseAudit.u2Ch1SpreadViewportPct = u2Ch1Geom.spreadPct;
+    report.multiverseAudit.u2AntiLunchTray = u2Ch1DomAudit;
+
+    await snap('09-universe2-chapter1.png');
+
+    // =========================================================================
+    // Evaluate All Sprint 2 + Multiverse Red-Team & Visual/Functional Assertions
     // =========================================================================
     report.assertions = {
       distRelativeAssetCheck: report.distRelativeAssetCheck === true,
@@ -1096,6 +1275,36 @@ async function main() {
       vaultCookieRegenerated: report.vaultHealing.cookieRegenerated === true,
       serviceWorkerScopedSubpath: report.serviceWorker.matchesSubpath === true,
       bookshelfCompleted: report.bookshelf.openedSavedBook === true && report.bookshelf.keepsakeTriggered === true,
+      multiverseHubConstellationStrip:
+        report.multiverseAudit.universeStripVisible &&
+        report.multiverseAudit.universeNodeCount === 21 &&
+        report.multiverseAudit.hubStripOverlaps.length === 0 &&
+        report.multiverseAudit.hubSpreadViewportPct >= 78,
+      multiverseAtlasDrawer21Universes:
+        report.multiverseAudit.atlasDrawerOpened &&
+        report.multiverseAudit.atlasCardCount === 21 &&
+        report.multiverseAudit.atlasPortalPixCount >= 21 &&
+        report.multiverseAudit.atlasSvgCount === 0,
+      multiverseUniverse2UnlockAndLiveHub:
+        report.multiverseAudit.finaleUnlockBannerVisible &&
+        report.multiverseAudit.finaleUnlockedUniverse === 'coralKingdom' &&
+        report.multiverseAudit.u2UnlockedAfterRun &&
+        report.multiverseAudit.u2HubCrestPill.includes('Universe 2 / 21') &&
+        report.multiverseAudit.u2HubCrestName.includes('Bubblegum Coral Kingdom') &&
+        report.multiverseAudit.u2HubCanvasChanged &&
+        report.multiverseAudit.u2HubRegionsChanged &&
+        report.multiverseAudit.u2HubOverlaps.length === 0 &&
+        report.multiverseAudit.u2HubSpreadViewportPct >= 78,
+      multiverseUniverse2Chapter1Gameplay:
+        report.multiverseAudit.u2Ch1UniBadge === 'U2' &&
+        report.multiverseAudit.u2Ch1Title === 'The Bubblegum Tidepool Pier' &&
+        report.multiverseAudit.u2Ch1QuestIds.length >= 3 &&
+        report.multiverseAudit.u2Ch1ClippedLabels.length === 0 &&
+        report.multiverseAudit.u2Ch1HudOverlaps.length === 0 &&
+        report.multiverseAudit.u2Ch1SpreadViewportPct >= 78 &&
+        report.multiverseAudit.u2AntiLunchTray?.svgCount === 0 &&
+        report.multiverseAudit.u2AntiLunchTray?.brownHits.length === 0 &&
+        report.multiverseAudit.u2AntiLunchTray?.dashedHits.length === 0,
     };
 
     report.passed = Object.values(report.assertions).every(Boolean);
@@ -1129,6 +1338,7 @@ async function main() {
           finaleAudit: report.finaleAudit,
           midColoringRelicAudit: report.midColoringRelicAudit,
           hubOverlaps: report.hubAudit.hubOverlaps,
+          multiverseAudit: report.multiverseAudit,
           telemetry: report.telemetry,
           maxFrameGapMs: report.maxFrameGapMs,
           vaultHealing: report.vaultHealing,

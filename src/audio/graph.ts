@@ -6,6 +6,26 @@
  * as soon as every source it started has fired `onended`, so nothing can leak.
  */
 
+import type { UniverseAmbientKind } from '../contracts/universes';
+import { lydianFreq } from './scale';
+
+/** Subtle per-universe ambient filter brightness multiplier (exact 1.0 for default stardust). */
+const AMBIENT_BRIGHTNESS: Record<UniverseAmbientKind, number> = {
+  stardust: 1.0,
+  bubbles: 0.86,
+  sprinkles: 1.12,
+  fireflies: 0.9,
+  petals: 0.96,
+  leaves: 0.88,
+  snow: 1.22,
+  sparks: 1.18,
+  notes: 1.08,
+  shards: 1.2,
+  confetti: 1.15,
+  embers: 0.84,
+  prism: 1.16,
+};
+
 /** Small deterministic PRNG (mulberry32). */
 export function makeRng(seed: number): () => number {
   let a = seed >>> 0;
@@ -54,9 +74,30 @@ export class Rig {
   totalCreated = 0;
   /** Where voices connect (the master gain). Set by the engine once the master chain exists. */
   out!: AudioNode;
+  semitoneShift = 0;
+  ambient: UniverseAmbientKind = 'stardust';
+  filterBright = 1;
   private noise: AudioBuffer | null = null;
 
   constructor(readonly ctx: AudioContext) {}
+
+  setTone(semitoneShift: number, ambient?: UniverseAmbientKind): void {
+    const s = Number.isFinite(semitoneShift) ? Math.max(-12, Math.min(12, semitoneShift)) : 0;
+    this.semitoneShift = s;
+    const amb: UniverseAmbientKind = ambient && ambient in AMBIENT_BRIGHTNESS ? ambient : 'stardust';
+    this.ambient = amb;
+    this.filterBright = AMBIENT_BRIGHTNESS[amb];
+  }
+
+  /** Frequency of F-Lydian scale degree transposed by the active universe's semitone shift. */
+  freq(degree: number): number {
+    return lydianFreq(degree, this.semitoneShift);
+  }
+
+  /** Filter cutoff modulated subtly by the active universe's ambient timbre (exact identity at 1.0). */
+  lpFreq(baseHz: number): number {
+    return this.filterBright === 1 ? baseHz : Math.max(120, Math.min(12000, baseHz * this.filterBright));
+  }
 
   now(): number {
     return this.ctx.currentTime || 0;

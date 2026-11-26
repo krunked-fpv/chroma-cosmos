@@ -8,7 +8,6 @@
 import type { UiFoleyKind } from '../contracts/audio';
 import { playHintLantern, playPageFinale, playStoryMedallion } from './events';
 import { expTo, linTo, setAt, type Rig } from './graph';
-import { lydianFreq } from './scale';
 import { envAD } from './voices';
 
 interface FoleyState {
@@ -94,8 +93,8 @@ function playWoodTap(rig: Rig, t: number, step: number): void {
     const woodLp = g.filter('lowpass', 740, 1.35);
     woodLp.connect(rig.out);
 
-    const fStart = lydianFreq(-4); // B3 (246.94 Hz)
-    const fEnd = lydianFreq(-5); // A3 (220.00 Hz)
+    const fStart = rig.freq(-4); // B3 (246.94 Hz)
+    const fEnd = rig.freq(-5); // A3 (220.00 Hz)
     const body = g.osc('triangle', fStart);
     const bodyEnv = g.gain(0);
     setAt(body.frequency, fStart, t);
@@ -105,7 +104,7 @@ function playWoodTap(rig: Rig, t: number, step: number): void {
     bodyEnv.connect(woodLp);
     g.play(body, t, bodyEnd);
 
-    const over = g.osc('sine', lydianFreq(2)); // A4 hollow wood tap warmth
+    const over = g.osc('sine', rig.freq(2)); // A4 hollow wood tap warmth
     const overEnv = g.gain(0);
     const overEnd = envAD(overEnv.gain, t, 0.042, 0.003, 0.026) + 0.012;
     over.connect(overEnv);
@@ -135,9 +134,9 @@ function playWoodTap(rig: Rig, t: number, step: number): void {
 function playJarClink(rig: Rig, t: number, step: number): void {
   const pair = JAR_FIFTHS[step % JAR_FIFTHS.length] ?? JAR_FIFTHS[0]!;
   const [loDeg, hiDeg] = pair;
-  const fLo = lydianFreq(loDeg);
-  const fHi = lydianFreq(hiDeg);
-  const fShim = lydianFreq(loDeg + 7);
+  const fLo = rig.freq(loDeg);
+  const fHi = rig.freq(hiDeg);
+  const fShim = rig.freq(loDeg + 7);
   rig.build((g) => {
     const lp = g.filter('lowpass', 3300, 0.65);
     lp.connect(rig.out);
@@ -199,7 +198,7 @@ function playStickerPeel(rig: Rig, t: number, step: number): void {
     patEnv.connect(patLp);
     g.play(patNoise, tp, tp + 0.055, noiseOffset(step, 1.37));
 
-    const patTone = g.osc('sine', lydianFreq(-7)); // F3 gentle fingertip press warmth
+    const patTone = g.osc('sine', rig.freq(-7)); // F3 gentle fingertip press warmth
     const toneEnv = g.gain(0);
     const toneEnd = envAD(toneEnv.gain, tp, 0.045, 0.005, 0.032) + 0.012;
     patTone.connect(toneEnv);
@@ -239,7 +238,7 @@ function playWispChime(rig: Rig, t: number, step: number, voicing: number): void
 
     degrees.forEach((deg, i) => {
       const tNote = t + (starts[i] ?? 0);
-      const osc = g.osc(types[i] ?? 'sine', lydianFreq(deg));
+      const osc = g.osc(types[i] ?? 'sine', rig.freq(deg));
       const env = g.gain(0);
       const end = envAD(env.gain, tNote, gains[i] ?? 0.04, 0.008, decays[i] ?? 0.36) + 0.03;
       osc.connect(env);
@@ -269,21 +268,21 @@ function playTinSnap(rig: Rig, t: number, step: number): void {
     const tinLp = g.filter('lowpass', 2250, 1.25);
     tinLp.connect(rig.out);
 
-    const body = g.osc('triangle', lydianFreq(0)); // F4
+    const body = g.osc('triangle', rig.freq(0)); // F4
     const bodyEnv = g.gain(0);
     const bodyEnd = envAD(bodyEnv.gain, t, 0.062, 0.003, 0.115) + 0.025;
     body.connect(bodyEnv);
     bodyEnv.connect(tinLp);
     g.play(body, t, bodyEnd);
 
-    const lid = g.osc('sine', lydianFreq(6)); // E5 hollow tin resonance
+    const lid = g.osc('sine', rig.freq(6)); // E5 hollow tin resonance
     const lidEnv = g.gain(0);
     const lidEnd = envAD(lidEnv.gain, t + 0.002, 0.04, 0.003, 0.12) + 0.025;
     lid.connect(lidEnv);
     lidEnv.connect(tinLp);
     g.play(lid, t + 0.002, lidEnd);
 
-    const glint = g.osc('sine', lydianFreq(11)); // C6 clasp glint
+    const glint = g.osc('sine', rig.freq(11)); // C6 clasp glint
     const glintEnv = g.gain(0);
     const glintEnd = envAD(glintEnv.gain, t, 0.02, 0.002, 0.062) + 0.02;
     glint.connect(glintEnv);
@@ -322,7 +321,7 @@ function playBubblePop(rig: Rig, t: number): void {
     g.play(pop, t, popEnd);
 
     const t1 = t + 0.048;
-    const sp1 = g.osc('sine', lydianFreq(12)); // D6 micro droplet sparkle
+    const sp1 = g.osc('sine', rig.freq(12)); // D6 micro droplet sparkle
     const e1 = g.gain(0);
     const end1 = envAD(e1.gain, t1, 0.045, 0.002, 0.14) + 0.02;
     sp1.connect(e1);
@@ -330,7 +329,7 @@ function playBubblePop(rig: Rig, t: number): void {
     g.play(sp1, t1, end1);
 
     const t2 = t + 0.082;
-    const sp2 = g.osc('sine', lydianFreq(14)); // F6 upper sparkle
+    const sp2 = g.osc('sine', rig.freq(14)); // F6 upper sparkle
     const e2 = g.gain(0);
     const end2 = envAD(e2.gain, t2, 0.032, 0.002, 0.18) + 0.02;
     sp2.connect(e2);
@@ -352,15 +351,15 @@ function playCatPurr(rig: Rig, t: number): void {
     const trem = g.gain(0.65);
     trem.connect(purrEnv);
 
-    const f2 = g.osc('triangle', lydianFreq(-14)); // F2 (87.31 Hz)
+    const f2 = g.osc('triangle', rig.freq(-14)); // F2 (87.31 Hz)
     f2.connect(trem);
 
-    const c3 = g.osc('triangle', lydianFreq(-10)); // C3 (130.81 Hz)
+    const c3 = g.osc('triangle', rig.freq(-10)); // C3 (130.81 Hz)
     const c3Gain = g.gain(0.45);
     c3.connect(c3Gain);
     c3Gain.connect(trem);
 
-    const lfo = g.osc('sine', lydianFreq(-27)); // 24.5 Hz (G0 sub-harmonic purr trill)
+    const lfo = g.osc('sine', rig.freq(-27)); // 24.5 Hz (G0 sub-harmonic purr trill)
     const depth = g.gain(0.35);
     lfo.connect(depth);
     depth.connect(trem.gain);
@@ -373,7 +372,7 @@ function playCatPurr(rig: Rig, t: number): void {
     bellLp.connect(rig.out);
 
     const tb1 = t + 0.08;
-    const b1 = g.osc('sine', lydianFreq(11)); // C6 tiny collar bell
+    const b1 = g.osc('sine', rig.freq(11)); // C6 tiny collar bell
     const b1Env = g.gain(0);
     const b1End = envAD(b1Env.gain, tb1, 0.042, 0.003, 0.24) + 0.03;
     b1.connect(b1Env);
@@ -381,7 +380,7 @@ function playCatPurr(rig: Rig, t: number): void {
     g.play(b1, tb1, b1End);
 
     const tb2 = t + 0.095;
-    const b2 = g.osc('sine', lydianFreq(14)); // F6 delicate bell overtone
+    const b2 = g.osc('sine', rig.freq(14)); // F6 delicate bell overtone
     const b2Env = g.gain(0);
     const b2End = envAD(b2Env.gain, tb2, 0.022, 0.003, 0.18) + 0.03;
     b2.connect(b2Env);
@@ -406,7 +405,7 @@ function playCrystalChime(rig: Rig, t: number, step: number): void {
     ];
     for (const [deg, offset, peak, decay] of notes) {
       const start = t + offset;
-      const osc = g.osc('sine', lydianFreq(deg));
+      const osc = g.osc('sine', rig.freq(deg));
       const env = g.gain(0);
       const end = envAD(env.gain, start, peak, 0.003, decay) + 0.03;
       osc.connect(env);
@@ -427,7 +426,7 @@ function playMagnetHarp(rig: Rig, t: number, step: number): void {
 
     degrees.forEach((deg, i) => {
       const start = t + i * 0.034;
-      const osc = g.osc('triangle', lydianFreq(deg));
+      const osc = g.osc('triangle', rig.freq(deg));
       const env = g.gain(0);
       const peak = 0.068 - i * 0.004;
       const decay = 0.42 + i * 0.035;

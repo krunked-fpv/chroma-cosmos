@@ -10,7 +10,8 @@
 import type { AudioLevel } from '../contracts/audio';
 import { MATERIALS, type MaterialId } from '../contracts/materials';
 import { BADGE_ORDER, WARDROBE_ITEMS, type BadgeId, type WardrobeItemId } from '../contracts/progression';
-import type { HubState, UiCallbacks } from '../contracts/ui';
+import type { HubState, UiCallbacks, UniverseProgressItem } from '../contracts/ui';
+import { TOTAL_UNIVERSES, UNIVERSE_BY_ID, UNIVERSES, type UniverseId } from '../contracts/universes';
 import type { StorybookSummary } from '../contracts/vault';
 import { button, clear, fnv1a, h, setShown, spriteBox } from './dom';
 import { AUDIO_LABEL, AUDIO_SPRITE, BADGE_SPRITE, STATION_SPRITE } from './icons';
@@ -19,6 +20,36 @@ import type { InstallController } from './install';
 import { boing } from './spring';
 
 export type CraftStationId = 'paintbox' | 'wardrobe' | 'bookshelf' | 'trinkets';
+export type HubDrawerId = CraftStationId | 'universes';
+
+function resolveUniverses(s: HubState): UniverseProgressItem[] {
+  if (s.universes && s.universes.length > 0) return s.universes;
+  const activeId: UniverseId = s.activeUniverse ?? 'chromaCosmos';
+  return UNIVERSES.map((u, idx) => ({
+    id: u.id,
+    index: u.index,
+    number: u.number,
+    name: u.name,
+    shortName: u.shortName,
+    tagline: u.tagline,
+    unlockTeaser: u.unlockTeaser,
+    accent: u.accent,
+    accentSoft: u.accentSoft,
+    unlocked: idx === 0,
+    completed: false,
+    isNextUnlock: idx === 1,
+    active: u.id === activeId,
+    chapterTitles: u.chapters.map((c) => c.title),
+  }));
+}
+
+function universeCardState(u: UniverseProgressItem): 'active' | 'completed' | 'unlocked' | 'next' | 'locked' {
+  if (u.active) return 'active';
+  if (u.completed) return 'completed';
+  if (u.unlocked) return 'unlocked';
+  if (u.isNextUnlock) return 'next';
+  return 'locked';
+}
 
 export const BADGE_INFO: Record<BadgeId, { name: string; hint: string }> = {
   firstBloom: { name: 'First Bloom', hint: 'Wake your very first region' },
@@ -82,6 +113,7 @@ export function computeHubAffordable(s: HubState): {
 
 export class HubPanel {
   readonly crestEl: HTMLElement;
+  readonly universeStripEl: HTMLElement;
   readonly voyageEl: HTMLElement;
   readonly stationsEl: HTMLElement;
   readonly drawerLayer: HTMLElement;
@@ -91,26 +123,59 @@ export class HubPanel {
   private cache: IllustrationCache | null = null;
   private notify: (msg: string) => void = () => undefined;
   private state: HubState | null = null;
-  private activeStation: CraftStationId | null = null;
+  private activeStation: HubDrawerId | null = null;
   private shelfPage = 0;
   private audioLevel: AudioLevel = 3;
-  private readonly sig = { play: '__init__', mediums: '__init__', wardrobe: '__init__', badges: '__init__', books: '__init__' };
+  private readonly sig = {
+    play: '__init__',
+    universes: '__init__',
+    mediums: '__init__',
+    wardrobe: '__init__',
+    badges: '__init__',
+    books: '__init__',
+  };
 
   private readonly crestStarL: HTMLElement;
   private readonly crestStarR: HTMLElement;
+  private readonly crestUniPill: HTMLElement;
+  private readonly crestUniName: HTMLElement;
+  private readonly crestAtlasBtn: HTMLButtonElement;
+  private readonly crestAtlasIconSlot: HTMLElement;
+  private readonly crestAtlasLabel: HTMLElement;
+
+  // Main-screen Multiverse Star-Trail Bar (.cc-universe-strip)
+  private readonly stripSummaryBtn: HTMLButtonElement;
+  private readonly stripAtlasIconSlot: HTMLElement;
+  private readonly stripCountEl: HTMLElement;
+  private readonly stripBarFill: HTMLElement;
+  private readonly stripTrackEl: HTMLElement;
+  private readonly stripTeaserBtn: HTMLButtonElement;
+  private readonly stripTeaserIconSlot: HTMLElement;
+  private readonly stripTeaserTop: HTMLElement;
+  private readonly stripTeaserSub: HTMLElement;
+  private nextUnlockFocusId: UniverseId | null = 'coralKingdom';
+
   private readonly playBtn: HTMLButtonElement;
   private readonly playSealSlot: HTMLElement;
   private readonly playLabel = h('span', { class: 'cc-seal-label' }, 'Begin Voyage');
+  private readonly playSubLabel = h('span', { class: 'cc-seal-sub' }, 'Universe #1 \u00b7 Win to unlock #2!');
   private readonly continueBtn: HTMLButtonElement;
   private readonly continueSealSlot: HTMLElement;
 
   private readonly stationBtns = new Map<CraftStationId, HTMLButtonElement>();
   private readonly stationIconSlots = new Map<CraftStationId, HTMLElement>();
-  private readonly drawers = new Map<CraftStationId, HTMLElement>();
+  private readonly drawers = new Map<HubDrawerId, HTMLElement>();
   private readonly closeIconSlots: HTMLElement[] = [];
   private readonly drawerGemSlots: HTMLElement[] = [];
   private readonly drawerGemTexts: HTMLElement[] = [];
-  private readonly drawerCountEls = new Map<CraftStationId, HTMLElement>();
+  private readonly drawerCountEls = new Map<HubDrawerId, HTMLElement>();
+
+  // Multiverse Atlas Drawer contents
+  private readonly atlasSubEl: HTMLElement;
+  private readonly atlasBarUnlocked: HTMLElement;
+  private readonly atlasBarCompleted: HTMLElement;
+  private readonly atlasBarCaption: HTMLElement;
+  private readonly atlasGrid: HTMLElement;
 
   // Live desk previews on the 4 Midnight Cloisonne stations
   private readonly paintboxPreview: HTMLElement;
@@ -152,15 +217,112 @@ export class HubPanel {
   };
 
   constructor(install: InstallController) {
-    // ---- Storybook Title Crest perched gently atop the Hub spread
+    // ---- Upgraded Storybook Title Crest perched cleanly atop the Hub spread
     this.crestStarL = spriteBox('cc-ico cc-hub-crest-star', placeholderCanvas(18, 18));
     this.crestStarR = spriteBox('cc-ico cc-hub-crest-star', placeholderCanvas(18, 18));
+    this.crestUniPill = h('span', { class: 'cc-crest-uni-pill' }, `Universe 1 / ${TOTAL_UNIVERSES}`);
+    this.crestUniName = h('span', { class: 'cc-hub-crest-title' }, "Violet's Starlight Cosmos");
+    this.crestAtlasIconSlot = spriteBox('cc-ico cc-crest-atlas-ico', placeholderCanvas(18, 18));
+    this.crestAtlasLabel = h('span', { class: 'cc-crest-atlas-label' }, `1 / ${TOTAL_UNIVERSES} Universes \u00b7 Atlas`);
+    this.crestAtlasBtn = h(
+      'button',
+      {
+        type: 'button',
+        class: 'cc-crest-atlas-btn',
+        'data-action': 'open-atlas',
+        'aria-label': 'Open Multiverse Atlas of 21 bespoke universes',
+        title: 'Open Multiverse Atlas (21 bespoke universes)',
+      },
+      this.crestAtlasIconSlot,
+      this.crestAtlasLabel,
+    );
+    this.crestAtlasBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      boing(this.crestAtlasBtn, 'press');
+      this.openAtlas();
+    });
+
     this.crestEl = h(
       'div',
       { class: 'cc-hub-crest', 'aria-label': "Violet's Living Sketchbook" },
       this.crestStarL,
-      h('span', { class: 'cc-hub-crest-title' }, "Violet's Living Sketchbook"),
+      this.crestUniPill,
+      h(
+        'span',
+        { class: 'cc-hub-crest-stack' },
+        h('span', { class: 'cc-hub-crest-brand' }, "Violet's Living Sketchbook"),
+        this.crestUniName,
+      ),
+      this.crestAtlasBtn,
       this.crestStarR,
+    );
+
+    // ---- Main-Screen Multiverse Star-Trail Bar (.cc-universe-strip)
+    this.stripAtlasIconSlot = spriteBox('cc-ico cc-strip-atlas-ico', placeholderCanvas(22, 22));
+    this.stripCountEl = h('span', { class: 'cc-uni-strip-count' }, `1 / ${TOTAL_UNIVERSES} Universes`);
+    this.stripBarFill = h('span', { class: 'cc-uni-mini-fill' });
+    this.stripBarFill.style.setProperty('--uni-prog', (1 / TOTAL_UNIVERSES).toFixed(4));
+    this.stripSummaryBtn = h(
+      'button',
+      {
+        type: 'button',
+        class: 'cc-uni-summary-btn',
+        'data-action': 'open-atlas',
+        'aria-label': 'Multiverse progress: 1 of 21 universes unlocked. Open Atlas',
+        title: 'Open Multiverse Atlas',
+      },
+      this.stripAtlasIconSlot,
+      h(
+        'span',
+        { class: 'cc-uni-summary-meta' },
+        this.stripCountEl,
+        h('span', { class: 'cc-uni-mini-track', 'aria-hidden': 'true' }, this.stripBarFill),
+      ),
+    );
+    this.stripSummaryBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      boing(this.stripSummaryBtn, 'press');
+      this.openAtlas();
+    });
+
+    this.stripTrackEl = h('div', {
+      class: 'cc-uni-track',
+      role: 'group',
+      'aria-label': '21 Bespoke Universes Constellation Track',
+    });
+
+    this.stripTeaserIconSlot = spriteBox('cc-ico cc-strip-teaser-ico', placeholderCanvas(18, 18));
+    this.stripTeaserTop = h('span', { class: 'cc-uni-teaser-top' }, 'Next: #2 Coral Kingdom');
+    this.stripTeaserSub = h('span', { class: 'cc-uni-teaser-sub' }, 'Keep playing to unlock 20 more bespoke universes!');
+    this.stripTeaserBtn = h(
+      'button',
+      {
+        type: 'button',
+        class: 'cc-uni-teaser-btn',
+        'data-action': 'open-atlas',
+        'aria-label': 'Next unlock: Bubblegum Coral Kingdom. Keep playing to unlock 20 more bespoke universes!',
+        title: 'Beat #1 to unlock #2 Coral Kingdom! Click to explore all 21 universes',
+      },
+      this.stripTeaserIconSlot,
+      h('span', { class: 'cc-uni-teaser-text' }, this.stripTeaserTop, this.stripTeaserSub),
+    );
+    this.stripTeaserBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      boing(this.stripTeaserBtn, 'press');
+      this.openAtlas(this.nextUnlockFocusId ?? undefined);
+    });
+
+    this.universeStripEl = h(
+      'section',
+      { class: 'cc-universe-strip', 'aria-label': 'Multiverse 21 Universes Progression' },
+      this.stripSummaryBtn,
+      h(
+        'div',
+        { class: 'cc-uni-track-wrap' },
+        h('span', { class: 'cc-uni-thread', 'aria-hidden': 'true' }),
+        this.stripTrackEl,
+      ),
+      this.stripTeaserBtn,
     );
 
     // ---- Midnight-Gold Cloisonne Voyage Ribbon
@@ -185,7 +347,12 @@ export class HubPanel {
         this.cb?.onUiFoley?.('paperRustle');
         this.cb?.onStartRun();
       },
-      h('span', { class: 'cc-seal-inner' }, this.playSealSlot, this.playLabel),
+      h(
+        'span',
+        { class: 'cc-seal-inner' },
+        this.playSealSlot,
+        h('span', { class: 'cc-seal-text' }, this.playLabel, this.playSubLabel),
+      ),
     );
     setShown(this.continueBtn, false);
     this.voyageEl = h('div', { class: 'cc-voyage-ribbon', 'aria-label': 'Voyage Ribbon' }, this.continueBtn, this.playBtn);
@@ -432,6 +599,32 @@ export class HubPanel {
       ),
     );
 
+    // ---- Drawer 5: Multiverse Atlas (21 Bespoke Universes)
+    this.atlasBarUnlocked = h('span', { class: 'cc-atlas-bar-unlocked' });
+    this.atlasBarCompleted = h('span', { class: 'cc-atlas-bar-completed' });
+    this.atlasBarCaption = h('span', { class: 'cc-atlas-bar-caption' }, `1 / ${TOTAL_UNIVERSES} Unlocked \u00b7 0 Completed`);
+    this.atlasGrid = h('div', { class: 'cc-grid cc-uni-grid', role: 'list', 'aria-label': '21 Bespoke Universes' });
+    const universesDrawer = this.makeDrawer(
+      'universes',
+      'cc-drawer-universes',
+      `Multiverse Atlas \u00b7 ${TOTAL_UNIVERSES} Bespoke Universes`,
+      'Keep playing to unlock 20 more bespoke universes!',
+      false,
+      h(
+        'div',
+        { class: 'cc-atlas-progress' },
+        h(
+          'div',
+          { class: 'cc-atlas-bar-track', 'aria-hidden': 'true' },
+          this.atlasBarUnlocked,
+          this.atlasBarCompleted,
+        ),
+        this.atlasBarCaption,
+      ),
+      this.atlasGrid,
+    );
+    this.atlasSubEl = universesDrawer.querySelector<HTMLElement>('.cc-drawer-sub')!;
+
     this.drawerLayer = h(
       'div',
       { class: 'cc-craft-overlay', hidden: true },
@@ -439,6 +632,7 @@ export class HubPanel {
       wardrobeDrawer,
       bookshelfDrawer,
       trinketsDrawer,
+      universesDrawer,
     );
     this.drawerLayer.addEventListener('click', (e) => {
       if (e.target === this.drawerLayer) this.closeDrawer();
@@ -470,7 +664,7 @@ export class HubPanel {
   }
 
   private makeDrawer(
-    id: CraftStationId,
+    id: HubDrawerId,
     cls: string,
     title: string,
     subtitle: string,
@@ -528,6 +722,9 @@ export class HubPanel {
   private hydrateStaticSprites(cache: IllustrationCache): void {
     cache.mountInto(this.crestStarL, { type: 'uiSprite', id: 'tool_star' }, 18, 18);
     cache.mountInto(this.crestStarR, { type: 'uiSprite', id: 'tool_star' }, 18, 18);
+    cache.mountInto(this.crestAtlasIconSlot, { type: 'uiSprite', id: 'tool_atlas' }, 18, 18);
+    cache.mountInto(this.stripAtlasIconSlot, { type: 'uiSprite', id: 'tool_atlas' }, 22, 22);
+    cache.mountInto(this.stripTeaserIconSlot, { type: 'uiSprite', id: 'tool_lock' }, 18, 18);
     cache.mountInto(this.continueSealSlot, { type: 'uiSprite', id: 'tool_voyage_seal' }, 36, 36);
     cache.mountInto(this.playSealSlot, { type: 'uiSprite', id: 'tool_voyage_seal' }, 36, 36);
     for (const [id, slot] of this.stationIconSlots) {
@@ -550,11 +747,32 @@ export class HubPanel {
     cache.mountInto(this.importIconSlot, { type: 'uiSprite', id: 'tool_import' }, 24, 24);
   }
 
-  get openDrawerId(): CraftStationId | null {
+  get openDrawerId(): HubDrawerId | null {
     return this.activeStation;
   }
 
   openStation(id: CraftStationId): void {
+    this.openDrawer(id);
+  }
+
+  openAtlas(focusUniverseId?: UniverseId): void {
+    const alreadyOpen = this.activeStation === 'universes';
+    if (!alreadyOpen) {
+      this.openDrawer('universes');
+    } else if (!focusUniverseId) {
+      this.closeDrawer();
+      return;
+    }
+    if (focusUniverseId) {
+      const card = this.atlasGrid.querySelector<HTMLElement>(`.cc-uni-card[data-universe="${focusUniverseId}"]`);
+      if (card) {
+        card.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+        boing(card, 'press');
+      }
+    }
+  }
+
+  private openDrawer(id: HubDrawerId): void {
     const same = this.activeStation === id;
     if (same) {
       this.closeDrawer();
@@ -635,14 +853,35 @@ export class HubPanel {
 
     if (!this.cache) return;
 
-    const play = `${s.hasRunInProgress}`;
+    const universes = resolveUniverses(s);
+    const activeUni = universes.find((u) => u.active) ?? universes[0]!;
+    const totalUniverses = s.totalUniverses ?? universes.length ?? TOTAL_UNIVERSES;
+    const unlockedCount = s.unlockedUniverseCount ?? universes.filter((u) => u.unlocked).length;
+    const completedCount = s.completedUniverseCount ?? universes.filter((u) => u.completed).length;
+
+    const play = `${s.hasRunInProgress}|${activeUni.id}|${activeUni.completed}|${totalUniverses}`;
     if (force || play !== this.sig.play) {
       this.sig.play = play;
       setShown(this.continueBtn, s.hasRunInProgress);
-      this.playLabel.textContent = s.hasRunInProgress ? 'New Voyage' : 'Begin Voyage';
-      this.playBtn.setAttribute('aria-label', s.hasRunInProgress ? 'New Voyage' : 'Begin Voyage');
-      this.playBtn.title = s.hasRunInProgress ? 'New Voyage' : 'Begin Voyage';
+      const primaryTitle = s.hasRunInProgress ? 'New Voyage' : 'Begin Voyage';
+      this.playLabel.textContent = primaryTitle;
+      const subText =
+        !activeUni.completed && activeUni.number < totalUniverses
+          ? `Universe #${activeUni.number} \u00b7 Win to unlock #${activeUni.number + 1}!`
+          : !activeUni.completed && activeUni.number === totalUniverses
+            ? `Universe #${activeUni.number} \u00b7 Final Prism Crown!`
+            : `Universe #${activeUni.number} \u00b7 ${activeUni.shortName}`;
+      this.playSubLabel.textContent = subText;
+      const aria = `${primaryTitle} (${subText})`;
+      this.playBtn.setAttribute('aria-label', aria);
+      this.playBtn.title = aria;
       this.playBtn.classList.toggle('is-secondary', s.hasRunInProgress);
+    }
+
+    const usig = `${unlockedCount}|${completedCount}|${totalUniverses}|${universes.map((u) => `${u.id}:${u.active ? 1 : 0}${u.unlocked ? 1 : 0}${u.completed ? 1 : 0}${u.isNextUnlock ? 1 : 0}`).join(',')}`;
+    if (force || usig !== this.sig.universes) {
+      this.sig.universes = usig;
+      this.buildUniverses(universes, activeUni, unlockedCount, completedCount, totalUniverses);
     }
 
     const unlocked = new Set(s.materials.filter((m) => m.unlocked).map((m) => m.def.id));
@@ -664,7 +903,7 @@ export class HubPanel {
       this.buildBadges(new Set(s.badges));
     }
 
-    const ksig = s.storybooks.map((b) => `${b.id}:${b.title}:${b.seed ?? ''}`).join('|');
+    const ksig = s.storybooks.map((b) => `${b.id}:${b.title}:${b.seed ?? ''}:${b.universeId ?? ''}`).join('|');
     if (force || ksig !== this.sig.books) {
       this.sig.books = ksig;
       this.buildShelf(s.storybooks);
@@ -673,6 +912,203 @@ export class HubPanel {
 
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown);
+  }
+
+  private buildUniverses(
+    universes: UniverseProgressItem[],
+    activeUni: UniverseProgressItem,
+    unlockedCount: number,
+    completedCount: number,
+    totalUniverses: number,
+  ): void {
+    const cache = this.cache!;
+    const remaining = Math.max(0, totalUniverses - unlockedCount);
+    const nextUnlock = universes.find((u) => u.isNextUnlock) ?? universes.find((u) => !u.unlocked) ?? null;
+    this.nextUnlockFocusId = nextUnlock?.id ?? null;
+
+    // 1. Update Hub Title Crest
+    this.crestUniPill.textContent = `Universe ${activeUni.number} / ${totalUniverses}`;
+    this.crestUniName.textContent = activeUni.name;
+    this.crestEl.style.setProperty('--uni-accent', activeUni.accent);
+    this.crestAtlasLabel.textContent = `${unlockedCount} / ${totalUniverses} Universes \u00b7 Atlas`;
+
+    // 2. Update Main-Screen Multiverse Star-Trail Bar (.cc-universe-strip)
+    this.stripCountEl.textContent = `${unlockedCount} / ${totalUniverses} Universes`;
+    this.stripSummaryBtn.setAttribute(
+      'aria-label',
+      `Multiverse progress: ${unlockedCount} of ${totalUniverses} universes unlocked. Open Atlas`,
+    );
+    const unlockProg = Math.max(0, Math.min(1, unlockedCount / Math.max(1, totalUniverses)));
+    this.stripBarFill.style.setProperty('--uni-prog', unlockProg.toFixed(4));
+
+    if (nextUnlock) {
+      cache.mountInto(this.stripTeaserIconSlot, { type: 'uiSprite', id: 'tool_lock' }, 18, 18);
+      this.stripTeaserTop.textContent = `Next: #${nextUnlock.number} ${nextUnlock.shortName}`;
+      this.stripTeaserSub.textContent = `Keep playing to unlock ${remaining} more bespoke ${remaining === 1 ? 'universe' : 'universes'}!`;
+      this.stripTeaserBtn.classList.remove('is-mastered');
+      const tip = `Beat #${nextUnlock.number - 1} to unlock #${nextUnlock.number} ${nextUnlock.name}!`;
+      this.stripTeaserBtn.title = tip;
+      this.stripTeaserBtn.setAttribute('aria-label', `${this.stripTeaserTop.textContent}. ${this.stripTeaserSub.textContent}`);
+    } else if (completedCount >= totalUniverses) {
+      cache.mountInto(this.stripTeaserIconSlot, { type: 'uiSprite', id: 'tool_crown' }, 18, 18);
+      this.stripTeaserTop.textContent = `All ${totalUniverses} Mastered!`;
+      this.stripTeaserSub.textContent = 'Every bespoke universe shines!';
+      this.stripTeaserBtn.classList.add('is-mastered');
+      this.stripTeaserBtn.title = 'All 21 bespoke universes mastered!';
+      this.stripTeaserBtn.setAttribute('aria-label', 'All 21 bespoke universes mastered! Open Atlas');
+    } else {
+      cache.mountInto(this.stripTeaserIconSlot, { type: 'uiSprite', id: 'tool_star' }, 18, 18);
+      const finalUni = universes[universes.length - 1]!;
+      this.stripTeaserTop.textContent = `Final: #${finalUni.number} ${finalUni.shortName}`;
+      this.stripTeaserSub.textContent = `${completedCount} / ${totalUniverses} universes mastered!`;
+      this.stripTeaserBtn.classList.remove('is-mastered');
+      this.stripTeaserBtn.title = `Complete #${finalUni.number} ${finalUni.name} to master the Multiverse!`;
+      this.stripTeaserBtn.setAttribute('aria-label', `${this.stripTeaserTop.textContent}. Open Atlas`);
+    }
+
+    clear(this.stripTrackEl);
+    for (const u of universes) {
+      const state = universeCardState(u);
+      const aria =
+        state === 'active'
+          ? `Universe #${u.number} ${u.name} (Playing Now)`
+          : state === 'completed'
+            ? `Universe #${u.number} ${u.name} (Completed — tap to visit)`
+            : state === 'unlocked'
+              ? `Universe #${u.number} ${u.name} (Unlocked — tap to visit)`
+              : state === 'next'
+                ? `Universe #${u.number} ${u.name} — Next Unlock! Beat #${u.number - 1} to unlock`
+                : `Universe #${u.number} ${u.name} — Locked (Beat #${u.number - 1} to unlock)`;
+      const pip = u.completed
+        ? h('span', { class: 'cc-uni-node-pip is-done', 'aria-hidden': 'true' }, '\u2605')
+        : u.isNextUnlock
+          ? h('span', { class: 'cc-uni-node-pip is-next', 'aria-hidden': 'true' })
+          : null;
+      const node = h(
+        'button',
+        {
+          type: 'button',
+          class: `cc-uni-node is-${state}${u.completed ? ' is-completed' : ''}`,
+          'data-universe': u.id,
+          'data-uni-num': String(u.number),
+          'data-state': state,
+          'aria-label': aria,
+          'aria-pressed': u.active ? 'true' : 'false',
+          title: aria,
+        },
+        h('span', { class: 'cc-uni-node-num' }, String(u.number)),
+        pip,
+      );
+      node.style.setProperty('--uni-accent', u.accent);
+      node.style.setProperty('--uni-accent-soft', u.accentSoft);
+      node.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (u.unlocked) {
+          boing(node, 'select');
+          this.cb?.onUiFoley?.('crystalChime');
+          this.cb?.onSelectUniverse?.(u.id);
+        } else {
+          boing(node, 'press');
+          this.openAtlas(u.id);
+        }
+      });
+      this.stripTrackEl.append(node);
+    }
+
+    // 3. Update Multiverse Atlas Drawer
+    const atlasCount = this.drawerCountEls.get('universes');
+    if (atlasCount) {
+      atlasCount.textContent = `${unlockedCount} / ${totalUniverses} Unlocked \u00b7 ${completedCount} Completed`;
+    }
+    this.atlasSubEl.textContent =
+      remaining > 0
+        ? `Keep playing to unlock ${remaining} more bespoke ${remaining === 1 ? 'universe' : 'universes'}!`
+        : completedCount >= totalUniverses
+          ? `Every single one of the ${totalUniverses} bespoke universes shines bright!`
+          : `All ${totalUniverses} bespoke universes unlocked \u2014 master them all!`;
+    const compProg = Math.max(0, Math.min(1, completedCount / Math.max(1, totalUniverses)));
+    this.atlasBarUnlocked.style.setProperty('--prog', unlockProg.toFixed(4));
+    this.atlasBarCompleted.style.setProperty('--prog', compProg.toFixed(4));
+    this.atlasBarCaption.textContent = nextUnlock
+      ? `${unlockedCount} / ${totalUniverses} Unlocked \u00b7 ${completedCount} Completed \u00b7 Next: #${nextUnlock.number} ${nextUnlock.shortName}`
+      : `${unlockedCount} / ${totalUniverses} Unlocked \u00b7 ${completedCount} / ${totalUniverses} Completed`;
+
+    clear(this.atlasGrid);
+    for (let i = 0; i < universes.length; i++) {
+      const u = universes[i]!;
+      const prev = i > 0 ? universes[i - 1]! : null;
+      const state = universeCardState(u);
+      const statusText =
+        state === 'active'
+          ? 'Playing Now'
+          : state === 'completed'
+            ? 'Completed \u2605'
+            : state === 'unlocked'
+              ? 'Play World'
+              : state === 'next'
+                ? `Next Unlock \u2014 Beat #${u.number - 1}!`
+                : `Locked \u2014 Beat #${u.number - 1}`;
+
+      const stateIcon = u.completed
+        ? spriteBox('cc-ico cc-uni-card-badge-ico is-done', cache.sprite('tool_check', 16))
+        : !u.unlocked
+          ? spriteBox('cc-ico cc-uni-card-badge-ico is-lock', cache.sprite('tool_lock', 16))
+          : u.active
+            ? spriteBox('cc-ico cc-uni-card-badge-ico is-active', cache.sprite('tool_star', 16))
+            : null;
+
+      const card = button(
+        `cc-uni-card is-${state}${u.completed ? ' is-completed' : ''}`,
+        u.unlocked
+          ? `Visit Universe #${u.number}: ${u.name}`
+          : `Universe #${u.number}: ${u.name} (${statusText})`,
+        () => {
+          if (u.unlocked) {
+            boing(card, 'select');
+            this.cb?.onUiFoley?.('crystalChime');
+            this.cb?.onSelectUniverse?.(u.id);
+            this.closeDrawer(true);
+            return;
+          }
+          card.classList.remove('cc-shake');
+          void card.offsetWidth;
+          card.classList.add('cc-shake');
+          this.cb?.onUiFoley?.('crystalChime');
+          const prevNum = prev ? prev.number : u.number - 1;
+          const prevName = prev ? prev.name : 'previous universe';
+          this.notify(`Beat #${prevNum} ${prevName} to unlock #${u.number} ${u.name}!`);
+        },
+        h(
+          'span',
+          { class: 'cc-uni-card-inner' },
+          h(
+            'span',
+            { class: 'cc-uni-portal-wrap' },
+            cache.canvas(
+              { type: 'universePortal', universe: u.id, locked: !u.unlocked, completed: u.completed },
+              88,
+              64,
+              'cc-uni-portal-pix',
+            ),
+            h('span', { class: 'cc-uni-num-tag' }, `#${u.number}`),
+            stateIcon,
+          ),
+          h(
+            'span',
+            { class: 'cc-uni-card-body' },
+            h('span', { class: 'cc-uni-card-name' }, u.name),
+            h('span', { class: 'cc-uni-card-tag' }, u.tagline),
+            h('span', { class: `cc-uni-status is-${state}` }, statusText),
+          ),
+        ),
+      );
+      card.dataset.universe = u.id;
+      card.dataset.state = state;
+      card.setAttribute('role', 'listitem');
+      card.style.setProperty('--uni-accent', u.accent);
+      card.style.setProperty('--uni-accent-soft', u.accentSoft);
+      this.atlasGrid.append(card);
+    }
   }
 
   private buildMediums(gems: number, unlocked: Set<MaterialId>): void {
@@ -991,6 +1427,10 @@ export class HubPanel {
     for (const b of slice) {
       const seed = bookSpineSeed(b);
       const tone = bookSpineTone(b);
+      const uDef = b.universeId ? UNIVERSE_BY_ID[b.universeId] : undefined;
+      const uniTag = uDef
+        ? h('span', { class: 'cc-spine-uni-tag', 'data-universe': uDef.id }, `#${uDef.number} ${uDef.shortName}`)
+        : null;
       const openBtn = button(
         'cc-book-spine cc-cover',
         `Open storybook: ${b.title} (${b.galaxyName})`,
@@ -1008,6 +1448,7 @@ export class HubPanel {
           h(
             'span',
             { class: 'cc-spine-meta' },
+            uniTag,
             h('span', { class: 'cc-cover-title' }, b.title),
             h('span', { class: 'cc-spine-pages' }, `${b.pageCount} ${b.pageCount === 1 ? 'page' : 'pages'}`),
           ),

@@ -4,8 +4,10 @@
  * Phase flow: start -> chapter(slot 1). completeChapter(): slots 1..4 -> 'draft'; pickDraft -> 'doors';
  * chooseDoor -> next chapter ('chapter', or 'finale' while playing slot 5); slot 5 -> 'complete'.
  */
-import { BRANCHES, CHAPTERS, DRAFT_CARDS } from '../contracts';
-import type { BrushId, ChapterId, DraftCardId, RelicId, RunCore, RunManagerPort, RunPhase } from '../contracts';
+import { ALL_CHAPTERS, CHAPTER_TO_UNIVERSE, DRAFT_CARDS, UNIVERSE_BY_ID } from '../contracts';
+import type { BrushId, ChapterId, DraftCardId, RelicId, RunCore, RunManagerPort, RunPhase, UniverseId } from '../contracts';
+
+const SLOT_BY_CHAPTER = new Map<ChapterId, number>(ALL_CHAPTERS.map((ch) => [ch.id, ch.slot]));
 
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -68,8 +70,18 @@ class RunManager implements RunManagerPort {
     return this.c;
   }
 
-  start(seed: number): RunCore {
-    this.c = { seed: seed >>> 0, chapterIndex: 0, path: ['rooftop'], brushes: ['standard'], relics: [], phase: 'chapter' };
+  start(seed: number, universeId: UniverseId = 'chromaCosmos'): RunCore {
+    const u = UNIVERSE_BY_ID[universeId] ?? UNIVERSE_BY_ID.chromaCosmos;
+    const startChapter = u.chapters[0]?.id ?? 'rooftop';
+    this.c = {
+      seed: seed >>> 0,
+      chapterIndex: 0,
+      path: [startChapter],
+      brushes: ['standard'],
+      relics: [],
+      phase: 'chapter',
+      ...(u.id !== 'chromaCosmos' ? { universeId: u.id } : {}),
+    };
     this.done = false;
     return clone(this.c);
   }
@@ -83,9 +95,18 @@ class RunManager implements RunManagerPort {
     return this.c ? clone(this.c) : null;
   }
 
+  universeId(): UniverseId {
+    if (!this.c) return 'chromaCosmos';
+    if (this.c.universeId && this.c.universeId in UNIVERSE_BY_ID) return this.c.universeId;
+    const first = this.c.path[0];
+    if (first && first in CHAPTER_TO_UNIVERSE) return CHAPTER_TO_UNIVERSE[first];
+    return 'chromaCosmos';
+  }
+
   currentChapter(): ChapterId {
     const c = this.need();
-    return c.path[c.chapterIndex] ?? 'rooftop';
+    const u = UNIVERSE_BY_ID[this.universeId()];
+    return c.path[c.chapterIndex] ?? u.chapters[0]?.id ?? 'rooftop';
   }
 
   completeChapter(): RunPhase | 'complete' {
@@ -102,7 +123,7 @@ class RunManager implements RunManagerPort {
   }
 
   private slotOf(id: ChapterId): number {
-    return CHAPTERS.find((ch) => ch.id === id)?.slot ?? 1;
+    return SLOT_BY_CHAPTER.get(id) ?? 1;
   }
 
   draftOptions(): DraftCardId[] {
@@ -135,7 +156,8 @@ class RunManager implements RunManagerPort {
     const slot = this.slotOf(this.currentChapter());
     if (slot < 1 || slot > 4) return [];
     if (c.phase !== 'doors') return [];
-    return BRANCHES[slot as 1 | 2 | 3 | 4].slice();
+    const u = UNIVERSE_BY_ID[this.universeId()];
+    return (u.branches[slot as 1 | 2 | 3 | 4] ?? []).slice();
   }
 
   chooseDoor(id: ChapterId): void {
@@ -149,14 +171,24 @@ class RunManager implements RunManagerPort {
 
   galaxyName(): string {
     const c = this.need();
+    const uId = this.universeId();
     const drafted: string[] = [...c.brushes.filter((b) => b !== 'standard'), ...c.relics];
-    const rng = mulberry32((c.seed ^ hashString(drafted.slice().sort().join('|'))) >>> 0);
+    if (uId === 'chromaCosmos') {
+      const rng = mulberry32((c.seed ^ hashString(drafted.slice().sort().join('|'))) >>> 0);
+      const pick = <T,>(list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
+      const first = drafted[0] as DraftCardId | undefined;
+      const last = drafted[drafted.length - 1] as DraftCardId | undefined;
+      const a = first ? `${CARD_WORD[first]}-${pick(['Paws', 'Whiskers', 'Tails', 'Sparks'])}` : pick(NAME_A);
+      const b = last && last !== first ? CARD_WORD[last] : pick(NAME_B);
+      return `The ${a} ${b} ${pick(NAME_C)}`;
+    }
+    const words = UNIVERSE_BY_ID[uId].nameWords;
+    const rng = mulberry32((c.seed ^ hashString(`${uId}|${drafted.slice().sort().join('|')}`)) >>> 0);
     const pick = <T,>(list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
     const first = drafted[0] as DraftCardId | undefined;
-    const last = drafted[drafted.length - 1] as DraftCardId | undefined;
-    const a = first ? `${CARD_WORD[first]}-${pick(['Paws', 'Whiskers', 'Tails', 'Sparks'])}` : pick(NAME_A);
-    const b = last && last !== first ? CARD_WORD[last] : pick(NAME_B);
-    return `The ${a} ${b} ${pick(NAME_C)}`;
+    const a = first ? `${CARD_WORD[first]}-${pick(words.a)}` : pick(words.a);
+    const b = pick(words.b);
+    return `The ${a} ${b} ${pick(words.c)}`;
   }
 
   finish(): void {

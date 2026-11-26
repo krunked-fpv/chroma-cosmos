@@ -15,6 +15,7 @@ import type { MeshGeometry, Shader } from 'pixi.js';
 import type { FrameInput, RendererPort, RendererStats } from '../contracts/renderer';
 import type { CompiledPage, SpriteLibrary, SpriteSheet } from '../contracts/art';
 import type { GpuStampBatch } from '../contracts/simulation';
+import type { UniverseAmbientKind } from '../contracts/universes';
 import { MAX_STAMPS_PER_BATCH, PAGE_H, PAGE_TURN_MS, PAGE_W, PAPER_HEX, WAND_UV_PEEK_RADIUS } from '../contracts/constants';
 import { REGION_FLAG, REGION_STATE_BYTES, REGION_STATE_H, REGION_STATE_W } from '../contracts/regions';
 import {
@@ -38,7 +39,7 @@ import {
 } from './fx';
 import { DataTexture, createQuadGeometry, createShader, glOf, validateProgram } from './gpu';
 import { blitActors, blitWisp, buildRegionTexData, liveSlotMask } from './pageData';
-import { MAX_PARTICLES, particlesForEffect, particlesForPokeInvites, particlesForWisp } from './particles';
+import { MAX_PARTICLES, particlesForAmbient, particlesForEffect, particlesForPokeInvites, particlesForWisp } from './particles';
 import type { PixelParticle } from './particles';
 import { PixelPlane } from './pixelPlane';
 import { easeInOut, clamp01 } from './rng';
@@ -71,6 +72,7 @@ export function createRenderer(): RendererPort {
   const shaderErrors: string[] = [];
 
   let page: CompiledPage | null = null;
+  let pageAmbient: UniverseAmbientKind = 'stardust';
   let sprites: SpriteLibrary | null = null;
   let wispSheet: SpriteSheet | null = null;
   let needsReseed = false;
@@ -305,6 +307,7 @@ export function createRenderer(): RendererPort {
     if (f.mode !== 'book') {
       particlesForWisp(f.view.wisp, f.timeMs, particleScratch);
       particlesForPokeInvites(f.view.pokeInvites, f.timeMs, particleScratch);
+      particlesForAmbient(pageAmbient, f.timeMs, f.view.pageAwakening, particleScratch);
     }
     const n = Math.min(particleScratch.length, MAX_PARTICLES);
     for (let i = 0; i < particleObjs.length; i++) {
@@ -604,6 +607,7 @@ export function createRenderer(): RendererPort {
   function loadPage(p: CompiledPage, s: SpriteLibrary, wisp?: SpriteSheet): void {
     if (!app || !regionTex || !actorTex || !stateTex) return;
     page = p;
+    pageAmbient = p.ambient ?? 'stardust';
     sprites = s;
     wispSheet = wisp ?? null;
     buildRegionTexData(p, regionTex.data);

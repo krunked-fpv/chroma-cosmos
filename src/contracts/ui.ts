@@ -6,6 +6,7 @@ import type { MaterialDef, MaterialId } from './materials';
 import type { BadgeId, WardrobeItemId, WardrobeState } from './progression';
 import type { BrushId, ChapterId, DraftCardId, RelicId } from './roguelike';
 import type { HeroStoryQuest, HintRequestState, PageFinaleState, StoryStarState, ToolMode } from './simulation';
+import type { UniverseId } from './universes';
 import type { StorybookSummary } from './vault';
 
 export type AppMode = 'boot' | 'hub' | 'chapter' | 'draft' | 'doors' | 'turning' | 'finale' | 'book';
@@ -15,11 +16,43 @@ export interface MaterialEntry {
   unlocked: boolean;
 }
 
+export interface UniverseProgressItem {
+  id: UniverseId;
+  index: number;
+  number: number;
+  name: string;
+  shortName: string;
+  tagline: string;
+  unlockTeaser: string;
+  accent: string;
+  accentSoft: string;
+  unlocked: boolean;
+  completed: boolean;
+  isNextUnlock: boolean;
+  active: boolean;
+  chapterTitles: readonly string[];
+}
+
+export interface FinaleMeta {
+  universeId?: UniverseId;
+  universeName?: string;
+  newlyUnlocked?: { id: UniverseId; number: number; name: string; tagline: string } | null;
+  completedCount?: number;
+  totalUniverses?: number;
+  bonusGems?: number;
+}
+
 export interface HudState {
   mode: AppMode;
   chapterTitle: string;
   /** 1..5 current chapter position on the Top Spine 5-Chapter Constellation Voyage Ribbon. */
   slot: number;
+  activeUniverse?: UniverseId;
+  universeNumber?: number;
+  totalUniverses?: number;
+  universeName?: string;
+  nextUnlockName?: string | null;
+  isFrontierUniverse?: boolean;
   gems: number;
   /** True whenever player's gem balance can afford an unowned Exotic Medium or Wardrobe item in Violet's Hub. */
   hasAffordableUnlock?: boolean;
@@ -60,11 +93,17 @@ export interface HubState {
   hasRunInProgress: boolean;
   hasAffordableUnlock?: boolean;
   audioLevel?: AudioLevel;
+  activeUniverse?: UniverseId;
+  universes?: UniverseProgressItem[];
+  unlockedUniverseCount?: number;
+  completedUniverseCount?: number;
+  totalUniverses?: number;
 }
 
 export interface UiCallbacks {
   onStartRun(): void;
   onContinueRun(): void;
+  onSelectUniverse?(id: UniverseId): void;
   onSelectMaterial(id: MaterialId): void;
   onSelectBrush(id: BrushId): void;
   onToggleDoodle(): void;
@@ -107,7 +146,7 @@ export interface UiPort {
   updateHub(h: HubState): void;
   showDraft(cards: DraftCardId[]): Promise<DraftCardId>;
   showDoors(o: ChapterId[]): Promise<ChapterId>;
-  showFinale(name: string): Promise<void>;
+  showFinale(name: string, meta?: FinaleMeta): Promise<UniverseId | null | void>;
   showBook(b: StorybookSummary, page: number, count: number): void;
   toast(msg: string): void;
   /** Fires a golden starlight arc from an awakened page coordinate to its Right-Side Story Medallion. */

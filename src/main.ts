@@ -4,13 +4,18 @@
  */
 import {
   ACTIVE_BRUSH_IDS,
+  ALL_CHAPTERS,
   APP_NAME,
-  CHAPTERS,
+  CHAPTER_TO_UNIVERSE,
   CONSTELLATION_MILESTONES,
   CORE_MATERIAL_IDS,
   GEM_REWARDS,
   MATERIALS,
   MAX_MATERIAL_ID,
+  TOTAL_UNIVERSES,
+  UNIVERSES,
+  UNIVERSE_BY_ID,
+  UNIVERSE_ORDER,
   WARDROBE_ITEMS,
 } from './contracts';
 import type {
@@ -24,6 +29,7 @@ import type {
   ChapterId,
   CompiledPage,
   DraftCardId,
+  FinaleMeta,
   HeroQuestId,
   HeroStoryQuest,
   HintRequestState,
@@ -40,6 +46,8 @@ import type {
   StoryStarState,
   Storybook,
   ToolMode,
+  UniverseId,
+  UniverseProgressItem,
   VaultState,
   WispRenderState,
   WonderWhisperHint,
@@ -77,7 +85,10 @@ interface ChromaQaApi {
   clientPointOf(id: number): { x: number; y: number } | null;
   paintRegion(id: number, materialId?: MaterialId): Promise<boolean>;
   poke(kind: ActorKind): Promise<boolean>;
-  startRun(seed?: number): void;
+  startRun(seed?: number, universeId?: UniverseId): void;
+  universes(): UniverseProgressItem[];
+  selectUniverse(id: UniverseId): boolean;
+  unlockUpTo(count: number): void;
   completePage(): Promise<void>;
   mode(): AppMode;
   setToolMode(mode: ToolMode): void;
@@ -160,6 +171,65 @@ function computeHasAffordableUnlock(v: Readonly<VaultState>): boolean {
   return false;
 }
 
+interface UniverseProgressSummary {
+  completedSet: Set<UniverseId>;
+  unlockedSet: Set<UniverseId>;
+  activeUniverse: UniverseId;
+  items: UniverseProgressItem[];
+  unlockedCount: number;
+  completedCount: number;
+}
+
+function computeUniverseProgress(v: Readonly<VaultState>): UniverseProgressSummary {
+  const completedSet = new Set<UniverseId>(v.completedUniverses ?? []);
+  if (v.stats.runsCompleted >= 1) completedSet.add('chromaCosmos');
+
+  const unlockedSet = new Set<UniverseId>();
+  let firstLockedIdx = -1;
+  for (const u of UNIVERSES) {
+    const unlocked =
+      u.index === 0 ||
+      completedSet.has(UNIVERSE_ORDER[u.index - 1]!) ||
+      (u.index === 1 && v.stats.runsCompleted >= 1);
+    if (unlocked) unlockedSet.add(u.id);
+    else if (firstLockedIdx === -1) firstLockedIdx = u.index;
+  }
+
+  const requested = v.activeUniverse ?? 'chromaCosmos';
+  const activeUniverse: UniverseId =
+    requested in UNIVERSE_BY_ID && unlockedSet.has(requested) ? requested : 'chromaCosmos';
+
+  const items: UniverseProgressItem[] = UNIVERSES.map((u) => {
+    const unlocked = unlockedSet.has(u.id);
+    const completed = completedSet.has(u.id);
+    return {
+      id: u.id,
+      index: u.index,
+      number: u.number,
+      name: u.name,
+      shortName: u.shortName,
+      tagline: u.tagline,
+      unlockTeaser: u.unlockTeaser,
+      accent: u.accent,
+      accentSoft: u.accentSoft,
+      unlocked,
+      completed,
+      isNextUnlock: u.index === firstLockedIdx,
+      active: u.id === activeUniverse,
+      chapterTitles: u.chapters.map((c) => c.title),
+    };
+  });
+
+  return {
+    completedSet,
+    unlockedSet,
+    activeUniverse,
+    items,
+    unlockedCount: unlockedSet.size,
+    completedCount: completedSet.size,
+  };
+}
+
 async function boot(): Promise<void> {
   const root = document.getElementById('app');
   if (!root) return;
@@ -183,6 +253,10 @@ async function boot(): Promise<void> {
 
   await vault.hydrate();
   audio.setLevel(vault.get().audioLevel);
+  {
+    const initU = UNIVERSE_BY_ID[computeUniverseProgress(vault.get()).activeUniverse];
+    audio.setUniverseTone?.(initU.semitoneShift, initU.ambient);
+  }
 
   const { webgl2 } = await renderer.init(ui.canvasHost);
   if (!webgl2) {
@@ -203,6 +277,7 @@ async function boot(): Promise<void> {
   let activeBookPage = 0;
   let storybooksCache: Awaited<ReturnType<typeof vault.listStorybooks>> = [];
   let transitioning = false;
+  let finaleJumping = false;
   let hudSig = '';
   let lastHudTime = 0;
   let pageCompleteNotified = false;
@@ -273,9 +348,12 @@ async function boot(): Promise<void> {
   };
 
   const currentTitle = (): string => {
-    if (currentMode === 'hub') return "Violet's Stargazer Studio";
+    if (currentMode === 'hub') {
+      const progress = computeUniverseProgress(vault.get());
+      return UNIVERSE_BY_ID[progress.activeUniverse].hubTitle;
+    }
     if (currentMode === 'book' && activeBook) return activeBook.title;
-    const ch = run.core() ? CHAPTERS.find((c) => c.id === run.currentChapter()) : undefined;
+    const ch = run.core() ? ALL_CHAPTERS.find((c) => c.id === run.currentChapter()) : undefined;
     return ch?.title ?? currentPage?.title ?? APP_NAME;
   };
 
@@ -298,6 +376,12 @@ async function boot(): Promise<void> {
   const pushHud = (force = false): void => {
     const v = vault.get();
     const c = run.core();
+    const progress = computeUniverseProgress(v);
+    const activeUId: UniverseId = c ? (run.universeId?.() ?? progress.activeUniverse) : progress.activeUniverse;
+    const uDef = UNIVERSE_BY_ID[activeUId];
+    const nextDef = UNIVERSES[uDef.index + 1] ?? null;
+    const isFrontierUniverse = !progress.completedSet.has(activeUId);
+    const nextUnlockName = nextDef && !progress.unlockedSet.has(nextDef.id) ? nextDef.shortName : null;
     const brushes = c?.brushes ?? ['standard'];
     const relics = c?.relics ?? [];
     const toolMode: ToolMode = doodle ? 'wand' : 'pencil';
@@ -318,6 +402,10 @@ async function boot(): Promise<void> {
       currentMode,
       currentTitle(),
       currentSlot(),
+      activeUId,
+      uDef.number,
+      isFrontierUniverse ? 1 : 0,
+      nextUnlockName ?? '',
       v.gems,
       hasAffordableUnlock ? 1 : 0,
       v.unlockedMaterials.join(','),
@@ -342,6 +430,12 @@ async function boot(): Promise<void> {
       mode: currentMode,
       chapterTitle: currentTitle(),
       slot: currentSlot(),
+      activeUniverse: activeUId,
+      universeNumber: uDef.number,
+      totalUniverses: TOTAL_UNIVERSES,
+      universeName: uDef.name,
+      nextUnlockName,
+      isFrontierUniverse,
       gems: v.gems,
       hasAffordableUnlock,
       materials: materialEntries(),
@@ -368,6 +462,7 @@ async function boot(): Promise<void> {
   const pushHub = async (): Promise<void> => {
     storybooksCache = await vault.listStorybooks();
     const v = vault.get();
+    const progress = computeUniverseProgress(v);
     const hasAffordableUnlock = computeHasAffordableUnlock(v);
     const hub: HubState = {
       gems: v.gems,
@@ -380,6 +475,11 @@ async function boot(): Promise<void> {
       hasRunInProgress: v.run !== null,
       hasAffordableUnlock,
       audioLevel: audio.level(),
+      activeUniverse: progress.activeUniverse,
+      universes: progress.items,
+      unlockedUniverseCount: progress.unlockedCount,
+      completedUniverseCount: progress.completedCount,
+      totalUniverses: TOTAL_UNIVERSES,
     };
     ui.updateHub(hub);
   };
@@ -497,6 +597,9 @@ async function boot(): Promise<void> {
   const loadChapterScene = (chapter: ChapterId, snapshot?: StoryPageSnapshot): void => {
     const c = run.core();
     if (!c) return;
+    const uId: UniverseId = run.universeId?.() ?? CHAPTER_TO_UNIVERSE[chapter] ?? 'chromaCosmos';
+    const uDef = UNIVERSE_BY_ID[uId];
+    audio.setUniverseTone?.(uDef.semitoneShift, uDef.ambient);
     const wardrobe = vault.get().wardrobe;
     currentSprites = art.sprites(wardrobe);
     const seed = (c.seed ^ Math.imul(c.chapterIndex + 1, 0x45d9f3b)) >>> 0;
@@ -525,13 +628,23 @@ async function boot(): Promise<void> {
     consumeViewAndRender(0, performance.now());
     syncStems();
     if (playPrologue) audio.uiFoley?.('paperRustle');
+    else if (c.chapterIndex === 0 && !snapshot && uId !== 'chromaCosmos') audio.uiFoley?.('wispChime');
     pushHud(true);
   };
 
   const loadHubScene = (): void => {
-    const wardrobe = vault.get().wardrobe;
+    const v = vault.get();
+    const wardrobe = v.wardrobe;
+    const progress = computeUniverseProgress(v);
+    const uDef = UNIVERSE_BY_ID[progress.activeUniverse];
+    audio.setUniverseTone?.(uDef.semitoneShift, uDef.ambient);
     currentSprites = art.sprites(wardrobe);
-    const page = art.compilePage('bedroomHub', 1, wardrobe);
+    let page: CompiledPage;
+    try {
+      page = art.compilePage(uDef.hub, 1, wardrobe);
+    } catch {
+      page = art.compilePage('bedroomHub', 1, wardrobe);
+    }
     currentPage = page;
     pageCompleteNotified = false;
     awakeRegionsKinds.clear();
@@ -554,10 +667,30 @@ async function boot(): Promise<void> {
     pushHud(true);
   };
 
+  const selectActiveUniverse = (id: UniverseId): boolean => {
+    if (!(id in UNIVERSE_BY_ID)) return false;
+    const progress = computeUniverseProgress(vault.get());
+    if (!progress.unlockedSet.has(id)) return false;
+    vault.update((d) => {
+      if (id === 'chromaCosmos') delete d.activeUniverse;
+      else d.activeUniverse = id;
+    });
+    vault.healCheck();
+    const uDef = UNIVERSE_BY_ID[id];
+    audio.setUniverseTone?.(uDef.semitoneShift, uDef.ambient);
+    if (currentMode === 'hub') loadHubScene();
+    void pushHub();
+    pushHud(true);
+    return true;
+  };
+
   const loadBookPage = (): void => {
     if (!activeBook || activeBook.pages.length === 0) return;
     activeBookPage = Math.max(0, Math.min(activeBook.pages.length - 1, activeBookPage));
     const snap = activeBook.pages[activeBookPage]!;
+    const bookUId: UniverseId = activeBook.universeId ?? CHAPTER_TO_UNIVERSE[snap.sceneId] ?? 'chromaCosmos';
+    const bookUDef = UNIVERSE_BY_ID[bookUId];
+    audio.setUniverseTone?.(bookUDef.semitoneShift, bookUDef.ambient);
     const wardrobe = vault.get().wardrobe;
     currentSprites = art.sprites(wardrobe);
     const page = art.compilePage(snap.sceneId, snap.seed, wardrobe);
@@ -584,6 +717,7 @@ async function boot(): Promise<void> {
         createdAt: activeBook.createdAt,
         pageCount: activeBook.pages.length,
         seed: activeBook.seed,
+        ...(activeBook.universeId ? { universeId: activeBook.universeId } : {}),
       },
       activeBookPage,
       activeBook.pages.length,
@@ -617,9 +751,11 @@ async function boot(): Promise<void> {
     await pushHub();
   };
 
-  const finishVoyage = async (): Promise<void> => {
+  const finishVoyage = async (): Promise<UniverseId | null> => {
     const galaxy = run.galaxyName();
     const c = run.core();
+    const uId: UniverseId = run.universeId?.() ?? 'chromaCosmos';
+    const uDef = UNIVERSE_BY_ID[uId];
     const bookId = `book-${c?.seed ?? Date.now()}-${Date.now()}`;
     const createdAt = Date.now();
     const book: Storybook = {
@@ -628,15 +764,29 @@ async function boot(): Promise<void> {
       galaxyName: galaxy,
       createdAt,
       seed: c?.seed ?? 1,
+      universeId: uId,
       pages: [...donePages],
     };
     await vault.saveStorybook(book);
 
+    const prevProgress = computeUniverseProgress(vault.get());
+    const isFirstClear = !prevProgress.completedSet.has(uId);
+    const bonusGems = isFirstClear ? GEM_REWARDS.universeFirstClear : 0;
+    const nextDef = UNIVERSES[uDef.index + 1] ?? null;
+    const newlyUnlockedDef = nextDef && !prevProgress.unlockedSet.has(nextDef.id) ? nextDef : null;
+
     const unlockedFromBadges: MaterialId[] = [];
     vault.update((d) => {
-      d.gems += GEM_REWARDS.runComplete;
+      d.gems += GEM_REWARDS.runComplete + bonusGems;
       d.stats.runsCompleted += 1;
       d.run = null;
+      const nextCompleted = new Set<UniverseId>(d.completedUniverses ?? []);
+      if (prevProgress.completedSet.has('chromaCosmos')) nextCompleted.add('chromaCosmos');
+      nextCompleted.add(uId);
+      d.completedUniverses = UNIVERSE_ORDER.filter((id) => nextCompleted.has(id));
+      if (newlyUnlockedDef) {
+        d.activeUniverse = newlyUnlockedDef.id;
+      }
       const checks: Array<[boolean, BadgeId]> = [
         [d.stats.runsCompleted >= 1, 'firstRun'],
         [d.stats.runsCompleted >= 3, 'threeRuns'],
@@ -659,10 +809,39 @@ async function boot(): Promise<void> {
       ui.toast(`Unlocked ${mName}!`);
     }
 
+    if (newlyUnlockedDef) {
+      audio.universeUnlock?.();
+    }
+
+    const afterProgress = computeUniverseProgress(vault.get());
+    const finaleMeta: FinaleMeta = {
+      universeId: uId,
+      universeName: uDef.name,
+      newlyUnlocked: newlyUnlockedDef
+        ? {
+            id: newlyUnlockedDef.id,
+            number: newlyUnlockedDef.number,
+            name: newlyUnlockedDef.name,
+            tagline: newlyUnlockedDef.tagline,
+          }
+        : null,
+      completedCount: afterProgress.completedCount,
+      totalUniverses: TOTAL_UNIVERSES,
+      bonusGems,
+    };
+
     setAppMode('finale');
     syncStems();
     pushHud(true);
-    await ui.showFinale(galaxy);
+    const choice = await ui.showFinale(galaxy, finaleMeta);
+    if (typeof choice === 'string' && choice in UNIVERSE_BY_ID && afterProgress.unlockedSet.has(choice)) {
+      finaleJumping = true;
+      return choice;
+    }
+    if (currentMode === 'finale') {
+      await enterHub();
+    }
+    return null;
   };
 
   const runDoorSelection = async (): Promise<void> => {
@@ -707,6 +886,7 @@ async function boot(): Promise<void> {
   const handleTurnPage = async (_early: boolean): Promise<void> => {
     if (transitioning || !run.core()) return;
     transitioning = true;
+    let stepIntoUniverse: UniverseId | null = null;
     try {
       const snap = sim.snapshotPage();
       donePages.push(snap);
@@ -715,27 +895,48 @@ async function boot(): Promise<void> {
       const next = run.completeChapter();
       persistRunCore();
       if (next === 'complete') {
-        await finishVoyage();
+        stepIntoUniverse = await finishVoyage();
       } else {
         await runDraftAndDoorFlow();
       }
     } finally {
       transitioning = false;
     }
+    if (stepIntoUniverse) {
+      try {
+        await startNewRun((Date.now() ^ 0x9e3779b9) & 0x7fffffff, stepIntoUniverse);
+      } finally {
+        finaleJumping = false;
+      }
+    } else {
+      finaleJumping = false;
+    }
   };
 
-  const startNewRun = async (seed: number): Promise<void> => {
+  const startNewRun = async (seed: number, explicitUniverseId?: UniverseId): Promise<void> => {
     if (transitioning) return;
     transitioning = true;
     try {
-      const core: RunCore = run.start(seed);
+      const progress = computeUniverseProgress(vault.get());
+      const requested = explicitUniverseId ?? progress.activeUniverse;
+      const uId: UniverseId =
+        requested in UNIVERSE_BY_ID && progress.unlockedSet.has(requested) ? requested : 'chromaCosmos';
+      if (uId !== progress.activeUniverse) {
+        vault.update((d) => {
+          if (uId === 'chromaCosmos') delete d.activeUniverse;
+          else d.activeUniverse = uId;
+        });
+      }
+      const core: RunCore = run.start(seed, uId);
+      const uDef = UNIVERSE_BY_ID[uId];
+      audio.setUniverseTone?.(uDef.semitoneShift, uDef.ambient);
       donePages = [];
       selectedBrush = 'standard';
       doodle = false;
       await vault.saveRunPages(null, []);
       persistRunCore();
       setAppMode('chapter');
-      loadChapterScene(core.path[0] ?? 'rooftop');
+      loadChapterScene(core.path[0] ?? uDef.chapters[0]?.id ?? 'rooftop');
       await pushHub();
     } finally {
       transitioning = false;
@@ -749,6 +950,8 @@ async function boot(): Promise<void> {
     transitioning = true;
     try {
       run.resume(saved);
+      const uDef = UNIVERSE_BY_ID[run.universeId?.() ?? 'chromaCosmos'];
+      audio.setUniverseTone?.(uDef.semitoneShift, uDef.ambient);
       const pages = await vault.loadRunPages();
       donePages = pages.done;
       selectedBrush = saved.brushes[saved.brushes.length - 1] ?? 'standard';
@@ -773,6 +976,10 @@ async function boot(): Promise<void> {
       },
       onContinueRun() {
         void continueSavedRun();
+      },
+      onSelectUniverse(id) {
+        if (transitioning) return;
+        selectActiveUniverse(id);
       },
       onSelectMaterial(id) {
         selectedMaterial = id;
@@ -898,7 +1105,7 @@ async function boot(): Promise<void> {
         if (!activeBook) return;
         const snap = activeBook.pages[activeBookPage];
         if (!snap) return;
-        const chapterTitle = CHAPTERS.find((c) => c.id === snap.sceneId)?.title ?? snap.sceneId;
+        const chapterTitle = ALL_CHAPTERS.find((c) => c.id === snap.sceneId)?.title ?? snap.sceneId;
         const pageCanvas = renderer.capturePage(4);
         const postcard = keepsake.renderPostcard(pageCanvas, {
           title: activeBook.title,
@@ -923,7 +1130,7 @@ async function boot(): Promise<void> {
           }
           const pageIdx = book.pages.length - 1;
           const snap = book.pages[pageIdx]!;
-          const chapterTitle = CHAPTERS.find((c) => c.id === snap.sceneId)?.title ?? snap.sceneId;
+          const chapterTitle = ALL_CHAPTERS.find((c) => c.id === snap.sceneId)?.title ?? snap.sceneId;
           const prevMode = currentMode;
           const wardrobe = vault.get().wardrobe;
           const sprites = art.sprites(wardrobe);
@@ -970,6 +1177,8 @@ async function boot(): Promise<void> {
           .importJson(text)
           .then(async () => {
             audio.setLevel(vault.get().audioLevel);
+            const importedU = UNIVERSE_BY_ID[computeUniverseProgress(vault.get()).activeUniverse];
+            audio.setUniverseTone?.(importedU.semitoneShift, importedU.ambient);
             currentSprites = art.sprites(vault.get().wardrobe);
             sim.setSprites?.(currentSprites);
             if (currentMode === 'hub') loadHubScene();
@@ -998,7 +1207,13 @@ async function boot(): Promise<void> {
         sim.hover(p);
       },
       onFinaleDone() {
-        void enterHub();
+        void Promise.resolve()
+          .then(() => Promise.resolve())
+          .then(() => {
+            if (currentMode === 'finale' && !finaleJumping) {
+              void enterHub();
+            }
+          });
       },
     },
     {
@@ -1332,8 +1547,36 @@ async function boot(): Promise<void> {
         await nextAnimFrame();
         return true;
       },
-      startRun(seed = 4242) {
-        void startNewRun(seed);
+      startRun(seed = 4242, universeId) {
+        void startNewRun(seed, universeId);
+      },
+      universes() {
+        return computeUniverseProgress(vault.get()).items.map((u) => ({
+          ...u,
+          chapterTitles: [...u.chapterTitles],
+        }));
+      },
+      selectUniverse(id) {
+        return selectActiveUniverse(id);
+      },
+      unlockUpTo(count) {
+        const clamped = Math.max(1, Math.min(TOTAL_UNIVERSES, Math.floor(count)));
+        const completed = clamped > 1 ? [...UNIVERSE_ORDER.slice(0, clamped - 1)] : [];
+        vault.update((d) => {
+          if (completed.length > 0) d.completedUniverses = completed;
+          else delete d.completedUniverses;
+          if (clamped === 1 && d.stats.runsCompleted > 0) {
+            // Preserve stats; activeUniverse resets if now locked
+          }
+          const nextUnlocked = new Set<UniverseId>(UNIVERSE_ORDER.slice(0, clamped));
+          if (d.activeUniverse && !nextUnlocked.has(d.activeUniverse)) {
+            delete d.activeUniverse;
+          }
+        });
+        vault.healCheck();
+        if (currentMode === 'hub') loadHubScene();
+        void pushHub();
+        pushHud(true);
       },
       async completePage() {
         if (!currentPage) return;

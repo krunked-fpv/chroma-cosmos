@@ -5,7 +5,6 @@
  * except a low-passed saw tucked under the pad.
  */
 import { expTo, linTo, setAt, type Rig } from './graph';
-import { lydianFreq } from './scale';
 
 export interface VoiceOpts {
   dest?: AudioNode;
@@ -34,13 +33,15 @@ export function pluck(rig: Rig, t: number, freq: number, o: PluckOpts = {}): voi
   const decay = o.decay ?? 0.9;
   const dest = o.dest ?? rig.out;
   const bright = o.bright ?? 5;
+  const startCut = rig.lpFreq(Math.min(freq * bright, 9000));
+  const endCut = rig.lpFreq(Math.min(freq * 1.6, 9000));
   rig.build((g) => {
     const osc = g.osc('triangle', freq);
-    const lp = g.filter('lowpass', Math.min(freq * bright, 9000), 0.5);
+    const lp = g.filter('lowpass', startCut, 0.5);
     const env = g.gain(0);
     const end = envAD(env.gain, t, gain, 0.004, decay) + 0.05;
-    setAt(lp.frequency, Math.min(freq * bright, 9000), t);
-    expTo(lp.frequency, Math.min(freq * 1.6, 9000), t + decay * 0.6);
+    setAt(lp.frequency, startCut, t);
+    expTo(lp.frequency, endCut, t + decay * 0.6);
     osc.connect(lp);
     lp.connect(env);
     env.connect(dest);
@@ -154,7 +155,7 @@ export function padChord(rig: Rig, t: number, degrees: readonly number[], dur: n
   const attack = 1.4;
   const release = 1.6;
   rig.build((g) => {
-    const lp = g.filter('lowpass', 850, 0.5);
+    const lp = g.filter('lowpass', rig.lpFreq(850), 0.5);
     const env = g.gain(0);
     const end = t + dur + release;
     setAt(env.gain, 0, t);
@@ -164,7 +165,7 @@ export function padChord(rig: Rig, t: number, degrees: readonly number[], dur: n
     lp.connect(env);
     env.connect(dest);
     degrees.slice(0, 5).forEach((d, i) => {
-      const f = lydianFreq(d);
+      const f = rig.freq(d);
       const tri = g.osc('triangle', f);
       tri.connect(lp);
       g.play(tri, t, end + 0.05);
@@ -213,7 +214,7 @@ export function whoosh(rig: Rig, t: number, dest?: AudioNode): void {
 /** Rising swell of several held tones (auto-bloom). Per-note staggered entrance. */
 export function swell(rig: Rig, t: number, degrees: readonly number[], hold: number, gains: readonly number[]): void {
   rig.build((g) => {
-    const lp = g.filter('lowpass', 2600, 0.5);
+    const lp = g.filter('lowpass', rig.lpFreq(2600), 0.5);
     lp.connect(rig.out);
     degrees.forEach((d, i) => {
       const start = t + i * 0.07;
@@ -224,7 +225,7 @@ export function swell(rig: Rig, t: number, degrees: readonly number[], hold: num
       linTo(ng.gain, peak, start + 0.4);
       setAt(ng.gain, peak, start + 0.4 + hold);
       linTo(ng.gain, 0, end);
-      const o = g.osc(i % 2 === 0 ? 'sine' : 'triangle', lydianFreq(d));
+      const o = g.osc(i % 2 === 0 ? 'sine' : 'triangle', rig.freq(d));
       o.connect(ng);
       ng.connect(lp);
       g.play(o, start, end + 0.05);

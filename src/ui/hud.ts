@@ -110,6 +110,9 @@ export class Hud {
   readonly dock: HTMLElement;
 
   private readonly spineNodes: HTMLElement[] = [];
+  private readonly spinePill: HTMLElement;
+  private readonly spineUniBadge: HTMLElement;
+  private readonly spineUnlockChip: HTMLElement;
   private readonly spineTitle: HTMLElement;
 
   private readonly jarArtSlot: HTMLElement;
@@ -208,11 +211,19 @@ export class Hud {
         nodesRow.append(h('li', { class: 'cc-node-link', 'aria-hidden': 'true' }));
       }
     }
+    this.spineUniBadge = h('span', { class: 'cc-spine-uni', hidden: true });
+    this.spineUnlockChip = h('span', { class: 'cc-spine-unlock-chip', hidden: true });
     this.spineTitle = h('span', { class: 'cc-spine-title' });
+    this.spinePill = h(
+      'div',
+      { class: 'cc-voyage-pill' },
+      h('div', { class: 'cc-voyage-top-row' }, this.spineUniBadge, nodesRow, this.spineUnlockChip),
+      this.spineTitle,
+    );
     this.voyageSpine = h(
       'header',
       { class: 'cc-voyage-spine', 'aria-label': 'Constellation Voyage Ribbon' },
-      h('div', { class: 'cc-voyage-pill' }, nodesRow, this.spineTitle),
+      this.spinePill,
     );
 
     // ---- 2. Top-Left: Frosted Midnight-Plum Glass-Enamel Prism Crystal Pill
@@ -539,6 +550,35 @@ export class Hud {
     });
   }
 
+  private setUniverseMeta(s: HudState): void {
+    const num = s.universeNumber;
+    const total = s.totalUniverses ?? 21;
+    if (num !== undefined && num >= 1) {
+      const tag = `U${num}`;
+      if (this.spineUniBadge.textContent !== tag) this.spineUniBadge.textContent = tag;
+      const tip = s.universeName ? `Universe ${num} of ${total}: ${s.universeName}` : `Universe ${num} of ${total}`;
+      this.spineUniBadge.title = tip;
+      this.spineUniBadge.setAttribute('aria-label', tip);
+      setShown(this.spineUniBadge, true);
+    } else {
+      setShown(this.spineUniBadge, false);
+    }
+
+    const frontierFinale = Boolean(s.slot === 5 && s.isFrontierUniverse && num !== undefined && num < total);
+    this.spinePill.classList.toggle('is-frontier-finale', frontierFinale);
+    if (frontierFinale) {
+      const nextNum = num! + 1;
+      const text = `Unlocks #${nextNum}!`;
+      if (this.spineUnlockChip.textContent !== text) this.spineUnlockChip.textContent = text;
+      this.spineUnlockChip.title = s.nextUnlockName
+        ? `Final page unlocks #${nextNum} ${s.nextUnlockName}!`
+        : `Final page unlocks Universe #${nextNum}!`;
+      setShown(this.spineUnlockChip, true);
+    } else {
+      setShown(this.spineUnlockChip, false);
+    }
+  }
+
   setGems(n: number): void {
     const safe = Math.max(0, Math.floor(n));
     const s = String(safe);
@@ -712,6 +752,7 @@ export class Hud {
     this.last = s;
     this.setTitle(s.chapterTitle);
     this.setSlot(s.slot);
+    this.setUniverseMeta(s);
     this.setGems(s.gems);
     this.setAudio(s.audioLevel);
 

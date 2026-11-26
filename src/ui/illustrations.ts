@@ -13,6 +13,7 @@ export function illustrationKey(k: IllustrationKind, w: number, h: number): stri
     case 'portrait': return `portrait:${k.who}:${w}x${h}`;
     case 'uiSprite': return `uiSprite:${k.id}:${w}x${h}`;
     case 'questMedallion': return `questMedallion:${k.quest}:${k.completed ? 1 : 0}:${w}x${h}`;
+    case 'universePortal': return `universePortal:${k.universe}:${k.locked ? 1 : 0}:${k.completed ? 1 : 0}:${w}x${h}`;
   }
 }
 

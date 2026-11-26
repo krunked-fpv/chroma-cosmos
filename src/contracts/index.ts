@@ -3,6 +3,7 @@ export * from './materials';
 export * from './regions';
 export * from './causality';
 export * from './roguelike';
+export * from './universes';
 export * from './progression';
 export * from './art';
 export * from './input';

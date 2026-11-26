@@ -309,6 +309,7 @@ export function createVault(b: Partial<VaultBackends> = {}, opts: VaultOptions =
           createdAt: bk.createdAt,
           pageCount: bk.pages.length,
           ...(isFiniteNum(bk.seed) ? { seed: bk.seed } : {}),
+          ...(bk.universeId ? { universeId: bk.universeId } : {}),
         }))
         .sort((a, c) => c.createdAt - a.createdAt || (a.id < c.id ? -1 : a.id > c.id ? 1 : 0));
     },

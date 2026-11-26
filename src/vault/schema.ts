@@ -4,7 +4,6 @@ import { CORE_MATERIAL_IDS, MATERIALS, type MaterialId } from '../contracts/mate
 import { BADGE_ORDER, WARDROBE_ITEMS, type BadgeId, type WardrobeItemId, type WardrobeState } from '../contracts/progression';
 import {
   ACTIVE_BRUSH_IDS,
-  CHAPTERS,
   DRAFT_CARDS,
   RELIC_IDS,
   type BrushId,
@@ -14,6 +13,7 @@ import {
   type RunCore,
   type RunPhase,
 } from '../contracts/roguelike';
+import { ALL_CHAPTERS, CHAPTER_TO_UNIVERSE, UNIVERSE_ORDER, type UniverseId } from '../contracts/universes';
 import type { VaultState } from '../contracts/vault';
 
 export const BRUSH_ORDER: readonly BrushId[] = ['standard', ...ACTIVE_BRUSH_IDS];
@@ -22,7 +22,8 @@ export const DRAFT_CARD_ORDER: readonly DraftCardId[] = DRAFT_CARDS.map((c) => c
 export const PHASE_ORDER: readonly RunPhase[] = ['chapter', 'draft', 'doors', 'finale'];
 
 const MATERIAL_IDS: ReadonlySet<number> = new Set(MATERIALS.map((m) => m.id));
-const CHAPTER_IDS: ReadonlySet<string> = new Set(CHAPTERS.map((c) => c.id));
+const CHAPTER_IDS: ReadonlySet<string> = new Set(ALL_CHAPTERS.map((c) => c.id));
+const UNIVERSE_SET: ReadonlySet<UniverseId> = new Set(UNIVERSE_ORDER);
 
 export function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -89,7 +90,7 @@ const PHASE_SET: ReadonlySet<RunPhase> = new Set(PHASE_ORDER);
 
 export function parseRunCore(raw: unknown): RunCore | null {
   if (!isRecord(raw)) return null;
-  const { seed, chapterIndex, path, brushes, relics, phase } = raw;
+  const { seed, chapterIndex, path, brushes, relics, phase, universeId } = raw;
   if (!isUint(seed, 0xffffffff)) return null;
   if (!isUint(chapterIndex, 4)) return null;
   if (!Array.isArray(path) || path.length > 5) return null;
@@ -98,6 +99,18 @@ export function parseRunCore(raw: unknown): RunCore | null {
   const r = idList(relics, RELIC_SET);
   if (!b || !r) return null;
   if (typeof phase !== 'string' || !PHASE_SET.has(phase as RunPhase)) return null;
+  let resolvedUniverse: UniverseId | undefined;
+  if (universeId !== undefined) {
+    if (typeof universeId !== 'string' || !UNIVERSE_SET.has(universeId as UniverseId)) return null;
+    resolvedUniverse = universeId as UniverseId;
+  } else if (path.length > 0) {
+    const inferred = CHAPTER_TO_UNIVERSE[path[0] as ChapterId];
+    if (inferred && inferred !== 'chromaCosmos') resolvedUniverse = inferred;
+  }
+  const effectiveUniverse: UniverseId = resolvedUniverse ?? 'chromaCosmos';
+  for (const p of path as ChapterId[]) {
+    if (CHAPTER_TO_UNIVERSE[p] !== effectiveUniverse) return null;
+  }
   return {
     seed,
     chapterIndex: chapterIndex as RunCore['chapterIndex'],
@@ -105,14 +118,15 @@ export function parseRunCore(raw: unknown): RunCore | null {
     brushes: b,
     relics: r,
     phase: phase as RunPhase,
+    ...(effectiveUniverse !== 'chromaCosmos' ? { universeId: effectiveUniverse } : {}),
   };
 }
 
 /**
  * Validates + normalises an untrusted object into a VaultState (null when invalid).
  * strict=false (storage tiers): missing optional fields fall back to defaults, wrong-typed fields are invalid.
- * strict=true (import): every required v1 field must be present and valid; Sprint 1->2 backward-compat fields
- * (newly added wardrobe keys, discoveredCards, prologueSeen) default gracefully when omitted.
+ * strict=true (import): every required v1 field must be present and valid; Sprint 1->2 & Multiverse optional fields
+ * (newly added wardrobe keys, discoveredCards, completedUniverses, activeUniverse, prologueSeen) default gracefully when omitted.
  */
 export function parseVaultState(raw: unknown, strict = false): VaultState | null {
   if (!isRecord(raw) || raw.v !== 1) return null;
@@ -171,6 +185,19 @@ export function parseVaultState(raw: unknown, strict = false): VaultState | null
     discoveredCards = l;
   }
 
+  let completedUniverses: UniverseId[] | undefined;
+  if (has('completedUniverses')) {
+    const l = idList(raw.completedUniverses, UNIVERSE_SET);
+    if (!l) return null;
+    if (l.length > 0) completedUniverses = l;
+  }
+
+  let activeUniverse: UniverseId | undefined;
+  if (has('activeUniverse')) {
+    if (typeof raw.activeUniverse !== 'string' || !UNIVERSE_SET.has(raw.activeUniverse as UniverseId)) return null;
+    if (raw.activeUniverse !== 'chromaCosmos') activeUniverse = raw.activeUniverse as UniverseId;
+  }
+
   let audioLevel: AudioLevel = def.audioLevel;
   if (has('audioLevel')) {
     const a = raw.audioLevel;
@@ -210,5 +237,21 @@ export function parseVaultState(raw: unknown, strict = false): VaultState | null
     updatedAt = raw.updatedAt;
   }
 
-  return { v: 1, gems, badges, unlockedMaterials, wardrobeOwned, wardrobe, discoveredCards, audioLevel, run, stats, prologueSeen, updatedAt };
+  const out: VaultState = {
+    v: 1,
+    gems,
+    badges,
+    unlockedMaterials,
+    wardrobeOwned,
+    wardrobe,
+    discoveredCards,
+    ...(completedUniverses ? { completedUniverses } : {}),
+    ...(activeUniverse ? { activeUniverse } : {}),
+    audioLevel,
+    run,
+    stats,
+    prologueSeen,
+    updatedAt,
+  };
+  return out;
 }

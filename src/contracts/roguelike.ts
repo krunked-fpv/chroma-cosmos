@@ -1,8 +1,20 @@
 /** Roguelike voyage contracts (20 Astral Pencil Tin upgrades: 10 Active Brushes + 10 Passive Sticker Relics). */
-export type ChapterId =
+import type { HubSceneId, UniverseId } from './universes';
+
+export type LegacyChapterId =
   | 'rooftop' | 'milkshakeNebula' | 'asteroidGarden' | 'cheetahSavannah'
   | 'saturnRings' | 'bubbleTea' | 'whaleSea' | 'heartOfUniverse';
-export type SceneId = ChapterId | 'bedroomHub';
+
+export type UniverseNumberCode =
+  | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11'
+  | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21';
+
+export type UniverseChapterSlot = 'c1' | 'c2a' | 'c2b' | 'c3a' | 'c3b' | 'c4a' | 'c4b' | 'c5';
+
+export type MultiverseChapterId = `u${UniverseNumberCode}_${UniverseChapterSlot}`;
+
+export type ChapterId = LegacyChapterId | MultiverseChapterId;
+export type SceneId = ChapterId | HubSceneId;
 
 export interface ChapterDef {
   id: ChapterId;
@@ -108,12 +120,15 @@ export interface RunCore {
   brushes: BrushId[];
   relics: RelicId[];
   phase: RunPhase;
+  /** Active universe for this 5-chapter voyage (defaults to 'chromaCosmos' when omitted). */
+  universeId?: UniverseId;
 }
 
 export interface RunManagerPort {
-  start(seed: number): RunCore;
+  start(seed: number, universeId?: UniverseId): RunCore;
   resume(c: RunCore): void;
   core(): RunCore | null;
+  universeId?(): UniverseId;
   currentChapter(): ChapterId;
   /** Advances phase: slots 1..4 -> 'draft'; after draft -> 'doors'; slot 5 -> 'complete'. */
   completeChapter(): RunPhase | 'complete';

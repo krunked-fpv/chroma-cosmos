@@ -39,6 +39,7 @@ export const GEM_REWARDS = {
   hiddenStar: 2,
   milkshakeBonus: 2,
   gravityPokeBonus: 2,
+  universeFirstClear: 25,
 } as const;
 export const BRUSH_RADIUS_PX = {
   standard: 6,

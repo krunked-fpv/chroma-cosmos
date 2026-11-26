@@ -3,6 +3,7 @@ import type { ActorKind } from './art';
 import type { CausalityKind } from './causality';
 import type { MaterialId } from './materials';
 import type { RegionKind } from './regions';
+import type { UniverseAmbientKind } from './universes';
 
 /** 0 = muted; cycle 3 -> 2 -> 1 -> 0 -> 3 */
 export type AudioLevel = 0 | 1 | 2 | 3;
@@ -41,6 +42,10 @@ export interface AudioPort {
   hintLantern?(): void;
   /** Warm low-pass procedural tabletop ASMR foley (strictly zero voices). */
   uiFoley?(kind: UiFoleyKind): void;
+  /** Transpose generative F-Lydian harmonic palette & ambient shimmer for the active universe. */
+  setUniverseTone?(semitoneShift: number, ambient?: UniverseAmbientKind): void;
+  /** Sparkling multiversal fanfare played when completing a frontier universe unlocks the next realm. */
+  universeUnlock?(): void;
   setStems(s: StemId[]): void;
   /** 0..1 position within the current beat, from the audio clock (or wall clock before unlock) */
   beatPhase(): number;

@@ -258,6 +258,75 @@ describe('master chain and level', () => {
     audio.stroke(true, 1, 4);
     expect(audio.stats()).toEqual(before);
   });
+
+  it('unlock() is idempotent when running and resumes cleanly after iOS/Tesla suspended or interrupted states', async () => {
+    class StatefulMockAudioContext extends MockAudioContext {
+      state: 'suspended' | 'running' | 'interrupted' | 'closed' = 'suspended';
+      override async resume(): Promise<void> {
+        await super.resume();
+        this.state = 'running';
+      }
+      override async close(): Promise<void> {
+        await super.close();
+        this.state = 'closed';
+      }
+    }
+
+    vi.stubGlobal('AudioContext', StatefulMockAudioContext);
+    const audio = createAudio();
+    audio.setStems(['pad']);
+
+    await audio.unlock();
+    const ctx = MockAudioContext.last() as StatefulMockAudioContext;
+    expect(ctx.state).toBe('running');
+    expect(ctx.resumeCalls).toBe(1);
+
+    // Calling unlock() while already running is a cheap no-op
+    await audio.unlock();
+    expect(ctx.resumeCalls).toBe(1);
+
+    // iOS WebKit audio interruption -> unlock() resumes cleanly
+    ctx.state = 'interrupted';
+    audio.autoBloom(); // silent while interrupted
+    const createdWhileInterrupted = audio.stats().totalCreated;
+    await audio.unlock();
+    expect(ctx.state).toBe('running');
+    expect(ctx.resumeCalls).toBe(2);
+    audio.autoBloom();
+    expect(audio.stats().totalCreated).toBeGreaterThan(createdWhileInterrupted);
+
+    // Tesla tab/camera suspend -> unlock() resumes cleanly
+    ctx.state = 'suspended';
+    await audio.unlock();
+    expect(ctx.state).toBe('running');
+    expect(ctx.resumeCalls).toBe(3);
+
+    audio.dispose();
+  });
+
+  it('starts pre-requested stems on first unlock() even when AudioContext starts immediately in running state', async () => {
+    vi.useFakeTimers();
+    class RunningOnCreateAudioContext extends MockAudioContext {
+      state: 'running' | 'suspended' = 'running';
+    }
+    vi.stubGlobal('AudioContext', RunningOnCreateAudioContext);
+
+    const audio = createAudio();
+    audio.setStems(['pad']);
+    expect(vi.getTimerCount()).toBe(0);
+
+    await audio.unlock();
+    const ctx = MockAudioContext.last() as RunningOnCreateAudioContext;
+    expect(vi.getTimerCount()).toBe(1);
+    expect(ctx.resumeCalls).toBe(0);
+
+    // Subsequent unlock while already running stays a cheap no-op
+    await audio.unlock();
+    expect(ctx.resumeCalls).toBe(0);
+
+    audio.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe('node lifetime', () => {

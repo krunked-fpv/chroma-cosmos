@@ -59,6 +59,7 @@ export function createRenderer(): RendererPort {
   let app: Application | null = null;
   let host: HTMLElement | null = null;
   let resizeObs: ResizeObserver | null = null;
+  const viewportOffs: Array<() => void> = [];
   let fit: Fit = computeFit(PAGE_W * 2, PAGE_H * 2);
   let adaptive = new AdaptiveResolution(1);
   let resolution = 1;
@@ -575,6 +576,30 @@ export function createRenderer(): RendererPort {
 
     resizeObs = new ResizeObserver(() => resizeToHost());
     resizeObs.observe(h);
+    const syncViewport = (): void => {
+      if (destroyed || !app) return;
+      const dprNow = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      adaptive.setCeiling(initialResolution(dprNow));
+      if (adaptive.resolution !== resolution) resolution = adaptive.resolution;
+      resizeToHost();
+    };
+    const onOrientation = (): void => {
+      syncViewport();
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', syncViewport);
+      window.addEventListener('orientationchange', onOrientation);
+      viewportOffs.push(() => {
+        window.removeEventListener('resize', syncViewport);
+        window.removeEventListener('orientationchange', onOrientation);
+      });
+      const vv = window.visualViewport;
+      if (vv && typeof vv.addEventListener === 'function') {
+        vv.addEventListener('resize', syncViewport);
+        viewportOffs.push(() => vv.removeEventListener('resize', syncViewport));
+      }
+    }
     resizeToHost();
     return { webgl2: true };
   }
@@ -820,6 +845,7 @@ export function createRenderer(): RendererPort {
     stop();
     resizeObs?.disconnect();
     resizeObs = null;
+    for (const off of viewportOffs.splice(0)) off();
     if (app) {
       const cv = canvas();
       cv.removeEventListener('webglcontextlost', onContextLost as EventListener);

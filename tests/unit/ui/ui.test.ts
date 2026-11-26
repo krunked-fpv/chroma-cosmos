@@ -721,4 +721,86 @@ describe('Midnight Cloisonne Storybook Frame & Hi-Bit HUD (UiPort)', () => {
     await vi.waitFor(() => expect(promptSpy).toHaveBeenCalledTimes(1));
     expect(wrap.hidden).toBe(true);
   });
+
+  it('senses touch input on rootEl, renders a zero-SVG Hi-Bit portrait rotate guard, and turns Storybook pages on horizontal touch swipe', async () => {
+    const ui = createUi(root);
+    const cb = mockCallbacks();
+    const { deps } = mockDeps();
+    ui.mount(cb, deps);
+
+    const rootEl = root.querySelector<HTMLElement>('.cc-root')!;
+    expect(rootEl.dataset.touch).toBeUndefined();
+
+    // Runtime touch detection marks data-touch="true" (needed on Tesla Chromium where media queries report desktop fine pointer)
+    rootEl.dispatchEvent(makePointerEvent('pointerdown', 100, 100, 5));
+    expect(rootEl.dataset.touch).toBe('true');
+
+    // Phone portrait rotate-to-landscape guard uses Hi-Bit pixel canvases (zero inline <svg>)
+    const guard = root.querySelector<HTMLElement>('.cc-rotate-guard')!;
+    expect(guard).not.toBeNull();
+    expect(guard.querySelectorAll('svg').length).toBe(0);
+    expect(guard.querySelectorAll('canvas.cc-pix').length).toBeGreaterThanOrEqual(2);
+    const rotateBtn = guard.querySelector<HTMLButtonElement>('.cc-rotate-btn')!;
+    expect(rotateBtn).not.toBeNull();
+    const lockSpy = vi.fn(async () => undefined);
+    const origOrient = Object.getOwnPropertyDescriptor(window.screen, 'orientation');
+    Object.defineProperty(window.screen, 'orientation', { value: { lock: lockSpy }, configurable: true });
+    try {
+      rotateBtn.click();
+      await vi.waitFor(() => expect(lockSpy).toHaveBeenCalledWith('landscape'));
+    } finally {
+      if (origOrient) Object.defineProperty(window.screen, 'orientation', origOrient);
+      else delete (window.screen as unknown as { orientation?: unknown }).orientation;
+    }
+
+    // Storybook horizontal touch swipe turns pages while short taps keep poking
+    const book = sampleHub().storybooks[0]!;
+    ui.showBook(book, 1, 5);
+    vi.mocked(cb.onBookPage).mockClear();
+    vi.mocked(cb.onUiFoley!).mockClear();
+
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerdown', 120, 90, 9));
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerup', 126, 92, 9));
+    expect(cb.onBookPage).not.toHaveBeenCalled();
+
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerdown', 260, 120, 10));
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerup', 150, 125, 10));
+    expect(cb.onBookPage).toHaveBeenCalledWith(1);
+    expect(cb.onUiFoley).toHaveBeenCalledWith('paperRustle');
+
+    // Swiping past first page (0) or last page (4) does not play paperRustle or reload current page
+    ui.showBook(book, 0, 5);
+    vi.mocked(cb.onBookPage).mockClear();
+    vi.mocked(cb.onUiFoley!).mockClear();
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerdown', 120, 120, 11));
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerup', 240, 122, 11));
+    expect(cb.onBookPage).not.toHaveBeenCalled();
+    expect(cb.onUiFoley).not.toHaveBeenCalledWith('paperRustle');
+
+    ui.showBook(book, 4, 5);
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerdown', 260, 120, 12));
+    ui.canvasHost.dispatchEvent(makePointerEvent('pointerup', 140, 122, 12));
+    expect(cb.onBookPage).not.toHaveBeenCalled();
+    expect(cb.onUiFoley).not.toHaveBeenCalledWith('paperRustle');
+  });
+
+  it('does not eagerly set data-touch on fine-pointer hybrid laptops until an actual touch event occurs', () => {
+    const origTouchPoints = Object.getOwnPropertyDescriptor(navigator, 'maxTouchPoints');
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 10, configurable: true });
+    try {
+      const ui = createUi(root);
+      const cb = mockCallbacks();
+      const { deps } = mockDeps();
+      ui.mount(cb, deps);
+
+      const rootEl = root.querySelector<HTMLElement>('.cc-root')!;
+      expect(rootEl.dataset.touch).toBeUndefined();
+
+      rootEl.dispatchEvent(makePointerEvent('pointerdown', 80, 80, 15));
+      expect(rootEl.dataset.touch).toBe('true');
+    } finally {
+      if (origTouchPoints) Object.defineProperty(navigator, 'maxTouchPoints', origTouchPoints);
+      else delete (navigator as unknown as { maxTouchPoints?: number }).maxTouchPoints;
+    }
+  });
 });

@@ -61,10 +61,13 @@ class AudioEngine implements AudioPort {
   async unlock(): Promise<void> {
     if (this.disposed) return;
     try {
-      if (!this.ctx) this.create();
+      const created = !this.ctx;
+      if (created) this.create();
       const ctx = this.ctx;
       if (!ctx) return;
-      if (ctx.state !== 'running' && typeof ctx.resume === 'function') await ctx.resume();
+      const st = ctx.state as string | undefined;
+      if (!created && st === 'running') return;
+      if (st !== 'running' && typeof ctx.resume === 'function') await ctx.resume();
       if (this.disposed) return;
       this.pulse?.setStems(this.stems);
     } catch {

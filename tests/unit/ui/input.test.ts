@@ -171,12 +171,161 @@ describe('PointerInput', () => {
     expect(events[2]!.y).toBeGreaterThanOrEqual(0);
     expect(events[2]!.y).toBeLessThan(270);
 
-    // contextmenu / dblclick / gesturestart are prevented
-    for (const type of ['contextmenu', 'dblclick', 'gesturestart']) {
+    // contextmenu / dblclick / gesturestart / touchmove are prevented
+    for (const type of ['contextmenu', 'dblclick', 'gesturestart', 'touchmove']) {
       const ev = new Event(type, { cancelable: true });
       host.dispatchEvent(ev);
       expect(ev.defaultPrevented).toBe(true);
     }
+
+    input.destroy();
+    host.remove();
+  });
+
+  it('normalizes zero touch/pen active pressure to 0.5 and clears hover on touch end/cancel', () => {
+    const host = makeHost();
+    const events: GestureEvent[] = [];
+    const hover = vi.fn();
+    const touchSensed = vi.fn();
+    const input = new PointerInput(host, {
+      toInternal: (x, y) => ({ x, y }),
+      gesture: (e) => events.push(e),
+      hover,
+      enabled: () => true,
+      touchSensed,
+    });
+
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 10, clientX: 40, clientY: 50, pointerType: 'touch', pressure: 0 }));
+    host.dispatchEvent(pointerEvent('pointermove', { pointerId: 10, clientX: 60, clientY: 70, pointerType: 'touch', pressure: 0 }));
+    host.dispatchEvent(pointerEvent('pointerup', { pointerId: 10, clientX: 65, clientY: 72, pointerType: 'touch', pressure: 0 }));
+
+    expect(touchSensed).toHaveBeenCalled();
+    expect(events.map((e) => [e.phase, e.pressure])).toEqual([
+      ['start', 0.5],
+      ['move', 0.5],
+      ['end', 0],
+    ]);
+    expect(hover).toHaveBeenLastCalledWith(null);
+
+    hover.mockClear();
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 11, clientX: 80, clientY: 90, pointerType: 'touch', pressure: 0 }));
+    host.dispatchEvent(pointerEvent('pointercancel', { pointerId: 11, clientX: 80, clientY: 90, pointerType: 'touch', pressure: 0 }));
+    expect(hover).toHaveBeenLastCalledWith(null);
+
+    input.destroy();
+    host.remove();
+  });
+
+  it('lets a stylus (pen) preempt an active resting-palm touch, while ignoring a second finger touch', () => {
+    const host = makeHost();
+    const events: GestureEvent[] = [];
+    const input = new PointerInput(host, {
+      toInternal: (x, y) => ({ x, y }),
+      gesture: (e) => events.push(e),
+      hover: vi.fn(),
+      enabled: () => true,
+    });
+
+    // Resting palm touches down first
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: 20, clientY: 20, pointerType: 'touch' }));
+    expect(input.activePointer).toBe(1);
+
+    // Stylus touches down -> cancels palm and takes ownership
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 2, clientX: 120, clientY: 80, pointerType: 'pen', pressure: 0.7 }));
+    expect(input.activePointer).toBe(2);
+    expect(events.map((e) => `${e.phase}:${e.pointerId}:${e.pointerType}`)).toEqual([
+      'start:1:touch',
+      'cancel:1:touch',
+      'start:2:pen',
+    ]);
+
+    // Another finger touch while pen owns is ignored
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 3, clientX: 200, clientY: 100, pointerType: 'touch' }));
+    expect(input.activePointer).toBe(2);
+    expect(events).toHaveLength(3);
+
+    input.destroy();
+    host.remove();
+  });
+
+  it('aborts an active gesture on window blur, orientationchange, and hidden visibilitychange', () => {
+    const host = makeHost();
+    const events: GestureEvent[] = [];
+    const input = new PointerInput(host, {
+      toInternal: (x, y) => ({ x, y }),
+      gesture: (e) => events.push(e),
+      hover: vi.fn(),
+      enabled: () => true,
+    });
+
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 21, clientX: 50, clientY: 50, pointerType: 'touch' }));
+    window.dispatchEvent(new Event('blur'));
+    expect(input.activePointer).toBeNull();
+    expect(events.map((e) => e.phase)).toEqual(['start', 'cancel']);
+
+    events.length = 0;
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 22, clientX: 50, clientY: 50, pointerType: 'touch' }));
+    window.dispatchEvent(new Event('orientationchange'));
+    expect(input.activePointer).toBeNull();
+    expect(events.map((e) => e.phase)).toEqual(['start', 'cancel']);
+
+    events.length = 0;
+    const origVis = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    try {
+      host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 23, clientX: 50, clientY: 50, pointerType: 'touch' }));
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(input.activePointer).toBeNull();
+      expect(events.map((e) => e.phase)).toEqual(['start', 'cancel']);
+    } finally {
+      if (origVis) Object.defineProperty(document, 'visibilityState', origVis);
+      else delete (document as unknown as { visibilityState?: string }).visibilityState;
+    }
+
+    input.destroy();
+    host.remove();
+  });
+
+  it('detects horizontal touch swipes when swipeEnabled() is true, ignoring short taps and vertical drags', () => {
+    const host = makeHost();
+    const swipe = vi.fn();
+    let allowSwipe = true;
+    const input = new PointerInput(host, {
+      toInternal: (x, y) => ({ x, y }),
+      gesture: vi.fn(),
+      hover: vi.fn(),
+      enabled: () => true,
+      swipe,
+      swipeEnabled: () => allowSwipe,
+    });
+
+    // Swipe left -> next page (+1)
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 30, clientX: 260, clientY: 120, pointerType: 'touch' }));
+    host.dispatchEvent(pointerEvent('pointermove', { pointerId: 30, clientX: 180, clientY: 128, pointerType: 'touch' }));
+    host.dispatchEvent(pointerEvent('pointerup', { pointerId: 30, clientX: 170, clientY: 128, pointerType: 'touch' }));
+    expect(swipe).toHaveBeenLastCalledWith(1);
+
+    // Swipe right -> prev page (-1)
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 31, clientX: 140, clientY: 120, pointerType: 'touch' }));
+    host.dispatchEvent(pointerEvent('pointerup', { pointerId: 31, clientX: 225, clientY: 114, pointerType: 'touch' }));
+    expect(swipe).toHaveBeenLastCalledWith(-1);
+
+    // Short tap -> no swipe
+    swipe.mockClear();
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 32, clientX: 120, clientY: 120, pointerType: 'touch' }));
+    host.dispatchEvent(pointerEvent('pointerup', { pointerId: 32, clientX: 132, clientY: 124, pointerType: 'touch' }));
+    expect(swipe).not.toHaveBeenCalled();
+
+    // Vertical drag -> no swipe
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 33, clientX: 120, clientY: 80, pointerType: 'touch' }));
+    host.dispatchEvent(pointerEvent('pointerup', { pointerId: 33, clientX: 140, clientY: 180, pointerType: 'touch' }));
+    expect(swipe).not.toHaveBeenCalled();
+
+    // Disabled -> no swipe
+    allowSwipe = false;
+    host.dispatchEvent(pointerEvent('pointerdown', { pointerId: 34, clientX: 260, clientY: 120, pointerType: 'touch' }));
+    host.dispatchEvent(pointerEvent('pointerup', { pointerId: 34, clientX: 160, clientY: 120, pointerType: 'touch' }));
+    expect(swipe).not.toHaveBeenCalled();
 
     input.destroy();
     host.remove();

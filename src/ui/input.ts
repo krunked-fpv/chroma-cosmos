@@ -13,6 +13,12 @@ export interface InputSinks {
   hover(p: { x: number; y: number } | null): void;
   /** gestures are only forwarded while this returns true (e.g. chapter/hub mode) */
   enabled(): boolean;
+  /** optional horizontal touch/pen swipe callback (1 = next/swipe-left, -1 = prev/swipe-right) */
+  swipe?(dir: -1 | 1): void;
+  /** swipe callback only fires while this returns true (e.g. storybook viewer mode) */
+  swipeEnabled?(): boolean;
+  /** notified whenever touch input is sensed on the canvas host */
+  touchSensed?(): void;
 }
 
 type Pt = { x: number; y: number };
@@ -20,10 +26,13 @@ type Pt = { x: number; y: number };
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 const MAX_X = PAGE_W - 0.001;
 const MAX_Y = PAGE_H - 0.001;
+const SWIPE_MIN_PX = 56;
+const SWIPE_RATIO = 1.5;
 
 export class PointerInput {
   private owner: number | null = null;
   private ownerType = '';
+  private startClient: Pt | null = null;
   private lastClient: Pt | null = null;
   private lastInternal: Pt | null = null;
   private readonly host: HTMLElement;
@@ -46,15 +55,39 @@ export class PointerInput {
       if (this.owner === null || e.pointerId !== this.owner) this.sinks.hover(null);
     });
     const block = (e: Event): void => e.preventDefault();
+    const onTouchStart = (e: Event): void => {
+      e.preventDefault();
+      this.sinks.touchSensed?.();
+    };
     on('contextmenu', block, { passive: false });
     on('dblclick', block, { passive: false });
     host.addEventListener('gesturestart', block, { passive: false });
     host.addEventListener('gesturechange', block, { passive: false });
-    host.addEventListener('touchstart', block, { passive: false });
+    host.addEventListener('touchstart', onTouchStart, { passive: false });
+    host.addEventListener('touchmove', block, { passive: false });
+    const onAbort = (): void => this.abort();
+    const onVisibility = (): void => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') this.abort();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('blur', onAbort);
+      window.addEventListener('orientationchange', onAbort);
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+    }
     this.offs.push(() => {
       host.removeEventListener('gesturestart', block);
       host.removeEventListener('gesturechange', block);
-      host.removeEventListener('touchstart', block);
+      host.removeEventListener('touchstart', onTouchStart);
+      host.removeEventListener('touchmove', block);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('blur', onAbort);
+        window.removeEventListener('orientationchange', onAbort);
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility);
+      }
     });
   }
 
@@ -66,6 +99,9 @@ export class PointerInput {
   destroy(): void {
     for (const off of this.offs.splice(0)) off();
     this.owner = null;
+    this.ownerType = '';
+    this.startClient = null;
+    this.lastClient = null;
   }
 
   /** Cancel the active gesture (e.g. a modal opened mid-stroke). Emits 'cancel' for the owner. */
@@ -76,10 +112,12 @@ export class PointerInput {
     const p = this.lastInternal ?? { x: 0, y: 0 };
     this.release(id);
     this.emit('cancel', { pointerId: id, pointerType: type, pressure: 0, tiltX: 0, tiltY: 0, timeStamp: performance.now() } as PointerEvent, p);
+    if (type === 'touch') this.sinks.hover(null);
   }
 
   private emit(phase: GestureEvent['phase'], e: PointerEvent, p: Pt): void {
-    const pressure = e.pressure > 0 ? e.pressure : e.pointerType === 'mouse' && phase !== 'end' && phase !== 'cancel' ? 0.5 : e.pressure || 0;
+    const activePhase = phase === 'start' || phase === 'move';
+    const pressure = e.pressure > 0 ? e.pressure : activePhase ? 0.5 : 0;
     this.sinks.gesture({
       phase,
       x: p.x,
@@ -121,11 +159,19 @@ export class PointerInput {
 
   private down(e: PointerEvent): void {
     e.preventDefault();
-    if (this.owner !== null) return; // first pointer owns the gesture
+    if (e.pointerType === 'touch') this.sinks.touchSensed?.();
     if (!this.sinks.enabled()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const p = this.sinks.toInternal(e.clientX, e.clientY);
     if (!p) return; // starts outside the page are skipped
+    if (this.owner !== null) {
+      // Stylus (Apple Pencil / S-Pen) preempts an accidental resting-palm touch; ignore all other second pointers.
+      if (e.pointerType === 'pen' && this.ownerType === 'touch') {
+        this.abort();
+      } else {
+        return;
+      }
+    }
     this.owner = e.pointerId;
     this.ownerType = e.pointerType;
     try {
@@ -134,6 +180,7 @@ export class PointerInput {
       /* capture not available (synthetic/old browsers) */
     }
     const ip = { x: clamp(p.x, 0, MAX_X), y: clamp(p.y, 0, MAX_Y) };
+    this.startClient = { x: e.clientX, y: e.clientY };
     this.lastClient = { x: e.clientX, y: e.clientY };
     this.lastInternal = ip;
     this.emit('start', e, ip);
@@ -168,21 +215,34 @@ export class PointerInput {
   private up(e: PointerEvent): void {
     if (this.owner === null || e.pointerId !== this.owner) return;
     e.preventDefault();
+    const type = this.ownerType;
+    const start = this.startClient;
     const p = this.resolveClamped(e.clientX, e.clientY) ?? this.lastInternal ?? { x: 0, y: 0 };
     this.release(e.pointerId);
     this.emit('end', e, p);
+    if (type === 'touch') this.sinks.hover(null);
+    if (start && this.sinks.swipe && this.sinks.swipeEnabled?.() && (type === 'touch' || type === 'pen')) {
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) >= Math.abs(dy) * SWIPE_RATIO) {
+        this.sinks.swipe(dx < 0 ? 1 : -1);
+      }
+    }
   }
 
   private cancel(e: PointerEvent): void {
     if (this.owner === null || e.pointerId !== this.owner) return;
+    const type = this.ownerType;
     const p = this.lastInternal ?? { x: 0, y: 0 };
     this.release(e.pointerId);
     this.emit('cancel', e, p);
+    if (type === 'touch') this.sinks.hover(null);
   }
 
   private release(id: number): void {
     this.owner = null;
     this.ownerType = '';
+    this.startClient = null;
     this.lastClient = null;
     try {
       if (typeof this.host.hasPointerCapture === 'function' && this.host.hasPointerCapture(id)) this.host.releasePointerCapture(id);

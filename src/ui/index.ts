@@ -54,6 +54,10 @@ class SketchbookUi implements UiPort {
   private readonly bookNextIconSlot: HTMLElement;
   private readonly bookBackIconSlot: HTMLElement;
   private readonly bookKeepsakeIconSlot: HTMLElement;
+  private readonly rotateGuard: HTMLElement;
+  private readonly rotateStarSlot: HTMLElement;
+  private readonly rotateTurnSlot: HTMLElement;
+  private readonly rotateHintEl: HTMLElement;
 
   private input: PointerInput | null = null;
   private cb: UiCallbacks | null = null;
@@ -63,6 +67,14 @@ class SketchbookUi implements UiPort {
   private hudTitle = APP_NAME;
   private mounted = false;
   private readonly fxTimers = new Set<ReturnType<typeof setTimeout>>();
+
+  private readonly onRootPointerDown = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch') this.markTouch();
+  };
+
+  private readonly onRootTouchStart = (): void => {
+    this.markTouch();
+  };
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -140,6 +152,48 @@ class SketchbookUi implements UiPort {
     this.fxOverlay = h('div', { class: 'cc-fx-overlay', 'aria-hidden': 'true' });
     this.toastBox = h('div', { class: 'cc-toasts', 'aria-live': 'polite', role: 'status' });
 
+    // Phone portrait -> landscape guide overlay (pure CSS + Hi-Bit pixel canvases; zero inline SVG)
+    this.rotateStarSlot = spriteBox('cc-ico cc-rotate-star', placeholderCanvas(32, 32));
+    this.rotateTurnSlot = spriteBox('cc-ico cc-rotate-turn-ico', placeholderCanvas(24, 24));
+    this.rotateHintEl = h(
+      'p',
+      { class: 'cc-rotate-sub' },
+      "Violet's Living Sketchbook opens wide in landscape!",
+    );
+    const rotateBtn = button(
+      'cc-rotate-btn',
+      'Switch to Landscape',
+      () => void this.tryLandscapeLock(),
+      h('span', { class: 'cc-chip-inner' }, this.rotateTurnSlot, h('span', {}, 'Switch to Landscape')),
+    );
+    this.rotateGuard = h(
+      'div',
+      {
+        class: 'cc-rotate-guard',
+        role: 'status',
+        'aria-live': 'polite',
+        'aria-label': 'Turn your phone sideways to play in landscape',
+      },
+      h(
+        'div',
+        { class: 'cc-rotate-card' },
+        this.rotateStarSlot,
+        h(
+          'div',
+          { class: 'cc-rotate-stage', 'aria-hidden': 'true' },
+          h(
+            'div',
+            { class: 'cc-rotate-device' },
+            h('span', { class: 'cc-rotate-screen' }),
+            h('span', { class: 'cc-rotate-pip' }),
+          ),
+        ),
+        h('h2', { class: 'cc-rotate-title' }, 'Turn Your Phone Sideways'),
+        this.rotateHintEl,
+        rotateBtn,
+      ),
+    );
+
     // Midnight-Velvet Stargazer Backdrop with subtle drifting starlight motes & celestial astrolabe ring glow
     const deskDeco = h(
       'div',
@@ -198,7 +252,17 @@ class SketchbookUi implements UiPort {
       this.modals.layer,
       this.fxOverlay,
       this.toastBox,
+      this.rotateGuard,
     );
+
+    const hasCoarseTouch =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches;
+    if (hasCoarseTouch) this.markTouch();
+
+    this.rootEl.addEventListener('pointerdown', this.onRootPointerDown, { capture: true, passive: true });
+    this.rootEl.addEventListener('touchstart', this.onRootTouchStart, { capture: true, passive: true });
 
     const block = (e: Event): void => e.preventDefault();
     this.rootEl.addEventListener('contextmenu', block);
@@ -230,9 +294,43 @@ class SketchbookUi implements UiPort {
       },
       hover: (p) => this.cb?.onHover(p),
       enabled: () => INPUT_MODES.has(this.mode) && !this.modals.isOpen && this.hub.openDrawerId === null,
+      swipe: (dir) => {
+        if (this.mode !== 'book') return;
+        if ((dir < 0 && this.bookPrev.disabled) || (dir > 0 && this.bookNext.disabled)) return;
+        this.cb?.onUiFoley?.('paperRustle');
+        this.cb?.onBookPage(dir);
+      },
+      swipeEnabled: () => this.mode === 'book' && !this.modals.isOpen,
+      touchSensed: () => this.markTouch(),
     });
     this.mounted = true;
     this.applyMode(this.mode, true);
+  }
+
+  private markTouch(): void {
+    if (this.rootEl.dataset.touch !== 'true') {
+      this.rootEl.dataset.touch = 'true';
+    }
+  }
+
+  private async tryLandscapeLock(): Promise<void> {
+    this.cb?.onUiFoley?.('crystalChime');
+    try {
+      const docEl = document.documentElement as HTMLElement & {
+        requestFullscreen?: () => Promise<void>;
+      };
+      if (!document.fullscreenElement && typeof docEl.requestFullscreen === 'function') {
+        await docEl.requestFullscreen().catch(() => undefined);
+      }
+      const orient = window.screen?.orientation as { lock?: (mode: string) => Promise<void> } | undefined;
+      if (typeof orient?.lock === 'function') {
+        await orient.lock('landscape');
+        return;
+      }
+    } catch {
+      /* iOS Safari or non-fullscreen browsers may disallow orientation.lock */
+    }
+    this.rotateHintEl.textContent = 'Rotate your phone sideways to begin coloring!';
   }
 
   private hydrateShellSprites(cache: IllustrationCache): void {
@@ -244,6 +342,8 @@ class SketchbookUi implements UiPort {
     cache.mountInto(this.bookNextIconSlot, { type: 'uiSprite', id: 'tool_next' }, 26, 26);
     cache.mountInto(this.bookBackIconSlot, { type: 'uiSprite', id: 'tool_back' }, 24, 24);
     cache.mountInto(this.bookKeepsakeIconSlot, { type: 'uiSprite', id: 'tool_postcard' }, 24, 24);
+    cache.mountInto(this.rotateStarSlot, { type: 'uiSprite', id: 'tool_star' }, 32, 32);
+    cache.mountInto(this.rotateTurnSlot, { type: 'uiSprite', id: 'tool_turn' }, 24, 24);
   }
 
   get currentMode(): AppMode {
@@ -453,6 +553,8 @@ class SketchbookUi implements UiPort {
     this.hub.destroy();
     this.input?.destroy();
     this.install.destroy();
+    this.rootEl.removeEventListener('pointerdown', this.onRootPointerDown, { capture: true });
+    this.rootEl.removeEventListener('touchstart', this.onRootTouchStart, { capture: true });
     this.rootEl.remove();
     setShown(this.root, true);
   }

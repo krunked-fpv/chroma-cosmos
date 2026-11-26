@@ -1094,7 +1094,9 @@ async function boot(): Promise<void> {
       },
       onBookPage(delta) {
         if (!activeBook) return;
-        activeBookPage = Math.max(0, Math.min(activeBook.pages.length - 1, activeBookPage + delta));
+        const next = Math.max(0, Math.min(activeBook.pages.length - 1, activeBookPage + delta));
+        if (next === activeBookPage) return;
+        activeBookPage = next;
         loadBookPage();
       },
       onCloseBook() {
@@ -1222,19 +1224,22 @@ async function boot(): Promise<void> {
     },
   );
 
-  // Unlock audio on the very first user pointerdown anywhere
-  window.addEventListener(
-    'pointerdown',
-    () => {
-      void audio.unlock();
-    },
-    { once: true, capture: true },
-  );
+  // Unlock & recover Web Audio across desktop, iOS Safari, Android Chrome, and Tesla Chromium
+  let hasUserUnlockedAudio = false;
+  const unlockAudio = (): void => {
+    hasUserUnlockedAudio = true;
+    void audio.unlock();
+  };
+  for (const evType of ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'] as const) {
+    window.addEventListener(evType, unlockAudio, { capture: true, passive: true });
+  }
 
   // Bidirectional self-healing on visibility/focus + save active page when backgrounded
   const onVisibility = (): void => {
     vault.healCheck();
-    if (document.visibilityState === 'hidden') {
+    if (document.visibilityState === 'visible') {
+      if (hasUserUnlockedAudio) void audio.unlock();
+    } else if (document.visibilityState === 'hidden') {
       if (currentMode === 'chapter' && run.core() && currentPage) {
         void vault.saveRunPages(sim.snapshotPage(), donePages);
       }

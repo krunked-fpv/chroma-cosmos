@@ -131,4 +131,34 @@ describe('src/styles/main.css Midnight Cloisonne anti-lunch-tray & accessibility
       expect(src).not.toMatch(/<svg[\s>]/i);
     }
   });
+
+  it('wires safe-area insets, descendant-safe touch-scrolling, Tesla/tablet touch ergonomics, short mobile landscape, and phone portrait rotate guard', () => {
+    expect(css).toContain('--sat: env(safe-area-inset-top, 0px);');
+    expect(css).toContain('--sar: env(safe-area-inset-right, 0px);');
+    expect(css).toContain('--sab: env(safe-area-inset-bottom, 0px);');
+    expect(css).toContain('--sal: env(safe-area-inset-left, 0px);');
+
+    // Descendant-safe vertical & horizontal touch scrolling overrides `.cc-root * { touch-action: none; }`
+    expect(css).toContain('.cc-uni-grid *');
+    expect(css).toContain('.cc-grid-paintbox *');
+    expect(css).toContain('.cc-grid-stickers *');
+    expect(css).toContain('.cc-book-spines *');
+    expect(css).toContain('touch-action: pan-y;');
+    expect(css).toContain('.cc-swatches *');
+    expect(css).toContain('.cc-brush-group *');
+    expect(css).toContain('.cc-uni-track-wrap *');
+    expect(css).toContain('touch-action: pan-x;');
+
+    // Touch / Tesla ergonomics, short mobile landscape, and phone portrait rotate-to-landscape guard
+    expect(css).toContain('.cc-root[data-touch="true"]');
+    expect(css).toMatch(/@media\s*\(hover:\s*none\)/);
+    expect(css).toMatch(/@media\s*\(max-height:\s*540px\)/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*680px\)\s*and\s*\(orientation:\s*portrait\)/);
+    expect(css).toContain('.cc-rotate-guard');
+    // Touch hover suppression preserves tactile :active press feedback, .is-chosen cards, and fanned draft tilt
+    expect(css).toContain(':hover:not(:active):not(.is-chosen)');
+    expect(css).toContain('.cc-deckle-card:hover:not(:active):not(.is-chosen)');
+    // Touch/short-landscape relic strip accommodates 48px brush charms without horizontal clipping
+    expect(css).toContain('width: 64px;');
+  });
 });

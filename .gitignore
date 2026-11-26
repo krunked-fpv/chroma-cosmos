@@ -12,3 +12,5 @@ test-results/
 !README.md
 dna/
 export-dna.ts
+scripts/verify/playtest-100.ts
+scripts/verify/verify-all.ts

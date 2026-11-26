@@ -506,13 +506,17 @@ async function boot(): Promise<void> {
     awakeRegionsKinds.clear();
     awakeActors.clear();
     const playPrologue = chapter === 'rooftop' && c.chapterIndex === 0 && !snapshot;
-    sim.loadPage(page, {
-      seed,
-      chapterIndex: c.chapterIndex,
-      brushes: c.brushes,
-      relics: c.relics,
-      playPrologue,
-    });
+    sim.loadPage(
+      page,
+      {
+        seed,
+        chapterIndex: c.chapterIndex,
+        brushes: c.brushes,
+        relics: c.relics,
+        playPrologue,
+      },
+      currentSprites,
+    );
     if (snapshot && snapshot.sceneId === chapter) {
       sim.restorePage(snapshot);
     }
@@ -532,13 +536,17 @@ async function boot(): Promise<void> {
     pageCompleteNotified = false;
     awakeRegionsKinds.clear();
     awakeActors.clear();
-    sim.loadPage(page, {
-      seed: 1,
-      chapterIndex: 0,
-      brushes: ['standard'],
-      relics: [],
-      viewOnly: true,
-    });
+    sim.loadPage(
+      page,
+      {
+        seed: 1,
+        chapterIndex: 0,
+        brushes: ['standard'],
+        relics: [],
+        viewOnly: true,
+      },
+      currentSprites,
+    );
     syncTool();
     renderer.loadPage(page, currentSprites, wispSprite);
     consumeViewAndRender(0, performance.now());
@@ -554,13 +562,17 @@ async function boot(): Promise<void> {
     currentSprites = art.sprites(wardrobe);
     const page = art.compilePage(snap.sceneId, snap.seed, wardrobe);
     currentPage = page;
-    sim.loadPage(page, {
-      seed: snap.seed,
-      chapterIndex: activeBookPage,
-      brushes: ['standard'],
-      relics: [],
-      viewOnly: true,
-    });
+    sim.loadPage(
+      page,
+      {
+        seed: snap.seed,
+        chapterIndex: activeBookPage,
+        brushes: ['standard'],
+        relics: [],
+        viewOnly: true,
+      },
+      currentSprites,
+    );
     sim.restorePage(snap);
     renderer.loadPage(page, currentSprites, wispSprite);
     setAppMode('book');
@@ -843,6 +855,7 @@ async function boot(): Promise<void> {
         });
         vault.healCheck();
         currentSprites = art.sprites(vault.get().wardrobe);
+        sim.setSprites?.(currentSprites);
         if (currentMode === 'hub') loadHubScene();
         ui.toast(`Put on ${item.name}!`);
         void pushHub();
@@ -855,6 +868,7 @@ async function boot(): Promise<void> {
         });
         vault.healCheck();
         currentSprites = art.sprites(vault.get().wardrobe);
+        sim.setSprites?.(currentSprites);
         if (currentMode === 'hub') loadHubScene();
         void pushHub();
         pushHud(true);
@@ -914,13 +928,17 @@ async function boot(): Promise<void> {
           const wardrobe = vault.get().wardrobe;
           const sprites = art.sprites(wardrobe);
           const page = art.compilePage(snap.sceneId, snap.seed, wardrobe);
-          sim.loadPage(page, {
-            seed: snap.seed,
-            chapterIndex: pageIdx,
-            brushes: ['standard'],
-            relics: [],
-            viewOnly: true,
-          });
+          sim.loadPage(
+            page,
+            {
+              seed: snap.seed,
+              chapterIndex: pageIdx,
+              brushes: ['standard'],
+              relics: [],
+              viewOnly: true,
+            },
+            sprites,
+          );
           sim.restorePage(snap);
           renderer.loadPage(page, sprites, wispSprite);
           consumeViewAndRender(0, performance.now());
@@ -953,6 +971,7 @@ async function boot(): Promise<void> {
           .then(async () => {
             audio.setLevel(vault.get().audioLevel);
             currentSprites = art.sprites(vault.get().wardrobe);
+            sim.setSprites?.(currentSprites);
             if (currentMode === 'hub') loadHubScene();
             await pushHub();
             pushHud(true);

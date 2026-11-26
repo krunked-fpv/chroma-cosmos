@@ -34,6 +34,7 @@ import {
   WAND_UV_PEEK_RADIUS,
 } from '../contracts';
 import type {
+  ActorRenderState,
   BrushId,
   CausalityKind,
   ChapterId,
@@ -54,6 +55,9 @@ import type {
   SimEvent,
   SimView,
   SimulationPort,
+  SpriteFrame,
+  SpriteLibrary,
+  SpriteSheet,
   StoryMilestoneKind,
   StoryPageSnapshot,
   StoryStarState,
@@ -147,6 +151,8 @@ interface Gesture {
   allowKey: string;
   nbr: Uint8Array | null;
   sponge: boolean;
+  liveActor: ActorRT | null;
+  liveBbox: { x0: number; y0: number; x1: number; y1: number } | null;
   lastX: number;
   lastY: number;
   carry: number;
@@ -167,11 +173,27 @@ const SNAP_OFFSETS: { dx: number; dy: number; d2: number }[] = (() => {
   return out;
 })();
 
+// wider offsets within radius 5 sorted by distance for live unawake actor part-assist (tails/spots/horns)
+const SNAP_OFFSETS_R5: { dx: number; dy: number; d2: number }[] = (() => {
+  const out: { dx: number; dy: number; d2: number }[] = [];
+  for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
+    const d2 = dx * dx + dy * dy;
+    if (d2 > 0 && d2 <= 25) out.push({ dx, dy, d2 });
+  }
+  out.sort((a, b) => a.d2 - b.d2 || a.dy - b.dy || a.dx - b.dx);
+  return out;
+})();
+
+const SMALL_REGION_PX = 180;
+const SMALL_REGION_RADIUS = 9;
+const LIVE_ACTOR_MIN_RADIUS = 9;
+
 export class Simulation implements SimulationPort, ActorHost {
   readonly effects = new EffectPool();
   paths: PagePath[] = [];
 
   private page: CompiledPage | null = null;
+  private sprites: SpriteLibrary | null = null;
   private ctx: RunContext = { seed: 0, chapterIndex: 0, brushes: ['standard'], relics: [] };
   private cov: Coverage | null = null;
   private actors: ActorSystem | null = null;
@@ -191,6 +213,8 @@ export class Simulation implements SimulationPort, ActorHost {
   private readonly spotlight = new Uint8Array(256);
   private readonly idleGlow = new Uint8Array(256);
   private readonly stalledGlow = new Uint8Array(256);
+  private readonly questTarget = new Uint8Array(256);
+  private readonly questUrgent = new Uint8Array(256);
   private readonly lightningZapped = new Uint8Array(256);
   private readonly nudgeWiggleMs = new Float32Array(256);
   private readonly originX = new Float32Array(256);
@@ -342,8 +366,9 @@ export class Simulation implements SimulationPort, ActorHost {
   }
 
   // ------------------------------------------------------------------ loading
-  loadPage(p: CompiledPage, ctx: RunContext): void {
+  loadPage(p: CompiledPage, ctx: RunContext, sprites?: SpriteLibrary): void {
     this.page = p;
+    this.sprites = sprites ?? null;
     this.ctx = ctx;
     const cov = new Coverage(p.regionMap);
     cov.seedMix = p.seed | 0;
@@ -408,6 +433,8 @@ export class Simulation implements SimulationPort, ActorHost {
     this.spotlight.fill(0);
     this.idleGlow.fill(0);
     this.stalledGlow.fill(0);
+    this.questTarget.fill(0);
+    this.questUrgent.fill(0);
     this.lightningZapped.fill(0);
     this.nudgeWiggleMs.fill(0);
     this.colourableBase.fill(0);
@@ -575,6 +602,31 @@ export class Simulation implements SimulationPort, ActorHost {
     return total > 0 ? painted / total : 0;
   }
 
+  private syncQuestTargetFlags(): void {
+    const cov = this.cov;
+    if (!cov) return;
+    const nextTarget = new Uint8Array(256);
+    const nextUrgent = new Uint8Array(256);
+    if (!this.ctx.viewOnly && !this.pageComplete) {
+      for (const q of this.heroQuests) {
+        if (q.completed) continue;
+        const urgent = q.progress > 0 ? 1 : 0;
+        for (const id of q.regionIds) {
+          if (id <= 0 || id >= 255 || this.bloomed[id] || cov.total[id]! === 0) continue;
+          nextTarget[id] = 1;
+          if (urgent) nextUrgent[id] = 1;
+        }
+      }
+    }
+    for (let id = 1; id < 255; id++) {
+      if (this.questTarget[id] !== nextTarget[id] || this.questUrgent[id] !== nextUrgent[id]) {
+        this.questTarget[id] = nextTarget[id]!;
+        this.questUrgent[id] = nextUrgent[id]!;
+        this.syncRegion(id);
+      }
+    }
+  }
+
   private refreshHeroQuests(live: boolean): void {
     if (this.heroQuests.length === 0) return;
     const threshold = this.questThreshold();
@@ -596,6 +648,7 @@ export class Simulation implements SimulationPort, ActorHost {
       }
     }
     this.syncStoryStars();
+    this.syncQuestTargetFlags();
   }
 
   private completeHeroQuest(index: number): void {
@@ -981,6 +1034,7 @@ export class Simulation implements SimulationPort, ActorHost {
     this.clearIdleGuide();
     this.clearNudgeWiggle();
     this.clearStalledGlowFlags();
+    this.syncQuestTargetFlags();
     for (const q of this.heroQuests) {
       q.stalled = false;
       q.highlighted = false;
@@ -1006,6 +1060,10 @@ export class Simulation implements SimulationPort, ActorHost {
     const b = this.bbox(id);
     const radius = Math.ceil(Math.hypot(Math.max(c.x - b.x0, b.x1 + 1 - c.x), Math.max(c.y - b.y0, b.y1 + 1 - c.y))) + 1;
     this.pushStamp(`r${id}`, [id], { x: c.x, y: c.y, radius, materialId: cov.regionMat[id] || mat, dx: 0, dy: 0, strength: 1 });
+  }
+
+  setSprites(sprites: SpriteLibrary): void {
+    this.sprites = sprites;
   }
 
   setTool(t: ToolState): void {
@@ -1068,8 +1126,123 @@ export class Simulation implements SimulationPort, ActorHost {
     return this.cov!.map[py * PAGE_W + px]!;
   }
 
-  private snapToNearby(x: number, y: number): number {
-    const cov = this.cov!;
+  private pickSpriteFrame(sheet: SpriteSheet, actor: ActorRenderState): SpriteFrame | null {
+    const anim = sheet.anims[actor.anim] ?? sheet.anims.idle ?? Object.values(sheet.anims)[0];
+    if (!anim || anim.frames.length === 0) return null;
+    const n = anim.frames.length;
+    const fi = Number.isFinite(actor.frame) ? ((Math.floor(actor.frame) % n) + n) % n : 0;
+    return anim.frames[fi] ?? null;
+  }
+
+  private sampleLiveActor(a: ActorRT, px: number, py: number): number {
+    if (!this.sprites || !a.shown || !a.view.live) return 255;
+    const sheet = this.sprites[a.kind];
+    if (!sheet || !Number.isFinite(a.view.x) || !Number.isFinite(a.view.y)) return 255;
+    const frame = this.pickSpriteFrame(sheet, a.view);
+    if (!frame) return 255;
+    const flip = a.view.facing === -1;
+    const ax = flip ? frame.w - 1 - sheet.anchorX : sheet.anchorX;
+    const x0 = Math.round(a.view.x) - ax;
+    const y0 = Math.round(a.view.y) - sheet.anchorY;
+    const sx = px - x0;
+    const sy = py - y0;
+    if (sx < 0 || sy < 0 || sx >= frame.w || sy >= frame.h) return 255;
+    const raw = frame.pixels[sy * frame.w + (flip ? frame.w - 1 - sx : sx)];
+    if (raw === undefined || raw === 255) return 255;
+    return a.view.remap?.[raw] ?? raw;
+  }
+
+  private computeLiveRegionBbox(a: ActorRT, regionId: number): { x0: number; y0: number; x1: number; y1: number } | null {
+    if (!this.sprites || !a.shown || !a.view.live) return null;
+    const sheet = this.sprites[a.kind];
+    if (!sheet || !Number.isFinite(a.view.x) || !Number.isFinite(a.view.y)) return null;
+    const frame = this.pickSpriteFrame(sheet, a.view);
+    if (!frame) return null;
+    const flip = a.view.facing === -1;
+    const ax = flip ? frame.w - 1 - sheet.anchorX : sheet.anchorX;
+    const ox = Math.round(a.view.x) - ax;
+    const oy = Math.round(a.view.y) - sheet.anchorY;
+    let x0 = PAGE_W;
+    let y0 = PAGE_H;
+    let x1 = -1;
+    let y1 = -1;
+    for (let sy = 0; sy < frame.h; sy++) {
+      const rowOff = sy * frame.w;
+      for (let sx = 0; sx < frame.w; sx++) {
+        const raw = frame.pixels[rowOff + (flip ? frame.w - 1 - sx : sx)];
+        if (raw === undefined || raw === 255) continue;
+        const id = a.view.remap?.[raw] ?? raw;
+        if (id !== regionId) continue;
+        const px = ox + sx;
+        const py = oy + sy;
+        if (px < x0) x0 = px;
+        if (py < y0) y0 = py;
+        if (px > x1) x1 = px;
+        if (py > y1) y1 = py;
+      }
+    }
+    return x1 >= x0 ? { x0, y0, x1, y1 } : null;
+  }
+
+  private findLiveActorForRegion(regionId: number): ActorRT | null {
+    if (!this.sprites || !this.actors) return null;
+    for (const a of this.actors.list) {
+      if (a.shown && a.view.live && a.regionIds.includes(regionId)) return a;
+    }
+    return null;
+  }
+
+  private liveActorRegionAt(px: number, py: number): { id: number; actor: ActorRT | null } {
+    if (!this.sprites || !this.actors) return { id: 255, actor: null };
+    const list = this.actors.list;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const a = list[i]!;
+      if (!a.shown || !a.view.live) continue;
+      const id = this.sampleLiveActor(a, px, py);
+      if (id !== 255) return { id, actor: a };
+    }
+    return { id: 255, actor: null };
+  }
+
+  private visibleStaticRegionAt(px: number, py: number): number {
+    const idx = py * PAGE_W + px;
+    if (this.sprites && this.page && this.actors) {
+      const slot = this.page.actorSlotMap[idx] ?? 0;
+      if (slot > 0) {
+        for (const a of this.actors.list) {
+          if (a.view.live && a.view.slot === slot) {
+            return this.page.baseRegionMap[idx] ?? 255;
+          }
+        }
+      }
+    }
+    return this.cov!.map[idx]!;
+  }
+
+  private snapLiveUnbloomed(px: number, py: number, maxR2: number): { id: number; actor: ActorRT } | null {
+    if (!this.sprites || !this.actors) return null;
+    const candidates: ActorRT[] = [];
+    for (const a of this.actors.list) {
+      if (a.shown && a.view.live && !a.awake && a.regionIds.length > 0) candidates.push(a);
+    }
+    if (candidates.length === 0) return null;
+    for (const o of SNAP_OFFSETS_R5) {
+      if (o.d2 > maxR2) break;
+      const xx = px + o.dx;
+      const yy = py + o.dy;
+      if (xx < 0 || yy < 0 || xx >= PAGE_W || yy >= PAGE_H) continue;
+      for (let i = candidates.length - 1; i >= 0; i--) {
+        const a = candidates[i]!;
+        const id = this.sampleLiveActor(a, xx, yy);
+        if (id >= 1 && id <= 254 && this.colourable(id) && !this.bloomed[id]) {
+          return { id, actor: a };
+        }
+      }
+    }
+    return null;
+  }
+
+  private snapToNearby(x: number, y: number, unbloomedOnly = false): number {
     const px = clamp(Math.floor(x), 0, PAGE_W - 1);
     const py = clamp(Math.floor(y), 0, PAGE_H - 1);
     // 3x3 nearest neighbour first, then nearest colourable within radius 3
@@ -1079,11 +1252,91 @@ export class Simulation implements SimulationPort, ActorHost {
         const xx = px + o.dx;
         const yy = py + o.dy;
         if (xx < 0 || yy < 0 || xx >= PAGE_W || yy >= PAGE_H) continue;
-        const id = cov.map[yy * PAGE_W + xx]!;
-        if (id !== 0 && this.colourable(id)) return id;
+        const id = this.visibleStaticRegionAt(xx, yy);
+        if (id !== 0 && this.colourable(id) && (!unbloomedOnly || !this.bloomed[id])) return id;
       }
     }
     return 0;
+  }
+
+  private snapSiblingUnbloomed(px: number, py: number, currentId: number): { id: number; actor: ActorRT | null } | null {
+    const quest = this.heroQuests.find((q) => !q.completed && q.regionIds.includes(currentId));
+    if (!quest) return null;
+    const siblingSet = new Set(quest.regionIds);
+    for (const o of SNAP_OFFSETS) {
+      const xx = px + o.dx;
+      const yy = py + o.dy;
+      if (xx < 0 || yy < 0 || xx >= PAGE_W || yy >= PAGE_H) continue;
+      const live = this.liveActorRegionAt(xx, yy);
+      if (live.actor && siblingSet.has(live.id) && this.colourable(live.id) && !this.bloomed[live.id]) {
+        return live;
+      }
+      const sid = this.visibleStaticRegionAt(xx, yy);
+      if (siblingSet.has(sid) && this.colourable(sid) && !this.bloomed[sid]) {
+        return { id: sid, actor: this.findLiveActorForRegion(sid) };
+      }
+    }
+    return null;
+  }
+
+  private resolvePaintTarget(x: number, y: number, allowBloomed: boolean): { id: number; actor: ActorRT | null } {
+    const px = clamp(Math.floor(x), 0, PAGE_W - 1);
+    const py = clamp(Math.floor(y), 0, PAGE_H - 1);
+
+    // 1. Live actor pixel hit (front-most rendered sprite wins, matching composite shader)
+    const live = this.liveActorRegionAt(px, py);
+    if (live.actor !== null) {
+      if (live.id >= 1 && live.id <= 254 && this.colourable(live.id) && !this.bloomed[live.id]) {
+        return live;
+      }
+      if (!live.actor.awake) {
+        const nearLive = this.snapLiveUnbloomed(px, py, 25);
+        if (nearLive) return nearLive;
+      }
+      if (allowBloomed && live.id >= 1 && live.id <= 254 && this.colourable(live.id)) {
+        return live;
+      }
+    }
+
+    // 2. Static visible page pixel hit
+    const rid = this.visibleStaticRegionAt(px, py);
+    if (rid >= 1 && rid <= 254 && this.colourable(rid)) {
+      if (!this.bloomed[rid]) {
+        return { id: rid, actor: this.findLiveActorForRegion(rid) };
+      }
+      // Clicking an already-bloomed quest part right beside an uncolored sibling (e.g. Nova's spots/tail) gently assists!
+      if (this.sprites !== null) {
+        const sib = this.snapSiblingUnbloomed(px, py, rid);
+        if (sib) return sib;
+      }
+      if (allowBloomed) {
+        return { id: rid, actor: this.findLiveActorForRegion(rid) };
+      }
+      return { id: 0, actor: null };
+    }
+
+    // 3. Ink (0): snap to nearest live unbloomed part, then nearest static unbloomed, then any static colourable
+    if (rid === 0) {
+      const nearLive = this.snapLiveUnbloomed(px, py, 25);
+      if (nearLive) return nearLive;
+      const unb = this.snapToNearby(x, y, true);
+      if (unb > 0) return { id: unb, actor: this.findLiveActorForRegion(unb) };
+      if (allowBloomed) {
+        const any = this.snapToNearby(x, y, false);
+        if (any > 0) return { id: any, actor: this.findLiveActorForRegion(any) };
+      }
+      return { id: 0, actor: null };
+    }
+
+    // 4. Close Sky (255) in Enchanted Pencil mode: forgiving snap onto thin tails, horns, stars & comets
+    if (rid === 255) {
+      const nearLive = this.snapLiveUnbloomed(px, py, 25);
+      if (nearLive) return nearLive;
+      const unb = this.snapToNearby(x, y, true);
+      if (unb > 0) return { id: unb, actor: this.findLiveActorForRegion(unb) };
+    }
+
+    return { id: 0, actor: null };
   }
 
   private newGesture(e: GestureEvent, mode: Gesture['mode'], lock: number): Gesture {
@@ -1102,6 +1355,8 @@ export class Simulation implements SimulationPort, ActorHost {
       allowKey: '',
       nbr: null,
       sponge: brush === 'supernovaSponge',
+      liveActor: null,
+      liveBbox: null,
       lastX: e.x,
       lastY: e.y,
       carry: 0,
@@ -1140,8 +1395,11 @@ export class Simulation implements SimulationPort, ActorHost {
         return;
       }
     }
+    const px = clamp(Math.floor(x), 0, PAGE_W - 1);
+    const py = clamp(Math.floor(y), 0, PAGE_H - 1);
     const rid = this.regionAt(x, y);
-    const actor = this.actors!.hit(x, y, rid, this.tool.doodle);
+    const liveHit = this.liveActorRegionAt(px, py);
+    const actor = this.actors!.hit(x, y, liveHit.id !== 255 ? liveHit.id : rid, this.tool.doodle);
     if (actor) {
       this.actors!.poke(actor);
       this.g = this.newGesture(e, 'poke', 0);
@@ -1154,16 +1412,30 @@ export class Simulation implements SimulationPort, ActorHost {
 
     let mode: Gesture['mode'] = 'none';
     let lock = 0;
-    if (rid === 0) {
-      lock = this.snapToNearby(x, y);
-      if (lock > 0) mode = 'paint';
-    } else if (rid === 255) {
-      if (this.tool.doodle) mode = 'doodle';
-    } else if (this.colourable(rid)) {
-      lock = rid;
-      mode = 'paint';
+    let liveActor: ActorRT | null = null;
+    if (this.tool.doodle) {
+      if (rid === 0) {
+        lock = this.snapToNearby(x, y);
+        if (lock > 0) mode = 'paint';
+      } else if (rid === 255) {
+        mode = 'doodle';
+      } else if (this.colourable(rid)) {
+        lock = rid;
+        mode = 'paint';
+      }
+    } else {
+      const target = this.resolvePaintTarget(x, y, true);
+      if (target.id > 0) {
+        lock = target.id;
+        mode = 'paint';
+        liveActor = target.actor?.view.live ? target.actor : null;
+      }
     }
     const g = this.newGesture(e, mode, lock);
+    if (mode === 'paint' && liveActor) {
+      g.liveActor = liveActor;
+      g.liveBbox = this.computeLiveRegionBbox(liveActor, lock);
+    }
     this.g = g;
     if (mode === 'none') return;
 
@@ -1252,17 +1524,39 @@ export class Simulation implements SimulationPort, ActorHost {
 
   private stamp(g: Gesture, x: number, y: number, dx: number, dy: number): void {
     const cov = this.cov!;
-    const s: GpuStamp = { x, y, radius: g.radius, materialId: g.mat, dx, dy, strength: 1 };
     if (g.mode === 'doodle') {
-      this.pushStamp(g.allowKey, g.allowIds, s);
+      this.pushStamp(g.allowKey, g.allowIds, { x, y, radius: g.radius, materialId: g.mat, dx, dy, strength: 1 });
       return;
     }
+    let sx = x;
+    let sy = y;
+    let effR = g.radius;
+    let nearLiveTarget = false;
+    if (g.liveActor && g.liveActor.view.live && g.liveBbox) {
+      const lb = g.liveBbox;
+      const margin = g.radius + 12;
+      if (x >= lb.x0 - margin && x <= lb.x1 + margin && y >= lb.y0 - margin && y <= lb.y1 + margin) {
+        nearLiveTarget = true;
+        const sb = this.bbox(g.lock);
+        const lw = Math.max(1, lb.x1 - lb.x0);
+        const lh = Math.max(1, lb.y1 - lb.y0);
+        const sw = Math.max(1, sb.x1 - sb.x0);
+        const sh = Math.max(1, sb.y1 - sb.y0);
+        sx = sb.x0 + clamp((x - lb.x0) / lw, 0, 1) * sw;
+        sy = sb.y0 + clamp((y - lb.y0) / lh, 0, 1) * sh;
+        effR = Math.max(effR, LIVE_ACTOR_MIN_RADIUS);
+      }
+    } else if (this.sprites !== null && cov.total[g.lock]! > 0 && cov.total[g.lock]! <= SMALL_REGION_PX) {
+      effR = Math.max(effR, SMALL_REGION_RADIUS);
+    }
+
+    const s: GpuStamp = { x: sx, y: sy, radius: effR, materialId: g.mat, dx, dy, strength: 1 };
     let allow = g.allow;
     let ids = g.allowIds;
     let key = g.allowKey;
     if (g.sponge) {
       const reach = new Uint8Array(256);
-      cov.idsInDisc(x, y, g.radius, reach);
+      cov.idsInDisc(sx, sy, effR, reach);
       allow = new Uint8Array(256);
       allow[g.lock] = 1;
       ids = [g.lock];
@@ -1274,15 +1568,32 @@ export class Simulation implements SimulationPort, ActorHost {
       }
       key = `s${ids.join(',')}`;
     }
-    cov.stampDisc(x, y, g.radius, g.mat, allow, g.nbr);
+    const paintedBefore = cov.painted[g.lock]!;
+    cov.stampDisc(sx, sy, effR, g.mat, allow, g.nbr);
     this.pushStamp(key, ids, s);
+
+    // Guarantee responsive coverage when brushing across scattered live actor parts (e.g. Nova's spots or raised tail)
+    if (nearLiveTarget && !this.bloomed[g.lock] && cov.painted[g.lock]! === paintedBefore) {
+      const res = cov.fillUnpaintedFraction(g.lock, sx, sy, g.mat, 0.25);
+      if (res.newlyPainted > 0) {
+        this.pushStamp(key, [g.lock], {
+          x: res.x,
+          y: res.y,
+          radius: res.radius,
+          materialId: g.mat,
+          dx,
+          dy,
+          strength: 1,
+        });
+      }
+    }
 
     // Sprint 2 Active Magical Brush behaviors (all respect Smart Touch-Lock!)
     if (g.brush === 'cometMeteor') {
       if (dx !== 0 || dy !== 0) {
-        const fx = clamp(x + dx * g.radius * 1.15, 0, PAGE_W - 1);
-        const fy = clamp(y + dy * g.radius * 1.15, 0, PAGE_H - 1);
-        const fr = g.radius * 0.7;
+        const fx = clamp(sx + dx * effR * 1.15, 0, PAGE_W - 1);
+        const fy = clamp(sy + dy * effR * 1.15, 0, PAGE_H - 1);
+        const fr = effR * 0.7;
         cov.stampDisc(fx, fy, fr, g.mat, allow, null);
         this.pushStamp(key, ids, { x: fx, y: fy, radius: fr, materialId: g.mat, dx, dy, strength: 1 });
         if (g.speed >= 0.25 && g.fxAccum >= 14) {
@@ -1297,9 +1608,9 @@ export class Simulation implements SimulationPort, ActorHost {
       }
     } else if (g.brush === 'prismRoller') {
       const c = this.centroid(g.lock);
-      const mx = clamp(2 * c.x - x, 0, PAGE_W - 1);
-      const my = clamp(2 * c.y - y, 0, PAGE_H - 1);
-      const mr = g.radius * 0.65;
+      const mx = clamp(2 * c.x - sx, 0, PAGE_W - 1);
+      const my = clamp(2 * c.y - sy, 0, PAGE_H - 1);
+      const mr = effR * 0.65;
       cov.stampDisc(mx, my, mr, g.mat, allow, null);
       this.pushStamp(key, ids, { x: mx, y: my, radius: mr, materialId: g.mat, dx: -dx, dy: -dy, strength: 1 });
     } else if (g.brush === 'starlightBubble') {
@@ -1325,7 +1636,7 @@ export class Simulation implements SimulationPort, ActorHost {
       this.regionPercent(g.lock) > LIGHTNING_TRIGGER_PCT
     ) {
       this.lightningZapped[g.lock] = 1;
-      const res = cov.fillUnpaintedFraction(g.lock, x, y, g.mat, LIGHTNING_FILL_FRACTION);
+      const res = cov.fillUnpaintedFraction(g.lock, sx, sy, g.mat, LIGHTNING_FILL_FRACTION);
       if (res.newlyPainted > 0) {
         this.pushStamp(`z${g.lock}`, [g.lock], {
           x: res.x,
@@ -2028,6 +2339,7 @@ export class Simulation implements SimulationPort, ActorHost {
     const bloomB = bl ? (this.bloomT[id]! >= RIPPLE_MS ? 255 : Math.floor((255 * this.bloomT[id]!) / RIPPLE_MS)) : 0;
     let flags = 0;
     if (bl) flags |= REGION_FLAG.complete;
+    if (!bl && this.questTarget[id]) flags |= REGION_FLAG.questTarget;
     if (this.ghostRevealed[id]) flags |= REGION_FLAG.ghostRevealed;
     const st = this.stageOf[id]!;
     if ((!bl && st >= 1 && st <= 3) || this.forcedWiggle[id] || (!bl && this.nudgeWiggleMs[id]! > 0)) flags |= REGION_FLAG.wiggle;
@@ -2035,6 +2347,7 @@ export class Simulation implements SimulationPort, ActorHost {
     if (id >= GHOST_MIN && id <= GHOST_MAX && !this.ghostRevealed[id]) flags |= REGION_FLAG.hidden;
     if (!bl && (this.spotlight[id] || this.idleGlow[id] || this.stalledGlow[id])) flags |= REGION_FLAG.guideGlow;
     if (!bl && this.spotlight[id]) flags |= REGION_FLAG.spotlight;
+    const questPrio = !bl && this.questUrgent[id] ? 2 : !bl && this.questTarget[id] ? 1 : 0;
     const o = id * 4;
     const o1 = REGION_STATE_ROW1_OFFSET + id * 4;
     const ox = clamp(Math.round((this.originX[id]! * 255) / PAGE_W), 0, 255);
@@ -2047,6 +2360,7 @@ export class Simulation implements SimulationPort, ActorHost {
       [o1, ox],
       [o1 + 1, oy],
       [o1 + 2, bl ? 4 : st],
+      [o1 + 3, questPrio],
     ];
     for (const [i, v] of vals) {
       if (rs[i] !== v) {
@@ -2060,10 +2374,7 @@ export class Simulation implements SimulationPort, ActorHost {
     if (!this.page || !this.cov || this.ctx.viewOnly || this.tool.doodle) return 0;
     const pt = this.brushPt ?? this.hoverPt;
     if (!pt) return 0;
-    let id = this.regionAt(pt.x, pt.y);
-    if (id === 0) id = this.snapToNearby(pt.x, pt.y);
-    if (id >= 1 && id <= 254 && this.colourable(id) && !this.bloomed[id]) return id;
-    return 0;
+    return this.resolvePaintTarget(pt.x, pt.y, false).id;
   }
 
   private computeWandGlow(): { x: number; y: number; r: number } | null {
@@ -2214,6 +2525,8 @@ export class Simulation implements SimulationPort, ActorHost {
     this.spotlight.fill(0);
     this.idleGlow.fill(0);
     this.stalledGlow.fill(0);
+    this.questTarget.fill(0);
+    this.questUrgent.fill(0);
     this.lightningZapped.fill(0);
     this.nudgeWiggleMs.fill(0);
     this.finale.reset();
@@ -2291,6 +2604,26 @@ export class Simulation implements SimulationPort, ActorHost {
   qaStrokePath(regionId: number): { x: number; y: number }[] {
     const cov = this.cov;
     if (!cov || regionId <= 0 || regionId > 255 || cov.total[regionId]! === 0) return [];
+    const liveActor = this.findLiveActorForRegion(regionId);
+    if (liveActor && this.sprites) {
+      const lb = this.computeLiveRegionBbox(liveActor, regionId);
+      if (lb) {
+        const lpts: { x: number; y: number }[] = [];
+        let right = true;
+        for (let y = lb.y0 + Math.min(2, (lb.y1 - lb.y0) >> 1); y <= lb.y1; y += 4) {
+          let row: number[] = [];
+          for (let x = lb.x0; x <= lb.x1; x += 4) if (this.sampleLiveActor(liveActor, x, y) === regionId) row.push(x);
+          if (row.length === 0) {
+            for (let x = lb.x0; x <= lb.x1; x++) if (this.sampleLiveActor(liveActor, x, y) === regionId) row.push(x);
+            if (row.length > 2) row = [row[0]!, row[row.length - 1]!];
+          }
+          if (!right) row.reverse();
+          for (const x of row) lpts.push({ x: x + 0.5, y: y + 0.5 });
+          right = !right;
+        }
+        if (lpts.length > 0) return lpts;
+      }
+    }
     const x0 = cov.bx0[regionId]!;
     const x1 = cov.bx1[regionId]!;
     const y0 = cov.by0[regionId]!;

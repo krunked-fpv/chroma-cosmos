@@ -112,10 +112,11 @@ export const REGION_STATE_H = 2;
 export const REGION_STATE_BYTES = 2048;
 /**
  * Row 0, offset id*4: R materialId (0 none), G coverage 0..255, B bloom progress 0..255, A flags.
- * Row 1, offset 1024 + id*4: R originX*255/480, G originY*255/270, B stage 0..4, A reserved.
+ * Row 1, offset 1024 + id*4: R originX*255/480, G originY*255/270, B stage 0..4, A questPriority (0 none, 1 target, 2 active-quest part).
  */
 export const REGION_FLAG = {
   complete: 1,
+  questTarget: 2,
   ghostRevealed: 4,
   wiggle: 8,
   flash: 16,

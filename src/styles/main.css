@@ -636,10 +636,10 @@ button,
 
 /* ---------- 4. Top-Right: Frosted Glass Settings/Menu Pill + Compact Popover ---------- */
 .cc-corner-right {
-  position: absolute;
-  top: 6px;
-  right: 12px;
-  z-index: 22;
+  position: fixed;
+  top: clamp(8px, 1dvh, 12px);
+  right: clamp(20px, 2vw, 30px);
+  z-index: 32;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -713,24 +713,28 @@ button,
 }
 
 .cc-settings-popover {
-  min-width: 158px;
-  padding: 6px;
-  border-radius: 16px;
-  background: var(--enamel-glass-strong);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--gold-line);
-  box-shadow: 0 14px 32px rgba(4, 3, 18, 0.68);
+  min-width: 186px;
+  padding: 7px;
+  border-radius: 18px;
+  background: linear-gradient(165deg, #211946 0%, #130f2c 100%);
+  border: 1px solid rgba(234, 196, 111, 0.65);
+  box-shadow: 0 18px 40px rgba(4, 3, 18, 0.82), inset 0 1px 0 rgba(255, 246, 214, 0.18);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+}
+
+.cc-popover-sep {
+  height: 1px;
+  margin: 2px 6px;
+  background: linear-gradient(90deg, transparent, rgba(234, 196, 111, 0.42), transparent);
 }
 
 .cc-popover-item {
   width: 100%;
   min-height: var(--hit);
   padding: 8px 14px;
-  border-radius: 12px;
+  border-radius: 13px;
   border: 1px solid rgba(234, 196, 111, 0.24);
   background: rgba(37, 27, 75, 0.72);
   color: var(--ivory-text);
@@ -744,6 +748,17 @@ button,
 .cc-popover-item:hover {
   border-color: var(--gold);
   background: rgba(56, 42, 108, 0.92);
+  transform: translateY(-1px);
+}
+
+.cc-skip-page-btn {
+  border-color: rgba(182, 156, 255, 0.26);
+  background: rgba(27, 20, 56, 0.74);
+  color: var(--ivory-muted);
+}
+
+.cc-skip-page-btn:hover {
+  color: var(--ivory-text);
 }
 
 .cc-popover-item-inner {
@@ -761,19 +776,41 @@ button,
 /* ---------- 5. Right Margin: Firefly Hint Lantern & Tethered Cloisonne Story Medallions ---------- */
 .cc-quest-rail {
   position: fixed;
-  top: clamp(86px, 11.4dvh, 96px);
+  top: clamp(78px, 10.4dvh, 88px);
   right: clamp(10px, 1.1vw, 18px);
   z-index: 18;
   width: clamp(100px, 8.2vw, 114px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   pointer-events: none;
 }
 
 .cc-quest-rail > * {
   pointer-events: auto;
+}
+
+.cc-lantern-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.cc-lantern-label {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(19, 16, 42, 0.86);
+  border: 1px solid rgba(234, 196, 111, 0.45);
+  color: var(--gold-hi);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 .cc-hint-lantern {
@@ -1336,6 +1373,16 @@ button,
   box-shadow: 0 0 16px 2px rgba(234, 196, 111, 0.65);
 }
 
+.cc-tool-pencil.is-on.is-brush-active {
+  transform: translateY(-2px);
+}
+
+.cc-tool-pencil.is-on.is-brush-active::before {
+  background: rgba(37, 27, 75, 0.82);
+  border-color: rgba(234, 196, 111, 0.48);
+  box-shadow: 0 0 8px rgba(234, 196, 111, 0.25);
+}
+
 .cc-tool-wand.is-on::before {
   background: radial-gradient(circle at 40% 30%, rgba(182, 156, 255, 0.55), rgba(40, 29, 84, 0.94) 78%);
   border-color: var(--aurora);
@@ -1467,6 +1514,45 @@ button,
 }
 
 /* ---------- 9. Violet's Stargazer Hub (Midnight Velvet & Burnished Gold Cloisonne) ---------- */
+.cc-hub-crest {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(35, 25, 72, 0.9) 0%, rgba(19, 16, 42, 0.92) 100%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(234, 196, 111, 0.62);
+  box-shadow:
+    0 8px 22px rgba(6, 5, 22, 0.46),
+    0 0 18px rgba(234, 196, 111, 0.2),
+    inset 0 1px 0 rgba(255, 246, 214, 0.2);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cc-hub-crest-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(14px, 2vmin, 18px);
+  letter-spacing: 0.01em;
+  color: var(--gold-hi);
+  text-shadow: 0 1px 8px rgba(234, 196, 111, 0.35);
+}
+
+.cc-hub-crest-star {
+  width: 18px;
+  height: 18px;
+  animation: cc-twinkle 2.8s ease-in-out infinite;
+}
+
 .cc-voyage-ribbon {
   position: absolute;
   left: clamp(28px, 3vw, 44px);
@@ -1481,7 +1567,7 @@ button,
   min-height: calc(var(--hit) + 4px);
   padding: 6px 24px 6px 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(40, 29, 86, 0.94) 0%, rgba(19, 16, 42, 0.96) 100%);
+  background: linear-gradient(135deg, rgba(46, 33, 98, 0.96) 0%, rgba(22, 17, 50, 0.98) 100%);
   border: 1px solid var(--gold);
   color: var(--gold-hi);
   font-family: var(--font-display);
@@ -1489,15 +1575,15 @@ button,
   font-size: clamp(16px, 2.3vmin, 21px);
   letter-spacing: -0.01em;
   box-shadow:
-    0 8px 24px rgba(6, 5, 22, 0.52),
-    0 0 18px rgba(234, 196, 111, 0.34),
-    inset 0 1px 0 rgba(255, 246, 214, 0.24);
+    0 8px 24px rgba(6, 5, 22, 0.54),
+    0 0 20px rgba(234, 196, 111, 0.36),
+    inset 0 1px 0 rgba(255, 246, 214, 0.28);
 }
 
 .cc-voyage-seal:hover {
   transform: translateY(-2px);
   border-color: var(--gold-hi);
-  box-shadow: 0 10px 28px rgba(6, 5, 22, 0.6), 0 0 26px rgba(234, 196, 111, 0.58);
+  box-shadow: 0 10px 28px rgba(6, 5, 22, 0.62), 0 0 28px rgba(234, 196, 111, 0.6);
 }
 
 .cc-voyage-seal:not(.is-secondary) {
@@ -1505,12 +1591,22 @@ button,
 }
 
 .cc-voyage-seal.is-secondary {
-  background: var(--enamel-glass);
-  border-color: var(--gold-line);
-  color: var(--ivory-text);
-  font-family: var(--font-hand);
-  font-weight: 400;
-  font-size: clamp(16px, 2.1vmin, 19px);
+  background: linear-gradient(135deg, rgba(37, 27, 78, 0.92) 0%, rgba(20, 16, 44, 0.95) 100%);
+  border-color: rgba(182, 156, 255, 0.58);
+  color: #efe9ff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(14.5px, 1.95vmin, 17.5px);
+  box-shadow:
+    0 6px 18px rgba(6, 5, 22, 0.44),
+    0 0 12px rgba(182, 156, 255, 0.2),
+    inset 0 1px 0 rgba(235, 225, 255, 0.2);
+}
+
+.cc-voyage-seal.is-secondary:hover {
+  border-color: var(--lilac);
+  color: var(--gold-hi);
+  box-shadow: 0 8px 24px rgba(6, 5, 22, 0.54), 0 0 20px rgba(182, 156, 255, 0.44);
 }
 
 .cc-seal-inner {
@@ -1609,18 +1705,21 @@ button,
 
 .cc-station-gift-dot {
   position: absolute;
-  top: -12px;
-  right: -8px;
-  padding: 2px 7px;
+  top: -10px;
+  right: 10px;
+  z-index: 3;
+  padding: 2px 9px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  background: linear-gradient(135deg, #fff5cc 0%, var(--gold) 100%);
+  border: 1px solid rgba(35, 25, 66, 0.65);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
-  box-shadow: 0 0 12px rgba(234, 196, 111, 0.78);
-  animation: cc-gold-pulse 2s ease-in-out infinite;
+  box-shadow: 0 3px 10px rgba(4, 3, 18, 0.55), 0 0 12px rgba(234, 196, 111, 0.68);
+  animation: cc-gold-pulse 2.4s ease-in-out infinite;
 }
 
 .cc-mini-pans {
@@ -1674,40 +1773,70 @@ button,
 
 .cc-mini-seals {
   display: inline-flex;
-  gap: 2.5px;
+  gap: 3px;
 }
 
 .cc-mini-seal {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: rgba(234, 196, 111, 0.24);
+  border: 1px solid rgba(234, 196, 111, 0.36);
 }
 
 .cc-mini-seal.is-on {
-  background: var(--gold);
-  box-shadow: 0 0 5px var(--gold);
+  background: var(--gold-hi);
+  border-color: var(--gold);
+  box-shadow: 0 0 6px var(--gold);
 }
 
 .cc-mini-spines {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2.5px;
+  gap: 3px;
   height: 28px;
+  padding: 0 3px 2px;
+  border-bottom: 2px solid rgba(234, 196, 111, 0.62);
 }
 
 .cc-mini-spine {
-  width: 10px;
+  width: 11px;
   height: var(--spine-h, 24px);
   border-radius: 2px 2px 0 0;
-  background: var(--spine-bg, #4c2c7a);
-  border: 1px solid rgba(234, 196, 111, 0.55);
+  background: linear-gradient(180deg, var(--spine-bg, #4c2c7a) 0%, #24194a 100%);
+  border: 1px solid rgba(234, 196, 111, 0.72);
   border-bottom: 0;
+  box-shadow: inset 0 2px 0 rgba(255, 244, 210, 0.24);
 }
 
-.cc-mini-spine.is-ghost { opacity: 0.65; }
+.cc-mini-spine.is-ghost { opacity: 0.8; }
 
 .cc-mini-bell { width: 24px; height: 24px; }
+
+.cc-mini-vol-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+}
+
+.cc-mini-vol-bar {
+  width: 4px;
+  border-radius: 999px;
+  background: rgba(234, 196, 111, 0.2);
+  border: 1px solid rgba(234, 196, 111, 0.28);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cc-mini-vol-bar.b1 { height: 7px; }
+.cc-mini-vol-bar.b2 { height: 12px; }
+.cc-mini-vol-bar.b3 { height: 17px; }
+
+.cc-mini-vol-bar.is-on {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  border-color: var(--gold-hi);
+  box-shadow: 0 0 6px rgba(234, 196, 111, 0.65);
+}
 
 .cc-mini-install-pip {
   position: absolute;
@@ -1753,10 +1882,56 @@ button,
 
 .cc-drawer-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex: none;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(234, 196, 111, 0.16);
+}
+
+.cc-drawer-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.cc-drawer-count {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(37, 27, 75, 0.72);
+  border: 1px solid rgba(234, 196, 111, 0.34);
+  color: var(--ivory-muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cc-drawer-gems {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px 5px 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(46, 33, 94, 0.92), rgba(22, 18, 48, 0.95));
+  border: 1px solid var(--gold);
+  box-shadow: 0 4px 12px rgba(4, 3, 18, 0.4), 0 0 12px rgba(234, 196, 111, 0.22);
+  white-space: nowrap;
+}
+
+.cc-drawer-gem-ico {
+  width: 18px;
+  height: 18px;
+}
+
+.cc-drawer-gems-n {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-hi);
 }
 
 .cc-drawer-titles {
@@ -1799,11 +1974,49 @@ button,
   gap: clamp(8px, 1.2vmin, 12px);
 }
 
+/* Custom Midnight-Gold scrollbars for all craft drawer galleries */
+.cc-grid-paintbox,
+.cc-grid-stickers,
+.cc-book-spines {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 196, 111, 0.52) rgba(19, 16, 42, 0.42);
+}
+
+.cc-grid-paintbox::-webkit-scrollbar,
+.cc-grid-stickers::-webkit-scrollbar,
+.cc-book-spines::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cc-grid-paintbox::-webkit-scrollbar-track,
+.cc-grid-stickers::-webkit-scrollbar-track,
+.cc-book-spines::-webkit-scrollbar-track {
+  background: rgba(13, 12, 34, 0.55);
+  border-radius: 999px;
+  margin: 6px 0;
+}
+
+.cc-grid-paintbox::-webkit-scrollbar-thumb,
+.cc-grid-stickers::-webkit-scrollbar-thumb,
+.cc-book-spines::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 242, 194, 0.65), rgba(234, 196, 111, 0.55));
+  border-radius: 999px;
+  border: 2px solid rgba(13, 12, 34, 0.65);
+}
+
+.cc-grid-paintbox::-webkit-scrollbar-thumb:hover,
+.cc-grid-stickers::-webkit-scrollbar-thumb:hover,
+.cc-book-spines::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
 /* Paintbox: 10 Exotic Mediums grid */
 .cc-grid-paintbox {
-  grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
-  padding: 12px;
-  border-radius: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  row-gap: 16px;
+  column-gap: clamp(10px, 1.3vmin, 14px);
+  padding: 18px 14px 14px;
+  border-radius: 18px;
   background: rgba(11, 10, 30, 0.62);
   border: 1px solid var(--gold-line-dim);
   overflow-y: auto;
@@ -1812,86 +2025,146 @@ button,
 
 /* Wardrobe: Live Violet + Lumi + Nova stage + scrollable 14-item gallery */
 .cc-drawer-wardrobe {
-  width: min(94vw, 860px);
+  width: min(94vw, 880px);
 }
 
 .cc-paper-dolls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(8px, 1.2vmin, 14px);
+  gap: clamp(8px, 1.2vmin, 12px);
   flex: none;
 }
 
 .cc-doll-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 8px 8px 6px;
+  justify-content: flex-start;
+  padding: 8px 10px;
   border-radius: 16px;
-  background: radial-gradient(ellipse at 50% 24%, rgba(56, 40, 112, 0.6), rgba(18, 15, 42, 0.92));
+  background: radial-gradient(ellipse at 24% 30%, rgba(58, 42, 116, 0.66), rgba(18, 15, 42, 0.94));
   border: 1px solid var(--gold-line-soft);
+  text-align: left;
+  box-shadow: 0 6px 16px rgba(4, 3, 18, 0.4), inset 0 1px 0 rgba(255, 246, 214, 0.14);
+}
+
+.cc-doll-card-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cc-doll-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold);
+  box-shadow: 0 8px 20px rgba(4, 3, 18, 0.5), 0 0 16px rgba(234, 196, 111, 0.28);
 }
 
 .cc-doll-card.is-dressed {
   border-color: var(--gold);
-  box-shadow: 0 0 18px rgba(234, 196, 111, 0.24);
+  box-shadow: 0 6px 18px rgba(4, 3, 18, 0.42), 0 0 18px rgba(234, 196, 111, 0.26);
 }
 
 .cc-doll-portrait {
-  width: clamp(72px, 10.2dvh, 92px);
-  height: clamp(84px, 11.8dvh, 106px);
-  border-radius: 10px;
+  width: clamp(62px, 8.6dvh, 76px);
+  height: clamp(72px, 10dvh, 88px);
+  flex: none;
+  border-radius: 11px;
   overflow: hidden;
   border: 1px solid var(--gold-line);
   background: #14102d;
+  box-shadow: 0 4px 10px rgba(4, 3, 18, 0.45);
 }
 
 .cc-doll-portrait canvas { width: 100%; height: 100%; }
 
+.cc-doll-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .cc-doll-name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.1;
   color: var(--gold-hi);
+}
+
+.cc-doll-worn-count {
+  font-family: var(--font-hand);
+  font-size: 13.5px;
+  color: var(--ivory-muted);
+  line-height: 1.1;
 }
 
 .cc-doll-badges {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
   min-height: 24px;
+  margin-top: 2px;
+}
+
+.cc-doll-empty-hint {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(234, 196, 111, 0.72);
 }
 
 .cc-doll-sticker-pip {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   padding: 2px;
-  border-radius: 8px;
+  border-radius: 7px;
   background: rgba(26, 20, 54, 0.92);
   border: 1px solid var(--gold-line);
 }
 
-.cc-doll-sticker-pip canvas { width: 100%; height: 100%; border-radius: 5px; }
+.cc-doll-sticker-pip canvas { width: 100%; height: 100%; border-radius: 4px; }
 
 .cc-grid-stickers {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 10px 12px 14px;
-  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 14px 16px;
+  border-radius: 18px;
   background: rgba(11, 10, 30, 0.62);
   border: 1px solid var(--gold-line-dim);
   overflow-y: auto;
   touch-action: pan-y;
 }
 
+.cc-wardrobe-subgrid {
+  display: grid;
+  row-gap: 16px;
+  column-gap: clamp(10px, 1.3vmin, 14px);
+  padding-top: 6px;
+}
+
+.cc-wardrobe-subgrid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cc-wardrobe-subgrid.cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .cc-wardrobe-group-head {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 2px 2px;
+  padding: 2px 2px 0;
+  scroll-margin-top: 10px;
 }
 
 .cc-wardrobe-group-head::after {
@@ -1903,40 +2176,52 @@ button,
 
 .cc-wardrobe-group-title {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--gold-hi);
+}
+
+.cc-wardrobe-group-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(37, 27, 75, 0.8);
+  border: 1px solid rgba(234, 196, 111, 0.3);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ivory-muted);
 }
 
 /* Cloisonne Item Cards (Exotic Mediums & Wardrobe Accessories) */
 .cc-enamel-pan,
 .cc-cloisonne-card {
   position: relative;
-  min-height: 152px;
-  padding: 10px 8px 9px;
+  min-height: 158px;
+  padding: 15px 10px 10px;
   border-radius: 18px;
   border: 1px solid var(--gold-line-soft);
   background: linear-gradient(170deg, rgba(42, 31, 84, 0.88) 0%, rgba(21, 17, 46, 0.96) 100%);
   color: var(--ivory-text);
   box-shadow: 0 8px 18px rgba(4, 3, 18, 0.44), inset 0 1px 0 rgba(255, 246, 214, 0.14);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
+  overflow: visible;
 }
 
 .cc-enamel-pan:hover,
 .cc-cloisonne-card:hover {
   transform: translateY(-3px);
   border-color: var(--gold);
-  box-shadow: 0 10px 24px rgba(4, 3, 18, 0.56), 0 0 18px rgba(234, 196, 111, 0.3);
+  box-shadow: 0 10px 24px rgba(4, 3, 18, 0.56), 0 0 18px rgba(234, 196, 111, 0.32);
 }
 
 .cc-enamel-pan.is-ready,
 .cc-cloisonne-card.is-ready {
-  border-color: var(--gold);
-  box-shadow: 0 8px 20px rgba(4, 3, 18, 0.48), 0 0 18px rgba(234, 196, 111, 0.38);
+  border-color: rgba(234, 196, 111, 0.78);
+  box-shadow: 0 8px 20px rgba(4, 3, 18, 0.48), 0 0 14px rgba(234, 196, 111, 0.26);
 }
 
 .cc-enamel-pan.is-owned,
@@ -1952,18 +2237,25 @@ button,
 }
 
 .cc-ready-badge {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
   display: inline-block;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fff3c4 0%, var(--gold) 100%);
+  background: linear-gradient(135deg, #fff5cc 0%, var(--gold) 100%);
+  border: 1px solid rgba(35, 25, 66, 0.65);
   color: var(--ink);
   font-family: var(--font-ui);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  box-shadow: 0 0 12px rgba(234, 196, 111, 0.72);
-  animation: cc-gold-pulse 2s ease-in-out infinite;
+  box-shadow: 0 3px 10px rgba(4, 3, 18, 0.55), 0 0 10px rgba(234, 196, 111, 0.6);
+  animation: cc-ready-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .cc-pan-well {
@@ -1985,7 +2277,8 @@ button,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  justify-content: space-between;
+  gap: 6px;
   width: 100%;
   min-width: 0;
 }
@@ -2020,6 +2313,10 @@ button,
 .cc-item-art canvas { width: 100%; height: 100%; }
 
 .cc-item-name {
+  min-height: 2.35em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-ui);
   font-size: 12.5px;
   font-weight: 700;
@@ -2077,11 +2374,37 @@ button,
 
 /* Bookshelf Drawer */
 .cc-shelf-molding {
-  padding: 10px 12px;
-  border-radius: 16px;
+  padding: 10px 14px 12px;
+  border-radius: 18px;
   background: rgba(11, 10, 30, 0.68);
   border: 1px solid var(--gold-line-dim);
   flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cc-molding-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cc-molding-title {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.cc-molding-count {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ivory-muted);
 }
 
 .cc-wax-badges {
@@ -2153,17 +2476,33 @@ button,
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 18px;
   background: rgba(11, 10, 30, 0.68);
   border: 1px solid var(--gold-line-dim);
+  border-bottom: 2px solid rgba(234, 196, 111, 0.34);
   overflow-y: auto;
   touch-action: pan-y;
 }
 
 .cc-shelf-empty {
   grid-column: 1 / -1;
-  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 18px auto;
+  max-width: 380px;
   text-align: center;
+}
+
+.cc-shelf-empty-star {
+  width: 28px;
+  height: 28px;
+  animation: cc-twinkle 2.6s ease-in-out infinite;
+}
+
+.cc-shelf-empty-text {
+  margin: 0;
   font-family: var(--font-hand);
   font-size: 19px;
   color: var(--ivory-muted);
@@ -2275,6 +2614,25 @@ button,
   border: 1px solid var(--gold-line-dim);
 }
 
+.cc-trinket-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(24, 19, 52, 0.64);
+  border: 1px solid rgba(234, 196, 111, 0.18);
+}
+
+.cc-trinket-group-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
 .cc-trinket-row {
   display: flex;
   flex-wrap: wrap;
@@ -2289,9 +2647,14 @@ button,
   width: 100%;
   padding: 10px 16px;
   border-radius: 14px;
-  background: rgba(37, 27, 75, 0.85);
+  background: linear-gradient(135deg, rgba(44, 32, 88, 0.9), rgba(26, 20, 56, 0.94));
   border: 1px solid var(--gold-line);
   color: var(--gold-hi);
+}
+
+.cc-trinket-audio:hover {
+  border-color: var(--gold-hi);
+  box-shadow: 0 6px 18px rgba(4, 3, 18, 0.45), 0 0 14px rgba(234, 196, 111, 0.25);
 }
 
 .cc-trinket-audio[data-level="0"] {
@@ -2303,13 +2666,36 @@ button,
 .cc-trinket-audio-inner {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  width: 100%;
 }
 
 .cc-trinket-audio-label {
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
+}
+
+.cc-trinket-audio-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+}
+
+.cc-trinket-audio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(234, 196, 111, 0.2);
+  border: 1px solid rgba(234, 196, 111, 0.35);
+}
+
+.cc-trinket-audio-dot.is-on {
+  background: var(--gold-hi);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(234, 196, 111, 0.72);
 }
 
 .cc-install-wrap {
@@ -2468,6 +2854,7 @@ button,
   display: none;
 }
 
+.cc-root[data-mode="hub"] .cc-hub-crest { display: inline-flex; }
 .cc-root[data-mode="hub"] .cc-voyage-ribbon { display: inline-flex; }
 .cc-root[data-mode="hub"] .cc-desk-stations { display: flex; }
 .cc-root[data-mode="hub"] .cc-book.cc-spread {
@@ -2521,7 +2908,7 @@ button,
 
 /* Softly hush peripheral chrome during Chapter 1 prologue while spotlighting Enchanted Pencil */
 .cc-root[data-prologue="true"] .cc-voyage-spine,
-.cc-root[data-prologue="true"] .cc-corner-right {
+.cc-root[data-prologue="true"] .cc-corner-right:not(.is-menu-open) {
   opacity: 0.62;
 }
 
@@ -2716,8 +3103,14 @@ button,
 .cc-tin-star.s3 { background: var(--aurora); box-shadow: 0 0 10px var(--aurora); }
 
 .cc-tin-hinges {
-  width: 90%;
-  height: 20px;
+  position: relative;
+  width: 96%;
+  height: 22px;
+  margin: -2px 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #271d52 0%, #161134 55%, #23194a 100%);
+  border: 1px solid rgba(234, 196, 111, 0.45);
+  box-shadow: 0 4px 14px rgba(4, 3, 18, 0.6), inset 0 1px 0 rgba(255, 246, 214, 0.16);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2726,7 +3119,7 @@ button,
 }
 
 .cc-tin-hinge {
-  width: 48px;
+  width: 52px;
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--gold-hi), var(--gold));
@@ -2737,7 +3130,7 @@ button,
 .cc-tin-clasp-ico {
   width: 28px;
   height: 28px;
-  filter: drop-shadow(0 0 8px rgba(234, 196, 111, 0.65));
+  filter: drop-shadow(0 0 10px rgba(234, 196, 111, 0.75));
 }
 
 .cc-tin-tray {
@@ -2824,19 +3217,21 @@ button,
 .cc-door-art canvas { width: 100%; height: 100%; }
 
 .cc-card-type {
-  padding: 2px 12px;
+  padding: 3px 12px;
   border-radius: 999px;
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: rgba(35, 25, 66, 0.1);
+  background: rgba(124, 232, 255, 0.22);
+  border: 1px solid rgba(56, 42, 116, 0.28);
   color: var(--ink);
 }
 
 .cc-card.is-relic .cc-card-type {
-  background: rgba(234, 196, 111, 0.34);
+  background: rgba(234, 196, 111, 0.36);
+  border-color: rgba(176, 128, 36, 0.44);
 }
 
 .cc-card-name {
@@ -2844,16 +3239,19 @@ button,
   font-size: clamp(16px, 2.3vmin, 21px);
   font-weight: 700;
   letter-spacing: -0.015em;
-  line-height: 1.1;
+  line-height: 1.12;
   text-align: center;
   color: var(--ink);
 }
 
 .cc-card-desc {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
   font-family: var(--font-ui);
   font-size: clamp(12px, 1.65vmin, 14.5px);
   font-weight: 600;
-  line-height: 1.28;
+  line-height: 1.3;
   text-align: center;
   color: rgba(35, 25, 66, 0.84);
 }
@@ -2911,13 +3309,13 @@ button,
   justify-content: center;
   gap: clamp(16px, 4vmin, 44px);
   width: 100%;
-  margin-top: 10px;
+  margin-top: 22px;
 }
 
 .cc-parchment-arch {
   position: relative;
   min-width: 0;
-  padding: clamp(16px, 2vmin, 22px) clamp(12px, 1.6vmin, 18px) clamp(12px, 1.6vmin, 16px);
+  padding: clamp(22px, 2.8vmin, 28px) clamp(14px, 1.8vmin, 20px) clamp(12px, 1.6vmin, 16px);
   border-radius: 150px 150px 18px 18px;
   border: 1px solid rgba(234, 196, 111, 0.72);
   background:
@@ -2926,12 +3324,13 @@ button,
   box-shadow: 0 14px 32px rgba(4, 3, 18, 0.62), 0 0 24px rgba(234, 196, 111, 0.22);
   display: flex;
   align-items: stretch;
+  overflow: visible;
 }
 
 .cc-parchment-arch:hover {
   transform: translateY(-5px);
   border-color: var(--gold-hi);
-  box-shadow: 0 18px 36px rgba(4, 3, 18, 0.68), 0 0 34px rgba(234, 196, 111, 0.48);
+  box-shadow: 0 18px 36px rgba(4, 3, 18, 0.68), 0 0 36px rgba(234, 196, 111, 0.52);
 }
 
 .cc-door.is-chosen {
@@ -2943,25 +3342,25 @@ button,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(7px, 1vmin, 10px);
+  gap: clamp(8px, 1.1vmin, 11px);
   width: 100%;
 }
 
 .cc-door-keystone {
   position: absolute;
-  top: -28px;
+  top: -17px;
   left: 50%;
   transform: translateX(-50%);
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #3b2c78, #19133a);
-  border: 1px solid var(--gold);
-  box-shadow: 0 0 14px rgba(234, 196, 111, 0.72);
-  z-index: 3;
+  background: radial-gradient(circle at 35% 30%, #443289, #1b1440);
+  border: 1px solid var(--gold-hi);
+  box-shadow: 0 4px 12px rgba(4, 3, 18, 0.6), 0 0 14px rgba(234, 196, 111, 0.78);
+  z-index: 4;
 }
 
-.cc-door-keystone canvas { width: 22px; height: 22px; }
+.cc-door-keystone canvas { width: 20px; height: 20px; }
 
 .cc-door-art {
   display: block;
@@ -3180,8 +3579,26 @@ button,
 }
 
 @media (max-width: 640px) {
-  .cc-grid-stickers {
+  .cc-wardrobe-subgrid.cols-3,
+  .cc-wardrobe-subgrid.cols-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cc-paper-dolls {
+    grid-template-columns: 1fr;
+  }
+
+  .cc-drawer-count {
+    display: none;
+  }
+}
+
+@keyframes cc-ready-shimmer {
+  0%, 100% {
+    box-shadow: 0 3px 10px rgba(4, 3, 18, 0.55), 0 0 9px rgba(234, 196, 111, 0.52);
+  }
+  50% {
+    box-shadow: 0 3px 10px rgba(4, 3, 18, 0.55), 0 0 16px rgba(255, 242, 194, 0.86);
   }
 }
 

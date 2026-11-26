@@ -1,5 +1,5 @@
 /** Simulation contracts: HeroStoryQuest, PageFinaleController, HintRequestState, 20-Item Toybox. */
-import type { ActorKind, AnimName, CompiledPage, HeroQuestId, StoryMilestoneKind, UiSpriteId } from './art';
+import type { ActorKind, AnimName, CompiledPage, HeroQuestId, SpriteLibrary, StoryMilestoneKind, UiSpriteId } from './art';
 import type { CausalityKind } from './causality';
 import type { GestureEvent } from './input';
 import type { MaterialId } from './materials';
@@ -245,7 +245,8 @@ export interface StoryPageSnapshot {
 }
 
 export interface SimulationPort {
-  loadPage(p: CompiledPage, ctx: RunContext): void;
+  loadPage(p: CompiledPage, ctx: RunContext, sprites?: SpriteLibrary): void;
+  setSprites?(sprites: SpriteLibrary): void;
   setTool(t: ToolState): void;
   gesture(e: GestureEvent): void;
   hover(p: { x: number; y: number } | null): void;

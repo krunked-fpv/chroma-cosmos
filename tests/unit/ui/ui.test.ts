@@ -358,12 +358,20 @@ describe('Midnight Cloisonne Storybook Frame & Hi-Bit HUD (UiPort)', () => {
     const ribbon = root.querySelector<HTMLElement>('.cc-auto-turn-ribbon')!;
     expect(ribbon.hidden).toBe(true);
 
-    // Optional Skip Page lives cleanly inside top-right settings popover (hidden by default)
+    // Optional Skip Page, Firefly Hint & Violet's Desk live cleanly inside top-right settings popover (hidden by default)
     const popover = root.querySelector<HTMLElement>('.cc-settings-popover')!;
     const settingsBtn = root.querySelector<HTMLButtonElement>('.cc-settings-btn')!;
     expect(popover.hidden).toBe(true);
     settingsBtn.click();
     expect(popover.hidden).toBe(false);
+    root.querySelector<HTMLButtonElement>('.cc-menu-hint-btn[data-action="menu-hint"]')!.click();
+    expect(cb.onRequestHint).toHaveBeenCalledTimes(1);
+    expect(popover.hidden).toBe(true);
+    settingsBtn.click();
+    root.querySelector<HTMLButtonElement>('.cc-menu-hub-btn[data-action="back-to-hub"]')!.click();
+    expect(cb.onBackToHub).toHaveBeenCalledTimes(1);
+    expect(popover.hidden).toBe(true);
+    settingsBtn.click();
     root.querySelector<HTMLButtonElement>('.cc-skip-page-btn[data-action="skip-page"]')!.click();
     expect(cb.onTurnPage).toHaveBeenCalledWith(true);
     expect(popover.hidden).toBe(true);
@@ -522,11 +530,18 @@ describe('Midnight Cloisonne Storybook Frame & Hi-Bit HUD (UiPort)', () => {
     expect(cb.onSelectToolMode).toHaveBeenCalledWith('wand');
     expect(tagText.textContent).toBe('Sky doodle & poke');
 
-    // Clicking a drafted brush in Wand mode returns to Pencil + selects brush
+    // Clicking a drafted brush in Wand mode returns to Pencil + selects brush (and standard pencil is NOT duplicated in brush group!)
+    expect(root.querySelector('.cc-enamel-dock .cc-brush[data-brush="standard"]')).toBeNull();
     ui.updateHud(sampleHud({ toolMode: 'wand', doodle: true }));
     root.querySelector<HTMLButtonElement>('.cc-enamel-dock .cc-brush[data-brush="cometMeteor"]')!.click();
     expect(cb.onSelectToolMode).toHaveBeenLastCalledWith('pencil');
     expect(cb.onSelectBrush).toHaveBeenCalledWith('cometMeteor');
+
+    // Clicking the main Enchanted Pencil while a drafted brush is active returns cleanly to standard brush
+    ui.updateHud(sampleHud({ toolMode: 'pencil', doodle: false, selectedBrush: 'cometMeteor' }));
+    expect(pencil.classList.contains('is-brush-active')).toBe(true);
+    pencil.click();
+    expect(cb.onSelectBrush).toHaveBeenLastCalledWith('standard');
 
     // Selecting exotic material 17 (Royal Astral Velvet Gold) clamps whisper tag to <= 4 words
     ui.updateHud(sampleHud({ materials: MATERIALS.map((def) => ({ def, unlocked: true })) }));
@@ -583,14 +598,17 @@ describe('Midnight Cloisonne Storybook Frame & Hi-Bit HUD (UiPort)', () => {
     expect(root.querySelector('[role="tablist"]')).toBeNull();
     expect(root.querySelectorAll('[role="tab"]').length).toBe(0);
 
-    // Voyage ribbon
+    // Hub storybook title crest & Voyage ribbon
+    expect(root.querySelector('.cc-hub-crest')?.textContent).toContain("Violet's Living Sketchbook");
     root.querySelector<HTMLButtonElement>('.cc-voyage-seal.cc-continue')!.click();
     expect(cb.onContinueRun).toHaveBeenCalledTimes(1);
     root.querySelector<HTMLButtonElement>('.cc-voyage-seal.cc-play')!.click();
     expect(cb.onStartRun).toHaveBeenCalledTimes(1);
 
-    // 1. Paintbox Drawer -> ALL 10 Exotic Mediums (8..17), affordable ones have "Ready to Unlock!" badge
+    // 1. Paintbox Drawer -> ALL 10 Exotic Mediums (8..17), live crystal balance & counter, affordable "Ready to Unlock!" badge
     root.querySelector<HTMLButtonElement>('.cc-station[data-station="paintbox"]')!.click();
+    expect(root.querySelector('.cc-drawer-paintbox .cc-drawer-gems-n')?.textContent).toBe('25');
+    expect(root.querySelector('.cc-drawer-paintbox .cc-drawer-count')?.textContent).toContain('/ 10');
     const shopItems = root.querySelectorAll<HTMLButtonElement>('.cc-drawer-paintbox .cc-shop-item');
     expect(shopItems.length).toBe(10);
     const mat13 = root.querySelector<HTMLButtonElement>('.cc-shop-item[data-material="13"]')!; // cost 10 <= 25
@@ -602,9 +620,13 @@ describe('Midnight Cloisonne Storybook Frame & Hi-Bit HUD (UiPort)', () => {
     mat13.click();
     expect(cb.onUnlockMaterial).toHaveBeenCalledWith(13);
 
-    // 2. Wardrobe Drawer -> Live Violet + Lumi + Nova stage + ALL 14 Wardrobe Accessories
+    // 2. Wardrobe Drawer -> Live Violet + Lumi + Nova dressing booths, crystal balance, balanced per-character grids & ALL 14 items
     root.querySelector<HTMLButtonElement>('.cc-station[data-station="wardrobe"]')!.click();
+    expect(root.querySelector('.cc-drawer-wardrobe .cc-drawer-gems-n')?.textContent).toBe('25');
     expect(root.querySelectorAll('.cc-drawer-wardrobe .cc-doll-card').length).toBe(3);
+    expect(root.querySelector('.cc-wardrobe-subgrid[data-owner-grid="violet"]')?.classList.contains('cols-3')).toBe(true);
+    expect(root.querySelector('.cc-wardrobe-subgrid[data-owner-grid="lumi"]')?.classList.contains('cols-4')).toBe(true);
+    expect(root.querySelector('.cc-wardrobe-subgrid[data-owner-grid="nova"]')?.classList.contains('cols-4')).toBe(true);
     const wardItems = root.querySelectorAll<HTMLButtonElement>('.cc-drawer-wardrobe .cc-ward-item');
     expect(wardItems.length).toBe(14);
     const headphones = root.querySelector<HTMLButtonElement>('.cc-ward-item[data-wardrobe="violetHeadphones"]')!; // cost 15 <= 25

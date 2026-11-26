@@ -123,11 +123,16 @@ export class Hud {
   private readonly settingsBtn: HTMLButtonElement;
   private readonly settingsIconSlot: HTMLElement;
   private readonly settingsPopover: HTMLElement;
+  private readonly menuHintBtn: HTMLButtonElement;
+  private readonly menuHintIconSlot: HTMLElement;
+  private readonly menuHubBtn: HTMLButtonElement;
+  private readonly menuHubIconSlot: HTMLElement;
   private readonly skipPageBtn: HTMLButtonElement;
   private readonly skipIconSlot: HTMLElement;
 
   private readonly lanternBtn: HTMLButtonElement;
   private readonly lanternIconSlot: HTMLElement;
+  private readonly lanternWrap: HTMLElement;
   private readonly medallionList: HTMLElement;
 
   private readonly relicList: HTMLElement;
@@ -265,6 +270,34 @@ export class Hud {
     this.settingsBtn.setAttribute('aria-haspopup', 'menu');
     this.settingsBtn.setAttribute('aria-expanded', 'false');
 
+    this.menuHintIconSlot = spriteBox('cc-ico cc-skip-ico', placeholderCanvas(22, 22));
+    this.menuHintBtn = button(
+      'cc-popover-item cc-menu-hint-btn',
+      'Firefly Hint',
+      () => {
+        this.setSettingsOpen(false);
+        this.cb?.onUiFoley?.('lanternChime');
+        this.cb?.onRequestHint?.();
+      },
+      h('span', { class: 'cc-popover-item-inner' }, this.menuHintIconSlot, h('span', {}, 'Firefly Hint')),
+    );
+    this.menuHintBtn.setAttribute('role', 'menuitem');
+    this.menuHintBtn.dataset.action = 'menu-hint';
+
+    this.menuHubIconSlot = spriteBox('cc-ico cc-skip-ico', placeholderCanvas(22, 22));
+    this.menuHubBtn = button(
+      'cc-popover-item cc-menu-hub-btn',
+      "Violet's Desk",
+      () => {
+        this.setSettingsOpen(false);
+        this.cb?.onUiFoley?.('paperRustle');
+        this.cb?.onBackToHub();
+      },
+      h('span', { class: 'cc-popover-item-inner' }, this.menuHubIconSlot, h('span', {}, "Violet's Desk")),
+    );
+    this.menuHubBtn.setAttribute('role', 'menuitem');
+    this.menuHubBtn.dataset.action = 'back-to-hub';
+
     this.skipIconSlot = spriteBox('cc-ico cc-skip-ico', placeholderCanvas(22, 22));
     this.skipPageBtn = button(
       'cc-popover-item cc-skip-page-btn',
@@ -282,6 +315,9 @@ export class Hud {
     this.settingsPopover = h(
       'div',
       { class: 'cc-settings-popover', role: 'menu', 'aria-label': 'Sketchbook Menu', hidden: true },
+      this.menuHintBtn,
+      this.menuHubBtn,
+      h('span', { class: 'cc-popover-sep', 'aria-hidden': 'true' }),
       this.skipPageBtn,
     );
 
@@ -306,12 +342,18 @@ export class Hud {
     );
     this.lanternBtn.append(this.lanternIconSlot);
     this.lanternBtn.dataset.action = 'request-hint';
+    this.lanternWrap = h(
+      'div',
+      { class: 'cc-lantern-wrap' },
+      this.lanternBtn,
+      h('span', { class: 'cc-lantern-label', 'aria-hidden': 'true' }, 'Hint'),
+    );
 
     this.medallionList = h('div', { class: 'cc-medallion-list', role: 'group', 'aria-label': 'Story Quest Medallions' });
     this.questRail = h(
       'aside',
       { class: 'cc-quest-rail', 'aria-label': 'Firefly Hint and Story Quests' },
-      this.lanternBtn,
+      this.lanternWrap,
       h('div', { class: 'cc-medallion-track' }, h('span', { class: 'cc-medallion-thread', 'aria-hidden': 'true' }), this.medallionList),
     );
 
@@ -448,6 +490,8 @@ export class Hud {
     cache.mountInto(this.affordableIconSlot, { type: 'uiSprite', id: 'tool_gift' }, 18, 18);
     cache.mountInto(this.audioIconSlot, { type: 'uiSprite', id: AUDIO_SPRITE[this.audioLevel] }, 28, 28);
     cache.mountInto(this.settingsIconSlot, { type: 'uiSprite', id: 'tool_settings' }, 26, 26);
+    cache.mountInto(this.menuHintIconSlot, { type: 'uiSprite', id: 'tool_lantern' }, 22, 22);
+    cache.mountInto(this.menuHubIconSlot, { type: 'uiSprite', id: 'tool_back' }, 22, 22);
     cache.mountInto(this.skipIconSlot, { type: 'uiSprite', id: 'tool_skip' }, 22, 22);
     cache.mountInto(this.lanternIconSlot, { type: 'uiSprite', id: 'tool_lantern' }, 36, 36);
     cache.mountInto(this.finaleRingIconSlot, { type: 'uiSprite', id: 'tool_turn' }, 22, 22);
@@ -683,7 +727,9 @@ export class Hud {
     const toolMode: ToolMode = s.toolMode ?? (s.doodle ? 'wand' : 'pencil');
     const isPencil = toolMode === 'pencil';
     const isWand = toolMode === 'wand';
+    const specialBrushActive = isPencil && s.selectedBrush !== 'standard';
     this.pencilBtn.classList.toggle('is-on', isPencil);
+    this.pencilBtn.classList.toggle('is-brush-active', specialBrushActive);
     this.pencilBtn.setAttribute('aria-pressed', String(isPencil));
     this.pencilBtn.classList.toggle('is-wisp-cue', Boolean(s.wispPencilCue));
 
@@ -706,13 +752,14 @@ export class Hud {
       }
     }
 
-    // Drafted magical brushes in the floating midnight-enamel dock
-    const showBrushes = s.brushes.length > 1;
+    // Drafted magical brushes in the floating midnight-enamel dock (never duplicate standard pencil!)
+    const draftedBrushes = s.brushes.filter((b) => b !== 'standard');
+    const showBrushes = draftedBrushes.length > 0;
     setShown(this.brushGroup, showBrushes);
-    const bsig = s.brushes.join(',');
+    const bsig = draftedBrushes.join(',');
     if (bsig !== this.sig.brushes) {
       this.sig.brushes = bsig;
-      this.buildBrushes(s.brushes);
+      this.buildBrushes(draftedBrushes);
       this.brushGroup.dataset.sel = '';
     }
     this.brushGroup.dataset.sel = s.selectedBrush;
@@ -723,7 +770,6 @@ export class Hud {
     }
 
     // Left-Margin Equipped Brush & Sticker Relic Charm Strip
-    const draftedBrushes = s.brushes.filter((b) => b !== 'standard');
     const stripSig = `${draftedBrushes.join(',')}|${s.relics.join(',')}`;
     if (stripSig !== this.sig.strip) {
       const prevRelics = new Set((prev?.relics ?? []));
@@ -775,6 +821,7 @@ export class Hud {
     this.settingsOpen = open;
     this.settingsBtn.setAttribute('aria-expanded', String(open));
     this.settingsBtn.classList.toggle('is-open', open);
+    this.cornerRight.classList.toggle('is-menu-open', open);
     setShown(this.settingsPopover, open);
     if (open) boing(this.settingsPopover, 'appear');
   }
@@ -807,6 +854,9 @@ export class Hud {
       this.cb.onSelectToolMode(mode);
     } else if (cur !== mode) {
       this.cb?.onToggleDoodle();
+    }
+    if (mode === 'pencil' && this.last && this.last.selectedBrush !== 'standard') {
+      this.cb?.onSelectBrush('standard');
     }
     this.showToolTag(mode === 'pencil' ? 'Color shapes to wake' : 'Sky doodle & poke');
   }

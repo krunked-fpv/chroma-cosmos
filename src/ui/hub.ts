@@ -81,6 +81,7 @@ export function computeHubAffordable(s: HubState): {
 }
 
 export class HubPanel {
+  readonly crestEl: HTMLElement;
   readonly voyageEl: HTMLElement;
   readonly stationsEl: HTMLElement;
   readonly drawerLayer: HTMLElement;
@@ -95,6 +96,8 @@ export class HubPanel {
   private audioLevel: AudioLevel = 3;
   private readonly sig = { play: '__init__', mediums: '__init__', wardrobe: '__init__', badges: '__init__', books: '__init__' };
 
+  private readonly crestStarL: HTMLElement;
+  private readonly crestStarR: HTMLElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly playSealSlot: HTMLElement;
   private readonly playLabel = h('span', { class: 'cc-seal-label' }, 'Begin Voyage');
@@ -105,6 +108,9 @@ export class HubPanel {
   private readonly stationIconSlots = new Map<CraftStationId, HTMLElement>();
   private readonly drawers = new Map<CraftStationId, HTMLElement>();
   private readonly closeIconSlots: HTMLElement[] = [];
+  private readonly drawerGemSlots: HTMLElement[] = [];
+  private readonly drawerGemTexts: HTMLElement[] = [];
+  private readonly drawerCountEls = new Map<CraftStationId, HTMLElement>();
 
   // Live desk previews on the 4 Midnight Cloisonne stations
   private readonly paintboxPreview: HTMLElement;
@@ -114,6 +120,7 @@ export class HubPanel {
   private readonly bookshelfSpinesPreview: HTMLElement;
   private readonly bookshelfSealsPreview: HTMLElement;
   private readonly trinketsBellPreview: HTMLElement;
+  private readonly trinketsVolBars: HTMLElement[] = [];
   private readonly trinketsInstallPip: HTMLElement;
   private readonly trinketsInstallStarSlot: HTMLElement;
 
@@ -122,6 +129,7 @@ export class HubPanel {
   private readonly wardrobeCast: HTMLElement;
   private readonly wardrobeGrid: HTMLElement;
   private readonly badgesMolding: HTMLElement;
+  private readonly badgesCountText: HTMLElement;
   private readonly shelf: HTMLElement;
   private readonly shelfPrev: HTMLButtonElement;
   private readonly shelfPrevIconSlot: HTMLElement;
@@ -130,6 +138,7 @@ export class HubPanel {
   private readonly trinketAudioBtn: HTMLButtonElement;
   private readonly trinketAudioIconSlot: HTMLElement;
   private readonly trinketAudioText: HTMLElement;
+  private readonly trinketAudioDots: HTMLElement[] = [];
   private readonly installWrap: HTMLElement;
   private readonly installStarSlot: HTMLElement;
   private readonly installCloseSlot: HTMLElement;
@@ -143,6 +152,17 @@ export class HubPanel {
   };
 
   constructor(install: InstallController) {
+    // ---- Storybook Title Crest perched gently atop the Hub spread
+    this.crestStarL = spriteBox('cc-ico cc-hub-crest-star', placeholderCanvas(18, 18));
+    this.crestStarR = spriteBox('cc-ico cc-hub-crest-star', placeholderCanvas(18, 18));
+    this.crestEl = h(
+      'div',
+      { class: 'cc-hub-crest', 'aria-label': "Violet's Living Sketchbook" },
+      this.crestStarL,
+      h('span', { class: 'cc-hub-crest-title' }, "Violet's Living Sketchbook"),
+      this.crestStarR,
+    );
+
     // ---- Midnight-Gold Cloisonne Voyage Ribbon
     this.continueSealSlot = spriteBox('cc-ico cc-voyage-seal-ico', placeholderCanvas(36, 36));
     this.continueBtn = button(
@@ -179,8 +199,9 @@ export class HubPanel {
       'paintbox',
       'cc-station-paintbox',
       'Exotic Mediums Paintbox',
-      h('span', { class: 'cc-station-craft cc-craft-paintbox' }, pbIcon, this.paintboxPreview, this.paintboxGiftDot),
+      h('span', { class: 'cc-station-craft cc-craft-paintbox' }, pbIcon, this.paintboxPreview),
       'Paintbox',
+      this.paintboxGiftDot,
     );
 
     // ---- Station 2: Stargazer Wardrobe (14 Accessories)
@@ -192,8 +213,9 @@ export class HubPanel {
       'wardrobe',
       'cc-station-wardrobe',
       'Stargazer Wardrobe Gallery',
-      h('span', { class: 'cc-station-craft cc-craft-wardrobe' }, wdIcon, this.wardrobePreview, this.wardrobeGiftDot),
+      h('span', { class: 'cc-station-craft cc-craft-wardrobe' }, wdIcon, this.wardrobePreview),
       'Wardrobe',
+      this.wardrobeGiftDot,
     );
 
     // ---- Station 3: Celestial Bookshelf & Constellation Seals
@@ -218,6 +240,12 @@ export class HubPanel {
     const trIcon = spriteBox('cc-ico cc-station-ico', placeholderCanvas(32, 32));
     this.stationIconSlots.set('trinkets', trIcon);
     this.trinketsBellPreview = spriteBox('cc-ico cc-mini-bell', placeholderCanvas(24, 24));
+    const volBarsWrap = h('span', { class: 'cc-mini-vol-bars', 'aria-hidden': 'true' });
+    for (let i = 1; i <= 3; i++) {
+      const bar = h('span', { class: `cc-mini-vol-bar b${i} is-on` });
+      this.trinketsVolBars.push(bar);
+      volBarsWrap.append(bar);
+    }
     this.trinketsInstallStarSlot = spriteBox('cc-ico', placeholderCanvas(18, 18));
     this.trinketsInstallPip = h(
       'span',
@@ -228,7 +256,7 @@ export class HubPanel {
       'trinkets',
       'cc-station-trinkets',
       'Astrolabe Trinket Dish',
-      h('span', { class: 'cc-station-craft cc-craft-trinkets' }, trIcon, this.trinketsBellPreview, this.trinketsInstallPip),
+      h('span', { class: 'cc-station-craft cc-craft-trinkets' }, trIcon, this.trinketsBellPreview, volBarsWrap, this.trinketsInstallPip),
       'Trinkets',
     );
 
@@ -248,6 +276,7 @@ export class HubPanel {
       'cc-drawer-paintbox',
       'Exotic Mediums Paintbox',
       'Trade Prism Crystals for luminous shader pigments.',
+      true,
       this.mediumsGrid,
     );
 
@@ -259,11 +288,13 @@ export class HubPanel {
       'cc-drawer-wardrobe',
       'Stargazer Wardrobe',
       'Unlock & dress Violet, Lumi & Nova in cosmic accessories.',
+      true,
       this.wardrobeCast,
       this.wardrobeGrid,
     );
 
     // ---- Drawer 3: Celestial Bookshelf
+    this.badgesCountText = h('span', { class: 'cc-molding-count' }, '0 / 8');
     this.badgesMolding = h('div', { class: 'cc-wax-badges', 'aria-label': 'Constellation Seals' });
     this.shelf = h('div', { class: 'cc-book-spines' });
     this.shelfPrevIconSlot = spriteBox('cc-ico', placeholderCanvas(24, 24));
@@ -275,13 +306,30 @@ export class HubPanel {
       'cc-drawer-bookshelf',
       'Celestial Bookshelf',
       'Constellation seals & bound storybooks from your voyages.',
-      h('div', { class: 'cc-shelf-molding' }, this.badgesMolding),
+      false,
+      h(
+        'div',
+        { class: 'cc-shelf-molding' },
+        h(
+          'div',
+          { class: 'cc-molding-head' },
+          h('span', { class: 'cc-molding-title' }, 'Constellation Seals'),
+          this.badgesCountText,
+        ),
+        this.badgesMolding,
+      ),
       h('div', { class: 'cc-shelf-row' }, this.shelfPrev, this.shelf, this.shelfNext),
     );
 
     // ---- Drawer 4: Astrolabe Trinket Dish
     this.trinketAudioIconSlot = spriteBox('cc-ico cc-trinket-bell-ico', placeholderCanvas(28, 28));
     this.trinketAudioText = h('span', { class: 'cc-trinket-audio-label' }, AUDIO_LABEL[3]);
+    const audioDotsWrap = h('span', { class: 'cc-trinket-audio-dots', 'aria-hidden': 'true' });
+    for (let i = 1; i <= 3; i++) {
+      const d = h('span', { class: 'cc-trinket-audio-dot is-on' });
+      this.trinketAudioDots.push(d);
+      audioDotsWrap.append(d);
+    }
     this.trinketAudioBtn = button(
       'cc-trinket-audio',
       AUDIO_LABEL[3],
@@ -290,7 +338,13 @@ export class HubPanel {
         this.cb?.onUiFoley?.('crystalChime');
         this.cb?.onAudioCycle();
       },
-      h('span', { class: 'cc-trinket-audio-inner' }, this.trinketAudioIconSlot, this.trinketAudioText),
+      h(
+        'span',
+        { class: 'cc-trinket-audio-inner' },
+        this.trinketAudioIconSlot,
+        this.trinketAudioText,
+        audioDotsWrap,
+      ),
     );
     this.trinketAudioBtn.dataset.level = '3';
 
@@ -358,12 +412,23 @@ export class HubPanel {
       'cc-drawer-trinkets',
       'Astrolabe Trinkets',
       'Sound volume, app install & sketchbook backup.',
+      false,
       h(
         'div',
         { class: 'cc-trinket-dish-body' },
-        h('div', { class: 'cc-trinket-row cc-trinket-bell-row' }, this.trinketAudioBtn),
+        h(
+          'div',
+          { class: 'cc-trinket-group' },
+          h('span', { class: 'cc-trinket-group-label' }, 'Music & Chimes'),
+          h('div', { class: 'cc-trinket-row cc-trinket-bell-row' }, this.trinketAudioBtn),
+        ),
         h('div', { class: 'cc-trinket-row cc-trinket-install-row' }, this.installWrap),
-        h('div', { class: 'cc-trinket-row cc-scroll-vault' }, exportBtn, importBtn, this.fileInput),
+        h(
+          'div',
+          { class: 'cc-trinket-group' },
+          h('span', { class: 'cc-trinket-group-label' }, 'Sketchbook Keepsake Vault'),
+          h('div', { class: 'cc-trinket-row cc-scroll-vault' }, exportBtn, importBtn, this.fileInput),
+        ),
       ),
     );
 
@@ -388,6 +453,7 @@ export class HubPanel {
     ariaLabel: string,
     art: HTMLElement,
     caption: string,
+    badge?: HTMLElement,
   ): HTMLButtonElement {
     const b = button(
       `cc-station ${cls}`,
@@ -395,6 +461,7 @@ export class HubPanel {
       () => this.openStation(id),
       h('span', { class: 'cc-station-inner' }, art, h('span', { class: 'cc-station-tag' }, caption)),
     );
+    if (badge) b.append(badge);
     b.dataset.station = id;
     b.dataset.affordable = 'false';
     b.setAttribute('aria-expanded', 'false');
@@ -407,6 +474,7 @@ export class HubPanel {
     cls: string,
     title: string,
     subtitle: string,
+    showGems: boolean,
     ...body: HTMLElement[]
   ): HTMLElement {
     const closeSlot = spriteBox('cc-ico', placeholderCanvas(24, 24));
@@ -417,6 +485,16 @@ export class HubPanel {
       () => this.closeDrawer(),
       closeSlot,
     );
+    const countPill = h('span', { class: 'cc-drawer-count' });
+    this.drawerCountEls.set(id, countPill);
+    const metaItems: HTMLElement[] = [countPill];
+    if (showGems) {
+      const gemSlot = spriteBox('cc-ico cc-drawer-gem-ico', placeholderCanvas(18, 18));
+      const gemText = h('span', { class: 'cc-drawer-gems-n' }, '0');
+      this.drawerGemSlots.push(gemSlot);
+      this.drawerGemTexts.push(gemText);
+      metaItems.push(h('span', { class: 'cc-drawer-gems', 'aria-label': 'Prism Crystals' }, gemSlot, gemText));
+    }
     const panel = h(
       'section',
       {
@@ -431,7 +509,7 @@ export class HubPanel {
         'div',
         { class: 'cc-drawer-head' },
         h('div', { class: 'cc-drawer-titles' }, h('h2', { class: 'cc-drawer-title' }, title), h('p', { class: 'cc-drawer-sub' }, subtitle)),
-        closeBtn,
+        h('div', { class: 'cc-drawer-head-right' }, ...metaItems, closeBtn),
       ),
       ...body,
     );
@@ -448,6 +526,8 @@ export class HubPanel {
   }
 
   private hydrateStaticSprites(cache: IllustrationCache): void {
+    cache.mountInto(this.crestStarL, { type: 'uiSprite', id: 'tool_star' }, 18, 18);
+    cache.mountInto(this.crestStarR, { type: 'uiSprite', id: 'tool_star' }, 18, 18);
     cache.mountInto(this.continueSealSlot, { type: 'uiSprite', id: 'tool_voyage_seal' }, 36, 36);
     cache.mountInto(this.playSealSlot, { type: 'uiSprite', id: 'tool_voyage_seal' }, 36, 36);
     for (const [id, slot] of this.stationIconSlots) {
@@ -455,6 +535,9 @@ export class HubPanel {
     }
     for (const slot of this.closeIconSlots) {
       cache.mountInto(slot, { type: 'uiSprite', id: 'tool_close' }, 24, 24);
+    }
+    for (const slot of this.drawerGemSlots) {
+      cache.mountInto(slot, { type: 'uiSprite', id: 'tool_gem' }, 18, 18);
     }
     cache.mountInto(this.shelfPrevIconSlot, { type: 'uiSprite', id: 'tool_prev' }, 24, 24);
     cache.mountInto(this.shelfNextIconSlot, { type: 'uiSprite', id: 'tool_next' }, 24, 24);
@@ -518,6 +601,10 @@ export class HubPanel {
     this.trinketAudioBtn.setAttribute('aria-label', AUDIO_LABEL[level]);
     this.trinketAudioBtn.title = AUDIO_LABEL[level];
     this.trinketAudioText.textContent = AUDIO_LABEL[level];
+    this.trinketsVolBars.forEach((bar, i) => bar.classList.toggle('is-on', i < level));
+    this.trinketAudioDots.forEach((dot, i) => dot.classList.toggle('is-on', i < level));
+    const trinketCount = this.drawerCountEls.get('trinkets');
+    if (trinketCount) trinketCount.textContent = level === 0 ? 'Quiet' : `Sound ${level}/3`;
     if (this.cache) {
       this.cache.mountInto(this.trinketAudioIconSlot, { type: 'uiSprite', id: spriteId }, 28, 28);
       this.cache.mountInto(this.trinketsBellPreview, { type: 'uiSprite', id: spriteId }, 24, 24);
@@ -527,6 +614,10 @@ export class HubPanel {
   update(s: HubState, force = false): void {
     this.state = s;
     if (s.audioLevel !== undefined) this.setAudio(s.audioLevel);
+    const gemsStr = String(Math.max(0, Math.floor(s.gems)));
+    for (const el of this.drawerGemTexts) {
+      if (el.textContent !== gemsStr) el.textContent = gemsStr;
+    }
 
     const aff = computeHubAffordable(s);
     const pbBtn = this.stationBtns.get('paintbox');
@@ -587,6 +678,9 @@ export class HubPanel {
   private buildMediums(gems: number, unlocked: Set<MaterialId>): void {
     const cache = this.cache!;
     const exotics = MATERIALS.filter((m) => m.tier === 'unlockable');
+    const ownedCount = exotics.filter((m) => unlocked.has(m.id)).length;
+    const pbCount = this.drawerCountEls.get('paintbox');
+    if (pbCount) pbCount.textContent = `${ownedCount} / ${exotics.length} Collected`;
 
     // Live luminous pigment orbs preview on the closed Paintbox station
     clear(this.paintboxPreview);
@@ -647,7 +741,6 @@ export class HubPanel {
         h(
           'span',
           { class: 'cc-item-inner' },
-          readyBadge,
           h(
             'span',
             { class: 'cc-pan-well' },
@@ -663,6 +756,7 @@ export class HubPanel {
           status,
         ),
       );
+      if (readyBadge) b.append(readyBadge);
       b.dataset.material = String(def.id);
       b.dataset.affordable = ready ? 'true' : 'false';
       b.style.setProperty('--pan-a', def.palette[0] ?? '#fff');
@@ -674,6 +768,8 @@ export class HubPanel {
   private buildWardrobe(s: HubState): void {
     const cache = this.cache!;
     const owned = new Set<WardrobeItemId>(s.wardrobeOwned);
+    const wdCount = this.drawerCountEls.get('wardrobe');
+    if (wdCount) wdCount.textContent = `${owned.size} / ${WARDROBE_ITEMS.length} Collected`;
 
     // Closed desk preview: live miniature portraits of Violet, Lumi & Nova
     clear(this.wardrobePreview);
@@ -688,38 +784,65 @@ export class HubPanel {
       );
     }
 
-    // Open close-up drawer: live gilded Midnight Cloisonne cameo portrait stage for Violet, Lumi & Nova
+    // Open close-up drawer: interactive cameo dressing booths for Violet, Lumi & Nova
     clear(this.wardrobeCast);
     for (const ch of CHARACTERS) {
-      const wornItems = WARDROBE_ITEMS.filter((w) => w.owner === ch.id && owned.has(w.id) && s.wardrobe[w.id]);
+      const charItems = WARDROBE_ITEMS.filter((w) => w.owner === ch.id);
+      const wornItems = charItems.filter((w) => owned.has(w.id) && s.wardrobe[w.id]);
       const pips = h(
         'span',
         { class: 'cc-doll-badges' },
-        ...wornItems.map((w) =>
-          h('span', { class: 'cc-doll-sticker-pip', title: w.name }, cache.canvas({ type: 'wardrobe', item: w.id }, 28, 28)),
-        ),
+        ...(wornItems.length > 0
+          ? wornItems.map((w) =>
+              h('span', { class: 'cc-doll-sticker-pip', title: w.name }, cache.canvas({ type: 'wardrobe', item: w.id }, 26, 26)),
+            )
+          : [h('span', { class: 'cc-doll-empty-hint' }, 'Tap to dress up')]),
       );
-      this.wardrobeCast.append(
+      const booth = button(
+        `cc-doll-card${wornItems.length > 0 ? ' is-dressed' : ''}`,
+        `Jump to ${ch.name}'s accessories`,
+        () => {
+          boing(booth, 'press');
+          this.cb?.onUiFoley?.('crystalChime');
+          const sec = this.wardrobeGrid.querySelector<HTMLElement>(`[data-owner-group="${ch.id}"]`);
+          sec?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        },
         h(
-          'div',
-          { class: `cc-doll-card${wornItems.length > 0 ? ' is-dressed' : ''}`, 'data-character': ch.id },
-          h('span', { class: 'cc-doll-portrait' }, cache.canvas({ type: 'portrait', who: ch.id }, 92, 106)),
-          h('span', { class: 'cc-doll-name' }, ch.name),
-          pips,
+          'span',
+          { class: 'cc-doll-card-inner' },
+          h('span', { class: 'cc-doll-portrait' }, cache.canvas({ type: 'portrait', who: ch.id }, 76, 88)),
+          h(
+            'span',
+            { class: 'cc-doll-info' },
+            h('span', { class: 'cc-doll-name' }, ch.name),
+            h(
+              'span',
+              { class: 'cc-doll-worn-count' },
+              wornItems.length > 0 ? `Wearing ${wornItems.length} of ${charItems.length}` : `${charItems.length} charms`,
+            ),
+            pips,
+          ),
         ),
       );
+      booth.dataset.character = ch.id;
+      this.wardrobeCast.append(booth);
     }
 
-    // All 14 Wardrobe Accessories, grouped cleanly by character inside the scrollable gallery
+    // All 14 Wardrobe Accessories, grouped in clean balanced per-character rows (zero orphan holes!)
     clear(this.wardrobeGrid);
     for (const ch of CHARACTERS) {
       const groupItems = WARDROBE_ITEMS.filter((w) => w.owner === ch.id);
+      const groupOwned = groupItems.filter((w) => owned.has(w.id)).length;
       const groupHeader = h(
         'div',
         { class: 'cc-wardrobe-group-head', 'data-owner-group': ch.id },
         h('span', { class: 'cc-wardrobe-group-title' }, `${ch.name}'s Accessories`),
+        h('span', { class: 'cc-wardrobe-group-count' }, `${groupOwned} / ${groupItems.length}`),
       );
-      this.wardrobeGrid.append(groupHeader);
+      const sectionGrid = h('div', {
+        class: `cc-wardrobe-subgrid cols-${groupItems.length === 6 ? 3 : 4}`,
+        'data-owner-grid': ch.id,
+      });
 
       for (const w of groupItems) {
         const own = owned.has(w.id);
@@ -765,23 +888,30 @@ export class HubPanel {
           h(
             'span',
             { class: 'cc-item-inner' },
-            readyBadge,
             h('span', { class: 'cc-item-art cc-sticker-art' }, cache.canvas({ type: 'wardrobe', item: w.id }, 68, 68)),
             h('span', { class: 'cc-item-name' }, w.name),
             status,
           ),
         );
+        if (readyBadge) b.append(readyBadge);
         b.dataset.wardrobe = w.id;
         b.dataset.owner = w.owner;
         b.dataset.affordable = ready ? 'true' : 'false';
         if (own) b.setAttribute('aria-pressed', String(on));
-        this.wardrobeGrid.append(b);
+        sectionGrid.append(b);
       }
+      this.wardrobeGrid.append(groupHeader, sectionGrid);
     }
   }
 
   private buildBadges(earned: Set<BadgeId>): void {
     const cache = this.cache!;
+    this.badgesCountText.textContent = `${earned.size} / ${BADGE_ORDER.length}`;
+    const bsCount = this.drawerCountEls.get('bookshelf');
+    if (bsCount) {
+      const bookCount = this.state?.storybooks.length ?? 0;
+      bsCount.textContent = `${earned.size}/${BADGE_ORDER.length} Seals · ${bookCount} ${bookCount === 1 ? 'Story' : 'Stories'}`;
+    }
     clear(this.bookshelfSealsPreview);
     for (const id of BADGE_ORDER) {
       this.bookshelfSealsPreview.append(h('span', { class: `cc-mini-seal${earned.has(id) ? ' is-on' : ''}` }));
@@ -815,6 +945,11 @@ export class HubPanel {
 
   private buildShelf(books: StorybookSummary[]): void {
     const cache = this.cache!;
+    const bsCount = this.drawerCountEls.get('bookshelf');
+    if (bsCount) {
+      const seals = this.state?.badges.length ?? 0;
+      bsCount.textContent = `${seals}/${BADGE_ORDER.length} Seals · ${books.length} ${books.length === 1 ? 'Story' : 'Stories'}`;
+    }
 
     clear(this.bookshelfSpinesPreview);
     const previewBooks = books.slice(0, 5);
@@ -844,7 +979,12 @@ export class HubPanel {
     clear(this.shelf);
     if (books.length === 0) {
       this.shelf.append(
-        h('p', { class: 'cc-shelf-empty' }, 'Finish a voyage to bind your first starry storybook on this shelf!'),
+        h(
+          'div',
+          { class: 'cc-shelf-empty' },
+          spriteBox('cc-ico cc-shelf-empty-star', cache.sprite('tool_star', 28)),
+          h('p', { class: 'cc-shelf-empty-text' }, 'Finish a voyage to bind your first starry storybook on this shelf!'),
+        ),
       );
     }
     const slice = books.slice(this.shelfPage * BOOKS_PER_PAGE, (this.shelfPage + 1) * BOOKS_PER_PAGE);

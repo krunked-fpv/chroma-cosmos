@@ -199,7 +199,6 @@ export class Modals {
           h(
             'span',
             { class: 'cc-door-inner' },
-            this.sprite('tool_star', 24, 'cc-ico cc-door-keystone'),
             h('span', { class: 'cc-door-art' }, this.art({ type: 'door', chapter: id }, DOOR_ART)),
             h(
               'span',
@@ -209,6 +208,7 @@ export class Modals {
             ),
           ),
         );
+        door.prepend(this.sprite('tool_star', 22, 'cc-ico cc-door-keystone'));
         door.dataset.chapter = id;
         row.append(door);
       }

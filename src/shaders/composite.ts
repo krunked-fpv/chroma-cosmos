@@ -70,6 +70,7 @@ const vec3 BG = ${vec3Hex(BG_HEX)};
 const vec3 GOLD = ${vec3Hex(GOLD_HEX)};
 const vec3 GOLD_WHITE = vec3(1.0, 0.965, 0.78);
 const int FLAG_COMPLETE = ${REGION_FLAG.complete};
+const int FLAG_QUEST_TARGET = ${REGION_FLAG.questTarget};
 const int FLAG_REVEALED = ${REGION_FLAG.ghostRevealed};
 const int FLAG_WIGGLE = ${REGION_FLAG.wiggle};
 const int FLAG_FLASH = ${REGION_FLAG.flash};
@@ -361,6 +362,9 @@ void main() {
       } else {
         col = INK;
         bool selOutDone = false;
+        bool hoverInk = false;
+        bool questInk = false;
+        bool urgentQuestInk = false;
         bool guideInk = false;
         bool spotInk = false;
         int ids4[4] = int[4](nE, nW, nS, nN);
@@ -375,10 +379,29 @@ void main() {
               selOutDone = true;
             }
             if (uClean < 0.5 && !hasFlag(ns0.a, FLAG_COMPLETE)) {
+              if (uToolMode == 0 && uHoverRegion > 0 && nid == uHoverRegion) hoverInk = true;
+              if (hasFlag(ns0.a, FLAG_QUEST_TARGET)) {
+                int nPrio = regionRow1(nid).a;
+                if (nPrio >= 2) urgentQuestInk = true;
+                else questInk = true;
+              }
               if (hasFlag(ns0.a, FLAG_GUIDE_GLOW)) guideInk = true;
               if (uHintDim > 0.001 && hasFlag(ns0.a, FLAG_SPOTLIGHT)) spotInk = true;
             }
           }
+        }
+        if (questInk && !urgentQuestInk && !hoverInk && !guideInk && !spotInk) {
+          float qBreath = 0.5 + 0.5 * sin(uTime * 2.2 + (pp.x + pp.y) * 0.05);
+          col = mix(col, vec3(0.76, 0.58, 0.96), 0.24 + 0.18 * qBreath);
+        }
+        if (urgentQuestInk) {
+          float uWave = 0.5 + 0.5 * sin(uTime * 3.8 + (pp.x + pp.y) * 0.09);
+          float uSpark = smoothstep(0.76, 0.98, hash12(vec2(ip) + floor(uTime * 4.5) * 0.17));
+          col = mix(col, vec3(1.0, 0.88, 0.52), 0.36 + 0.30 * uWave + 0.20 * uSpark);
+        }
+        if (hoverInk) {
+          float hWave = 0.5 + 0.5 * sin(uTime * 4.6 + (pp.x - pp.y) * 0.1);
+          col = mix(col, vec3(1.0, 0.92, 0.58), 0.62 + 0.22 * hWave);
         }
         if (guideInk) {
           float gWave = 0.5 + 0.5 * sin(uTime * 3.2 + (pp.x + pp.y) * 0.08);
@@ -458,7 +481,7 @@ void main() {
 
         if (isActor && paintable) {
           mat = s0.r;
-          a = mat > 0 ? 1.0 : 0.0;
+          a = mat > 0 ? (complete ? 1.0 : mix(0.50, 0.94, float(s0.g) / 255.0)) : 0.0;
         } else {
           int baseSlot = decodeId(texelFetch(uRegionTex, ip, 0).b);
           bool vacatedSlot = !isActor && baseSlot > 0 && (((uLiveSlots >> baseSlot) & 1) == 1);
@@ -492,13 +515,15 @@ void main() {
       }
 
       if (!resolved) {
-        // Enchanted Pencil hover shimmer + idle Starlight Wisp guide + Firefly Hint Spotlight on uncompleted regions
+        // Enchanted Pencil hover shimmer + ambient Hero Quest twinkle + idle Wisp guide + Firefly Hint Spotlight
         bool hoverUncomp = false;
+        bool questUncomp = false;
         bool guideUncomp = false;
         bool spotUncomp = false;
         bool dimUncomp = false;
         if (!isFixedMat && uClean < 0.5 && paintable && !complete) {
           hoverUncomp = (uToolMode == 0 && uHoverRegion > 0 && id == uHoverRegion);
+          questUncomp = hasFlag(s0.a, FLAG_QUEST_TARGET);
           guideUncomp = hasFlag(s0.a, FLAG_GUIDE_GLOW);
           if (uHintDim > 0.001) {
             spotUncomp = hasFlag(s0.a, FLAG_SPOTLIGHT);
@@ -513,11 +538,25 @@ void main() {
         if (dimUncomp) {
           base *= (1.0 - 0.12 * clamp(uHintDim, 0.0, 1.0));
         }
+        if (questUncomp && !dimUncomp) {
+          int qPrio = regionRow1(id).a;
+          if (qPrio >= 2) {
+            float uPulse = 0.5 + 0.5 * sin(uTime * 3.6 + (pp.x * 0.05 + pp.y * 0.04));
+            float uDust = smoothstep(0.84, 0.985, hash12(floor(pp * 0.5) + floor(uTime * 3.5) * 0.29));
+            base = mix(base, vec3(1.0, 0.91, 0.60), 0.22 + 0.18 * uPulse);
+            base = mix(base, GOLD_WHITE, uDust * (0.34 + 0.36 * uPulse));
+          } else {
+            float qBreath = 0.5 + 0.5 * sin(uTime * 2.1 + (pp.x * 0.03 - pp.y * 0.03));
+            float qDust = smoothstep(0.90, 0.992, hash12(floor(pp * 0.5) + floor(uTime * 2.0) * 0.23));
+            base = mix(base, vec3(1.0, 0.94, 0.76), 0.14 + 0.10 * qBreath);
+            base = mix(base, GOLD_WHITE, qDust * (0.28 + 0.28 * qBreath));
+          }
+        }
         if (hoverUncomp) {
           float hBreath = 0.5 + 0.5 * sin(uTime * 3.6 + (pp.x + pp.y) * 0.045);
-          float pulse = 0.14 + 0.14 * hBreath;
+          float pulse = 0.24 + 0.16 * hBreath;
           base = mix(base, vec3(1.0, 0.94, 0.74), pulse);
-          base = mix(base, vec3(1.0, 0.91, 0.62), edge * (0.28 + 0.16 * hBreath));
+          base = mix(base, vec3(1.0, 0.91, 0.62), edge * (0.46 + 0.24 * hBreath));
         }
         if (guideUncomp) {
           float gPulse = 0.5 + 0.5 * sin(uTime * 3.2);

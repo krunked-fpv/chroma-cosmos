@@ -28,6 +28,7 @@ type Task =
   | { type: 'bounce'; fx: EffectRT; phase: 0 | 1; bt: number; bounces: number; baseY: number; amp: number };
 
 const FRAME_MS = 120;
+const COOPERATIVE_RADIUS = 46;
 const FIRST_AWAKE_INVITE_MS = 10000;
 const FIRST_AWAKE_PERK_MS = 800;
 const DRIFTERS: readonly ActorKind[] = ['moonCat', 'comet', 'whale', 'gazelle', 'flower'];
@@ -497,7 +498,12 @@ export class ActorSystem {
         }
       }
       const v = a.view;
-      v.frame = Math.floor((this.simT - a.animStart) / FRAME_MS);
+      if (!a.awake && v.live && !a.mirage) {
+        // Hold steady on frame 0 while unawake so tails/spots/horns never jump out from under the cursor.
+        v.frame = 0;
+      } else {
+        v.frame = Math.floor((this.simT - a.animStart) / FRAME_MS);
+      }
     }
     for (const b of poppedBubbles) this.host.onBubblePop?.(b);
     this.ambient(dtMs);
@@ -704,29 +710,36 @@ export class ActorSystem {
     const v = a.view;
     const hover = this.host.hoverPoint();
     const ptr = this.host.pointer();
+    const ptrDist = ptr !== null ? Math.hypot(ptr.x - a.homeX, ptr.y - a.homeY) : Infinity;
+    const cooperating = ptrDist <= COOPERATIVE_RADIUS;
+
+    // Never flip facing while unawake so tails/spots/manes never dodge away from the cursor.
+    v.facing = a.spawn.facing;
+
     switch (a.kind) {
       case 'nova':
-        this.setAnim(a, a.stage >= 3 ? 'idle' : 'wiggle'); // tail thump
+        this.setAnim(a, 'idle'); // calm steady stand while remaining parts are being colored
         break;
       case 'moonCat': {
         const near = hover !== null && Math.hypot(hover.x - v.x, hover.y - v.y) < 140;
         this.setAnim(a, near ? 'peek' : 'sleep');
-        if (hover) this.face(a, hover.x);
         break;
       }
       default:
-        this.setAnim(a, 'idle'); // ears flick etc.
+        this.setAnim(a, 'idle');
     }
-    if (this.simT < a.perkUntil && (a.kind === 'lumi' || a.kind === 'nova')) {
-      this.setAnim(a, 'wiggle');
-    }
-    // stage 3: lean toward the brush
+    // stage 3: gently lean toward a watching brush from afar, but hold still while being colored up close
     let lx = 0;
     let ly = 0;
-    if (a.stage >= 3 && ptr && Math.hypot(ptr.x - a.homeX, ptr.y - a.homeY) < 220 && (a.kind === 'lumi' || a.kind === 'nova' || a.kind === 'violet')) {
+    if (
+      a.stage >= 3 &&
+      ptr &&
+      !cooperating &&
+      ptrDist < 220 &&
+      (a.kind === 'lumi' || a.kind === 'nova' || a.kind === 'violet')
+    ) {
       lx = clamp((ptr.x - a.homeX) * 0.05, -4, 4);
       ly = clamp((ptr.y - a.homeY) * 0.03, -2, 2);
-      this.face(a, ptr.x);
     }
     const k = Math.min(1, dt / 180);
     v.x += (a.homeX + lx - v.x) * k;
